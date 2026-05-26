@@ -279,7 +279,7 @@ final class TarneebPresentationState {
     }
 
     func dealCards() {
-        guard !isDealing else {
+        guard gameState.phase == .notStarted, !isDealing else {
             return
         }
 

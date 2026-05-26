@@ -334,3 +334,20 @@ The MVP is complete when:
 - The app clearly indicates that the deal is complete.
 - No bidding, Tarneeb suit selection, trick play, scoring, or other gameplay is implemented.
 - Automated tests verify the core dealing requirements.
+
+
+
+## Product feedback
+
+- Hard to tell black cards from red cards
+- Player stations are not positioned correctly
+- East, North, and West stations could be much smaller
+- Hidden cards are too small
+
+## Requirement changes
+
+- Rank and suit for Hearts and Diamonds should be in red
+- Player stations should be positioned in a diamond pattern, with North at the top, West on the left, South at the bottom, and East to the right
+- East, North, and West player stations should be just large enough to contain label and hidden card array.  The hidden cards can be display as a slightly spread stack.
+- Choose an appropriate size for the exposed cards to mimic the dimensions of actual standard playing cards, large enough to be readable but small enough to fit nicely in the player station area.  Make the hidden cards the same size
+
