@@ -254,8 +254,17 @@ struct DealService: Dealing {
 }
 
 enum PresentationAction: String, CaseIterable, Equatable {
-    case dealCards
-    case newDeal
+    case newGame
+    case deal
+
+    var visibleLabel: String {
+        switch self {
+        case .newGame:
+            return "New Game"
+        case .deal:
+            return "Deal"
+        }
+    }
 }
 
 final class TarneebPresentationState {
@@ -265,12 +274,7 @@ final class TarneebPresentationState {
     private(set) var gameState: GameState
 
     var availableActions: [PresentationAction] {
-        switch gameState.phase {
-        case .notStarted:
-            return [.dealCards]
-        case .dealt:
-            return [.newDeal]
-        }
+        [.newGame, .deal]
     }
 
     init(dealService: Dealing = DealService()) {
@@ -278,14 +282,18 @@ final class TarneebPresentationState {
         self.gameState = .initial
     }
 
-    func dealCards() {
-        guard gameState.phase == .notStarted, !isDealing else {
+    func deal() {
+        guard !isDealing else {
             return
         }
 
         isDealing = true
         defer {
             isDealing = false
+        }
+
+        if gameState.phase == .dealt {
+            gameState = .initial
         }
 
         guard let dealtState = dealService.deal() else {
@@ -295,12 +303,11 @@ final class TarneebPresentationState {
         gameState = dealtState
     }
 
-    func newDeal() {
-        guard gameState.phase == .dealt else {
+    func newGame() {
+        guard !isDealing else {
             return
         }
 
         gameState = .initial
-        dealCards()
     }
 }

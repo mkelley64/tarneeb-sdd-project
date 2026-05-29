@@ -1,85 +1,134 @@
-import Foundation
 import SwiftUI
 
 struct ContentView: View {
     @State private var presentationState = TarneebPresentationState()
     @State private var gameState = GameState.initial
+
     private let cardSizeConfiguration = CardSizeConfiguration.sharedBase
+    private let tableTitle = TableTitlePresentation()
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 24) {
-                Text("Tarneeb")
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
-                    .foregroundStyle(GameColorRole.textPrimary.token.swiftUIColor)
-                    .accessibilityIdentifier("tarneeb-title")
-                    .accessibilityValue("text=\(GameColorRole.textPrimary.token.rawValue)")
-
-                if gameState.phase == .dealt {
-                    Text("Deal complete")
-                        .font(.headline)
-                        .foregroundStyle(GameColorRole.textPrimary.token.swiftUIColor)
-                        .accessibilityIdentifier("tarneeb-deal-complete-message")
-                        .accessibilityValue("text=\(GameColorRole.textPrimary.token.rawValue)")
+        GeometryReader { proxy in
+            VStack(spacing: 0) {
+                ScrollView {
+                    tableScene(screenWidth: proxy.size.width)
+                        .frame(maxWidth: .infinity)
+                        .padding(.horizontal, 4)
+                        .padding(.top, 10)
+                        .padding(.bottom, 12)
                 }
 
-                if gameState.phase == .notStarted {
-                    Button("Deal Cards", action: dealCards)
-                        .buttonStyle(TokenButtonStyle(tokens: .deal))
-                        .accessibilityIdentifier("tarneeb-deal-cards-button")
-                        .accessibilityValue(ButtonTokenSet.deal.accessibilityValue)
-                } else {
-                    Button("New Deal", action: newDeal)
-                        .buttonStyle(TokenButtonStyle(tokens: .newDeal))
-                        .accessibilityIdentifier("tarneeb-new-deal-button")
-                        .accessibilityValue(ButtonTokenSet.newDeal.accessibilityValue)
-                }
-
-                playerAreas
+                bottomDealControl
             }
-            .padding()
+            .frame(width: proxy.size.width, height: proxy.size.height)
+            .background(GameColorRole.tableSurface.token.swiftUIColor)
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("tarneeb-table-surface")
             .accessibilityValue("background=\(GameColorRole.tableSurface.token.rawValue)")
         }
-        .background(GameColorRole.tableSurface.token.swiftUIColor)
     }
 
-    private var playerAreas: some View {
-        VStack(spacing: 12) {
-            centeredPlayerArea(for: player(for: .north))
+    private func tableScene(screenWidth: CGFloat) -> some View {
+        let metrics = TableLayoutMetrics(screenWidth: screenWidth)
 
-            HStack(alignment: .center, spacing: 12) {
-                playerArea(for: player(for: .west))
+        return VStack(spacing: metrics.verticalSpacing) {
+            playerStation(for: player(for: .north), metrics: metrics)
 
-                Spacer(minLength: 12)
+            HStack(alignment: .center, spacing: metrics.horizontalSpacing) {
+                playerStation(for: player(for: .west), metrics: metrics)
 
-                playerArea(for: player(for: .east))
+                circularCardTable(metrics: metrics)
+
+                playerStation(for: player(for: .east), metrics: metrics)
             }
 
-            playerArea(for: player(for: .south))
+            playerStation(for: player(for: .south), metrics: metrics)
         }
         .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("tarneeb-diamond-table")
+        .accessibilityIdentifier("tarneeb-table-scene")
         .accessibilityValue(
-            "table=\(GameColorRole.tableSurface.token.rawValue);label=\(GameColorRole.textPrimary.token.rawValue);station=\(GameColorRole.stationOutline.token.rawValue)"
+            "table=\(GameColorRole.tableSurface.token.rawValue);label=\(GameColorRole.textPrimary.token.rawValue);station=\(GameColorRole.stationOutline.token.rawValue);diameter=\(Int(metrics.tableDiameter.rounded()))"
         )
     }
 
-    private func centeredPlayerArea(for player: Player) -> some View {
-        HStack {
-            Spacer(minLength: 0)
-            playerArea(for: player)
-            Spacer(minLength: 0)
+    private func circularCardTable(metrics: TableLayoutMetrics) -> some View {
+        let centralDeckStack = CentralDeckStackPresentation(
+            phase: gameState.phase,
+            sizeConfiguration: cardSizeConfiguration
+        )
+
+        return ZStack {
+            Circle()
+                .fill(GameColorRole.tableSurfaceSecondary.token.swiftUIColor)
+                .overlay(
+                    Circle()
+                        .stroke(GameColorRole.tableHighlight.token.swiftUIColor, lineWidth: 2)
+                )
+
+            tableTitleView()
+
+            if centralDeckStack.isVisible {
+                centralDeckStackView(centralDeckStack)
+                    .offset(y: CGFloat(centralDeckStack.verticalOffset))
+            }
         }
+        .frame(width: metrics.tableDiameter, height: metrics.tableDiameter)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("tarneeb-card-table")
+        .accessibilityValue(
+            "shape=circle;diameter=\(Int(metrics.tableDiameter.rounded()));surface=\(GameColorRole.tableSurfaceSecondary.token.rawValue);highlight=\(GameColorRole.tableHighlight.token.rawValue)"
+        )
     }
 
-    private func playerArea(for player: Player) -> some View {
-        VStack(spacing: 8) {
+    private func tableTitleView() -> some View {
+        Text(tableTitle.text)
+            .font(.system(size: CGFloat(tableTitle.fontPointSize), weight: .bold, design: .rounded))
+            .tracking(tableTitle.tracking)
+            .foregroundStyle(
+                tableTitle.textColorRole.token.swiftUIColor.opacity(tableTitle.textOpacityToken.value)
+            )
+            .shadow(
+                color: tableTitle.shadowColorRole.token.swiftUIColor.opacity(
+                    tableTitle.usesShadow ? tableTitle.shadowOpacityToken.value : 0
+                ),
+                radius: tableTitle.usesShadow ? tableTitle.shadowBlurRadiusToken.value : 0
+            )
+            .minimumScaleFactor(0.72)
+            .lineLimit(1)
+            .accessibilityIdentifier("tarneeb-title")
+            .accessibilityValue(tableTitle.accessibilityValue)
+    }
+
+    private func centralDeckStackView(_ presentation: CentralDeckStackPresentation) -> some View {
+        ZStack(alignment: .leading) {
+            ForEach(presentation.hiddenCards) { hiddenCard in
+                Image(hiddenCard.assetName)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(
+                        width: hiddenCard.sizeConfiguration.baseCardWidth,
+                        height: hiddenCard.sizeConfiguration.baseCardHeight
+                    )
+                    .offset(x: Double(hiddenCard.index) * presentation.stackOffset)
+                    .accessibilityLabel("Deck card back")
+                    .accessibilityIdentifier("tarneeb-deck-stack-card")
+                    .accessibilityValue("asset=card_back;hidden=true;size=\(hiddenCard.sizeConfiguration.category.rawValue)")
+            }
+        }
+        .frame(width: presentation.stackWidth, height: presentation.sizeConfiguration.baseCardHeight)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("tarneeb-central-deck-stack")
+        .accessibilityValue(presentation.accessibilityValue)
+    }
+
+    @ViewBuilder
+    private func playerStation(for player: Player, metrics: TableLayoutMetrics) -> some View {
+        let stationContent = VStack(spacing: 4) {
             Text(player.seat.displayLabel)
                 .font(.headline)
                 .foregroundStyle(GameColorRole.textPrimary.token.swiftUIColor)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
                 .accessibilityIdentifier("tarneeb-seat-\(player.seat.rawValue)")
                 .accessibilityValue("text=\(GameColorRole.textPrimary.token.rawValue)")
 
@@ -91,17 +140,30 @@ struct ContentView: View {
                 }
             }
         }
-        .frame(maxWidth: stationMaxWidth(for: player), minHeight: stationMinHeight(for: player))
-        .padding(8)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(GameColorRole.stationOutline.token.swiftUIColor, lineWidth: 1)
-        )
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("tarneeb-seat-area-\(player.seat.rawValue)")
-        .accessibilityValue(
-            "label=\(GameColorRole.textPrimary.token.rawValue);outline=\(GameColorRole.stationOutline.token.rawValue)"
-        )
+        .padding(4)
+
+        if player.seat == .south && gameState.phase == .dealt {
+            stationContent
+                .frame(maxWidth: metrics.southStationMaxWidth)
+                .frame(minHeight: metrics.southStationMinHeight)
+                .background(
+                    RoundedRectangle(cornerRadius: metrics.stationCornerRadius)
+                        .stroke(GameColorRole.stationOutline.token.swiftUIColor, lineWidth: 1)
+                )
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("tarneeb-seat-area-\(player.seat.rawValue)")
+                .accessibilityValue(stationAccessibilityValue(for: player, metrics: metrics))
+        } else {
+            stationContent
+                .frame(width: metrics.compactStationSide, height: metrics.compactStationSide)
+                .background(
+                    RoundedRectangle(cornerRadius: metrics.stationCornerRadius)
+                        .stroke(GameColorRole.stationOutline.token.swiftUIColor, lineWidth: 1)
+                )
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("tarneeb-seat-area-\(player.seat.rawValue)")
+                .accessibilityValue(stationAccessibilityValue(for: player, metrics: metrics))
+        }
     }
 
     private func visibleHand(for player: Player) -> some View {
@@ -158,15 +220,48 @@ struct ContentView: View {
         .frame(width: presentation.stackWidth, height: presentation.sizeConfiguration.baseCardHeight, alignment: .leading)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("tarneeb-hidden-hand-\(player.seat.rawValue)")
+        .accessibilityValue("count=\(presentation.hiddenCardCount);asset=card_back;hidden=true;size=\(presentation.sizeConfiguration.category.rawValue)")
     }
 
-    private func dealCards() {
-        presentationState.dealCards()
+    private var bottomDealControl: some View {
+        VStack(spacing: 6) {
+            if gameState.phase == .dealt {
+                Text("Deal complete")
+                    .font(.headline)
+                    .foregroundStyle(GameColorRole.textPrimary.token.swiftUIColor)
+                    .accessibilityIdentifier("tarneeb-deal-complete-message")
+                    .accessibilityValue("text=\(GameColorRole.textPrimary.token.rawValue)")
+            }
+
+            HStack(spacing: 10) {
+                Button(PresentationAction.newGame.visibleLabel, action: newGame)
+                    .buttonStyle(TokenButtonStyle(tokens: .newGame))
+                    .accessibilityIdentifier("tarneeb-new-game-button")
+                    .accessibilityValue(ButtonTokenSet.newGame.accessibilityValue)
+
+                Button(PresentationAction.deal.visibleLabel, action: deal)
+                    .buttonStyle(TokenButtonStyle(tokens: .deal))
+                    .accessibilityIdentifier("tarneeb-deal-button")
+                    .accessibilityValue(ButtonTokenSet.deal.accessibilityValue)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 18)
+        .padding(.top, 8)
+        .padding(.bottom, 10)
+        .background(GameColorRole.tableSurface.token.swiftUIColor)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("tarneeb-bottom-deal-control")
+        .accessibilityValue("buttons=New Game,Deal;newGameTokens=\(ButtonTokenSet.newGame.accessibilityValue);dealTokens=\(ButtonTokenSet.deal.accessibilityValue)")
+    }
+
+    private func deal() {
+        presentationState.deal()
         gameState = presentationState.gameState
     }
 
-    private func newDeal() {
-        presentationState.newDeal()
+    private func newGame() {
+        presentationState.newGame()
         gameState = presentationState.gameState
     }
 
@@ -178,20 +273,53 @@ struct ContentView: View {
         return player
     }
 
-    private func stationMaxWidth(for player: Player) -> CGFloat? {
-        player.seat == .south ? nil : 156
+    private func stationAccessibilityValue(for player: Player, metrics: TableLayoutMetrics) -> String {
+        let stateValue = gameState.phase == .dealt ? "dealt" : "notStarted"
+        let shapeValue = player.seat == .south && gameState.phase == .dealt ? "expandedRoundedStation" : "roundedSquare"
+
+        return [
+            "label=\(GameColorRole.textPrimary.token.rawValue)",
+            "outline=\(GameColorRole.stationOutline.token.rawValue)",
+            "shape=\(shapeValue)",
+            "position=\(player.seat.rawValue)",
+            "state=\(stateValue)",
+            "compactSide=\(Int(metrics.compactStationSide.rounded()))"
+        ].joined(separator: ";")
     }
 
-    private func stationMinHeight(for player: Player) -> CGFloat {
-        switch (gameState.phase, player.seat) {
-        case (.dealt, .south):
-            return 170
-        case (.dealt, _):
-            return 96
-        case (.notStarted, _):
-            return 56
-        }
+}
+
+private struct TableLayoutMetrics {
+    let screenWidth: CGFloat
+
+    var tableDiameter: CGFloat {
+        screenWidth * 0.5
     }
+
+    var compactStationSide: CGFloat {
+        min(112, max(86, screenWidth * 0.23))
+    }
+
+    var southStationMaxWidth: CGFloat {
+        max(280, screenWidth - 16)
+    }
+
+    var southStationMinHeight: CGFloat {
+        142
+    }
+
+    var stationCornerRadius: CGFloat {
+        12
+    }
+
+    var horizontalSpacing: CGFloat {
+        6
+    }
+
+    var verticalSpacing: CGFloat {
+        10
+    }
+
 }
 
 private struct TokenButtonStyle: ButtonStyle {
@@ -201,8 +329,9 @@ private struct TokenButtonStyle: ButtonStyle {
         configuration.label
             .font(.headline)
             .foregroundStyle(tokens.text.swiftUIColor)
-            .padding(.horizontal, 18)
+            .padding(.horizontal, 22)
             .padding(.vertical, 12)
+            .frame(maxWidth: .infinity)
             .background(
                 RoundedRectangle(cornerRadius: 14)
                     .fill((configuration.isPressed ? tokens.pressedBackground : tokens.background).swiftUIColor)

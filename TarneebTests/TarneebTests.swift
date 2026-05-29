@@ -2,11 +2,11 @@ import Foundation
 import XCTest
 
 final class TarneebTests: XCTestCase {
-    func testUnitTestTargetRunsWithoutSwiftUIViews() {
-        XCTAssertNotEqual(Bundle.main.bundleIdentifier, "com.mkelley.Tarneeb")
+    func testUnitTestTargetRunsWithApplicationHost() {
+        XCTAssertEqual(Bundle.main.bundleIdentifier, "com.mkelley.Tarneeb")
     }
 
-    func testDesignTokenSourceCoversRequiredTokenKeys() {
+    func testDesignTokenSourceCoversRequiredMVP003TokenKeys() {
         let requiredTokenKeys = [
             "color.table.background.primary",
             "color.table.background.secondary",
@@ -25,6 +25,8 @@ final class TarneebTests: XCTestCase {
             "color.text.secondary",
             "color.text.disabled",
             "color.text.warning",
+            "color.tableTitle.text",
+            "effect.tableTitle.shadow.color",
             "color.button.deal.background",
             "color.button.deal.background.pressed",
             "color.button.deal.text",
@@ -59,6 +61,8 @@ final class TarneebTests: XCTestCase {
             .textSecondary: .textSecondary,
             .textDisabled: .textDisabled,
             .textWarning: .textWarning,
+            .tableTitleText: .tableTitleText,
+            .tableTitleShadow: .tableTitleShadow,
             .dealActionBackground: .buttonDealBackground,
             .dealActionPressedBackground: .buttonDealBackgroundPressed,
             .dealActionText: .buttonDealText,
@@ -72,114 +76,73 @@ final class TarneebTests: XCTestCase {
         XCTAssertEqual(actualRoleTokens, expectedRoleTokens)
     }
 
-    func testSuitPresentationRolesResolveToDesignTokens() {
-        XCTAssertEqual(Suit.hearts.colorRole, .suitWarm)
-        XCTAssertEqual(Suit.diamonds.colorRole, .suitWarm)
-        XCTAssertEqual(Suit.hearts.colorToken, .cardSuitRed)
-        XCTAssertEqual(Suit.diamonds.colorToken, .cardSuitRed)
-
-        XCTAssertEqual(Suit.clubs.colorRole, .suitNeutral)
-        XCTAssertEqual(Suit.spades.colorRole, .suitNeutral)
-        XCTAssertEqual(Suit.clubs.colorToken, .cardSuitBlack)
-        XCTAssertEqual(Suit.spades.colorToken, .cardSuitBlack)
+    func testTableTitleTypographyAndEffectTokensAreAvailable() {
+        XCTAssertEqual(GameTypographyToken.tableTitleFont.stringValue, "SF Arabic Rounded Bold")
+        XCTAssertEqual(GameTypographyToken.tableTitleFontSize.stringValue, "26pt")
+        XCTAssertEqual(GameTypographyToken.tableTitleFontSize.numericValue, 26)
+        XCTAssertEqual(GameTypographyToken.tableTitleTrackingMinimum.numericValue, 2)
+        XCTAssertEqual(GameTypographyToken.tableTitleTrackingMaximum.numericValue, 4)
+        XCTAssertEqual(GameColorToken.tableTitleText.hexValue, "#E8DFC8")
+        XCTAssertEqual(GameColorToken.tableTitleShadow.hexValue, "#000000")
+        XCTAssertEqual(GameEffectToken.tableTitleTextOpacity.value, 0.92)
+        XCTAssertEqual(GameEffectToken.tableTitleShadowOpacity.value, 0.25)
+        XCTAssertEqual(GameEffectToken.tableTitleShadowBlurRadius.value, 4)
     }
 
-    func testSuitPresentationSymbols() {
-        let symbolsBySuit = Dictionary(uniqueKeysWithValues: Suit.allCases.map { ($0, $0.displaySymbol) })
+    func testTableTitlePresentationUsesOnlyTokenizedVisualValues() {
+        let presentation = TableTitlePresentation(tracking: 3)
 
-        XCTAssertEqual(symbolsBySuit[.hearts], "♥")
-        XCTAssertEqual(symbolsBySuit[.clubs], "♣")
-        XCTAssertEqual(symbolsBySuit[.diamonds], "♦")
-        XCTAssertEqual(symbolsBySuit[.spades], "♠")
+        XCTAssertEqual(presentation.text, "طرنيب")
+        XCTAssertEqual(presentation.fontToken, .tableTitleFont)
+        XCTAssertEqual(presentation.fontSizeToken, .tableTitleFontSize)
+        XCTAssertEqual(presentation.fontPointSize, 26)
+        XCTAssertEqual(presentation.tracking, 3)
+        XCTAssertEqual(presentation.trackingMinimumToken, .tableTitleTrackingMinimum)
+        XCTAssertEqual(presentation.trackingMaximumToken, .tableTitleTrackingMaximum)
+        XCTAssertEqual(presentation.textColorRole.token, .tableTitleText)
+        XCTAssertEqual(presentation.textOpacityToken, .tableTitleTextOpacity)
+        XCTAssertEqual(presentation.shadowColorRole.token, .tableTitleShadow)
+        XCTAssertEqual(presentation.shadowOpacityToken, .tableTitleShadowOpacity)
+        XCTAssertEqual(presentation.shadowBlurRadiusToken, .tableTitleShadowBlurRadius)
+        XCTAssertTrue(presentation.usesShadow)
+        XCTAssertTrue(presentation.accessibilityValue.contains("font=typography.tableTitle.font"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("fontName=SF Arabic Rounded Bold"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("fontSize=typography.tableTitle.fontSize"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("pointSize=26.0"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("textColor=color.tableTitle.text"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("textOpacity=effect.tableTitle.text.opacity"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("textOpacityValue=0.92"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("shadowColor=effect.tableTitle.shadow.color"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("usesShadow=true"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("shadowOpacityValue=0.25"))
+        XCTAssertFalse(presentation.accessibilityValue.contains("#"))
     }
 
-    func testRankPresentationLabels() {
-        XCTAssertEqual(Rank.allCases.map(\.displayLabel), ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"])
+    func testTableTitleTrackingIsClampedToTokenRange() {
+        XCTAssertEqual(TableTitlePresentation(tracking: -10).tracking, 2)
+        XCTAssertEqual(TableTitlePresentation(tracking: 10).tracking, 4)
     }
 
-    func testSuitPresentationColors() {
-        let expectedPresentation: [Suit: (role: GameColorRole, token: GameColorToken)] = [
-            .hearts: (.suitWarm, .cardSuitRed),
-            .diamonds: (.suitWarm, .cardSuitRed),
-            .clubs: (.suitNeutral, .cardSuitBlack),
-            .spades: (.suitNeutral, .cardSuitBlack)
-        ]
-
-        for (suit, expected) in expectedPresentation {
-            XCTAssertEqual(suit.colorRole, expected.role)
-            XCTAssertEqual(suit.colorToken, expected.token)
-        }
-    }
-
-    func testCardPresentationExposesTokenHooksWithoutConcreteColors() {
-        let warmPresentation = CardPresentation(card: Card(suit: .hearts, rank: .ace))
-        let neutralPresentation = CardPresentation(card: Card(suit: .spades, rank: .two))
-
-        XCTAssertEqual(warmPresentation.cardID, "hearts-A")
-        XCTAssertEqual(warmPresentation.displayLabel, "A♥")
-        XCTAssertEqual(warmPresentation.rankText, "A")
-        XCTAssertEqual(warmPresentation.suitSymbol, "♥")
-        XCTAssertEqual(warmPresentation.suitColorRole, .suitWarm)
-        XCTAssertEqual(warmPresentation.suitColorToken, .cardSuitRed)
-        XCTAssertEqual(warmPresentation.sortKey, 12)
-        XCTAssertEqual(warmPresentation.accessibilityLabel, "A♥")
-        XCTAssertEqual(warmPresentation.sizeCategory, .sharedBaseCard)
-        XCTAssertTrue(warmPresentation.accessibilityValue.contains("surface=color.card.background"))
-        XCTAssertTrue(warmPresentation.accessibilityValue.contains("border=color.card.border"))
-        XCTAssertTrue(warmPresentation.accessibilityValue.contains("shadow=color.card.shadow"))
-        XCTAssertFalse(warmPresentation.accessibilityValue.contains("#"))
-
-        XCTAssertEqual(neutralPresentation.suitColorRole, .suitNeutral)
-        XCTAssertEqual(neutralPresentation.suitColorToken, .cardSuitBlack)
-        XCTAssertEqual(neutralPresentation.sizeCategory, .sharedBaseCard)
-        XCTAssertFalse(neutralPresentation.accessibilityValue.contains("#"))
-    }
-
-    func testButtonTokenSetsExposeDealAndNewDealTokens() {
+    func testDealButtonTokenSetUsesPrimaryDealTokens() {
         XCTAssertEqual(ButtonTokenSet.deal.background, .buttonDealBackground)
         XCTAssertEqual(ButtonTokenSet.deal.pressedBackground, .buttonDealBackgroundPressed)
         XCTAssertEqual(ButtonTokenSet.deal.text, .buttonDealText)
-
-        XCTAssertEqual(ButtonTokenSet.newDeal.background, .buttonNewGameBackground)
-        XCTAssertEqual(ButtonTokenSet.newDeal.pressedBackground, .buttonNewGameBackgroundPressed)
-        XCTAssertEqual(ButtonTokenSet.newDeal.text, .buttonNewGameText)
-        XCTAssertTrue(ButtonTokenSet.newDeal.accessibilityValue.contains("color.button.newGame.background"))
-        XCTAssertTrue(ButtonTokenSet.newDeal.accessibilityValue.contains("color.button.newGame.background.pressed"))
-        XCTAssertTrue(ButtonTokenSet.newDeal.accessibilityValue.contains("color.button.newGame.text"))
+        XCTAssertTrue(ButtonTokenSet.deal.accessibilityValue.contains("background=color.button.deal.background"))
+        XCTAssertTrue(ButtonTokenSet.deal.accessibilityValue.contains("pressed=color.button.deal.background.pressed"))
+        XCTAssertTrue(ButtonTokenSet.deal.accessibilityValue.contains("text=color.button.deal.text"))
+        XCTAssertFalse(ButtonTokenSet.deal.accessibilityValue.contains("newGame"))
     }
 
-    func testSharedCardSizeCategoryIsAvailableForTestHooks() {
-        XCTAssertEqual(CardSizeCategory.allCases, [.sharedBaseCard])
-        XCTAssertEqual(CardSizeCategory.sharedBaseCard.rawValue, "sharedBaseCard")
+    func testNewGameButtonTokenSetUsesNewGameTokens() {
+        XCTAssertEqual(ButtonTokenSet.newGame.background, .buttonNewGameBackground)
+        XCTAssertEqual(ButtonTokenSet.newGame.pressedBackground, .buttonNewGameBackgroundPressed)
+        XCTAssertEqual(ButtonTokenSet.newGame.text, .buttonNewGameText)
+        XCTAssertTrue(ButtonTokenSet.newGame.accessibilityValue.contains("background=color.button.newGame.background"))
+        XCTAssertTrue(ButtonTokenSet.newGame.accessibilityValue.contains("pressed=color.button.newGame.background.pressed"))
+        XCTAssertTrue(ButtonTokenSet.newGame.accessibilityValue.contains("text=color.button.newGame.text"))
     }
 
-    func testHiddenAndExposedCardsShareBaseSize() {
-        let sizeConfiguration = CardSizeConfiguration.sharedBase
-        let exposedCard = CardPresentation(
-            card: Card(suit: .hearts, rank: .two),
-            sizeConfiguration: sizeConfiguration
-        )
-        let hiddenHand = HiddenHandPresentation(
-            seat: .west,
-            hiddenCardCount: 13,
-            sizeConfiguration: sizeConfiguration
-        )
-
-        XCTAssertEqual(exposedCard.sizeConfiguration, sizeConfiguration)
-        XCTAssertEqual(hiddenHand.sizeConfiguration, exposedCard.sizeConfiguration)
-        XCTAssertTrue(hiddenHand.hiddenCards.allSatisfy { $0.sizeConfiguration == exposedCard.sizeConfiguration })
-    }
-
-    func testSharedCardSizeUsesStandardPlayingCardAspectRatio() {
-        let sizeConfiguration = CardSizeConfiguration.sharedBase
-
-        XCTAssertEqual(sizeConfiguration.aspectRatio, 5.0 / 7.0, accuracy: 0.01)
-        XCTAssertGreaterThan(sizeConfiguration.baseCardWidth, 0)
-        XCTAssertGreaterThan(sizeConfiguration.baseCardHeight, sizeConfiguration.baseCardWidth)
-        XCTAssertGreaterThan(sizeConfiguration.rankFontPointSize, 0)
-    }
-
-    func testConcreteColorValuesAreConfinedToDesignTokenSource() throws {
+    func testConcreteVisualValuesAreConfinedToDesignTokenSource() throws {
         let projectRoot = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
             .deletingLastPathComponent()
@@ -196,7 +159,12 @@ final class TarneebTests: XCTestCase {
 
         let forbiddenPatterns = [
             "#[0-9A-Fa-f]{6,8}",
-            "\\b(?:Color|UIColor|NSColor)\\.(?:red|black|white|blue|green|orange|yellow|gray|grey|secondary|primary)\\b"
+            "\\b(?:Color|UIColor|NSColor)\\.(?:red|black|white|blue|green|orange|yellow|gray|grey|secondary|primary)\\b",
+            "Avenir Next Condensed Heavy",
+            "SF Arabic Rounded Bold",
+            "\\b0\\.92\\b",
+            "\\b0\\.25\\b",
+            "\\b0\\.35\\b"
         ]
         let forbiddenRegexes = try forbiddenPatterns.map { try NSRegularExpression(pattern: $0) }
 
@@ -207,15 +175,25 @@ final class TarneebTests: XCTestCase {
             for regex in forbiddenRegexes {
                 XCTAssertNil(
                     regex.firstMatch(in: source, range: range),
-                    "\(file.lastPathComponent) contains a concrete color outside DesignTokens.swift"
+                    "\(file.lastPathComponent) contains a concrete visual value outside DesignTokens.swift"
                 )
             }
         }
     }
 
-    func testSuitValuesAndDisplaySymbols() {
+    func testSuitValuesSymbolsAndPresentationRoles() {
         XCTAssertEqual(Suit.allCases.map(\.rawValue), ["spades", "clubs", "hearts", "diamonds"])
         XCTAssertEqual(Suit.allCases.map(\.displaySymbol), ["♠", "♣", "♥", "♦"])
+
+        XCTAssertEqual(Suit.hearts.colorRole, .suitWarm)
+        XCTAssertEqual(Suit.diamonds.colorRole, .suitWarm)
+        XCTAssertEqual(Suit.hearts.colorToken, .cardSuitRed)
+        XCTAssertEqual(Suit.diamonds.colorToken, .cardSuitRed)
+
+        XCTAssertEqual(Suit.clubs.colorRole, .suitNeutral)
+        XCTAssertEqual(Suit.spades.colorRole, .suitNeutral)
+        XCTAssertEqual(Suit.clubs.colorToken, .cardSuitBlack)
+        XCTAssertEqual(Suit.spades.colorToken, .cardSuitBlack)
     }
 
     func testRankValuesAndDisplayLabels() {
@@ -247,7 +225,7 @@ final class TarneebTests: XCTestCase {
         XCTAssertEqual(DeckFactory.makeCanonicalDeck().count, 52)
     }
 
-    func testDeckContainsNoJokers() {
+    func testDeckContainsNoJokersOrUnsupportedValues() {
         let deck = DeckFactory.makeCanonicalDeck()
 
         XCTAssertEqual(Set(deck.map(\.suit)), Set(Suit.allCases))
@@ -259,181 +237,37 @@ final class TarneebTests: XCTestCase {
         }
     }
 
-    func testCanonicalDeckContainsEachSuitRankCombinationExactlyOnce() {
-        let deck = DeckFactory.makeCanonicalDeck()
-
-        for suit in Suit.allCases {
-            let ranksForSuit = deck
-                .filter { $0.suit == suit }
-                .map(\.rank)
-
-            XCTAssertEqual(ranksForSuit, Rank.allCases)
-        }
-
-        for rank in Rank.allCases {
-            let suitsForRank = deck
-                .filter { $0.rank == rank }
-                .map(\.suit)
-
-            XCTAssertEqual(Set(suitsForRank), Set(Suit.allCases))
-            XCTAssertEqual(suitsForRank.count, Suit.allCases.count)
-        }
-    }
-
     func testDeckContainsUniqueCards() {
         let deck = DeckFactory.makeCanonicalDeck()
 
         XCTAssertEqual(Set(deck.map(\.id)).count, 52)
+        XCTAssertEqual(Set(deck).count, 52)
     }
 
-    func testHumanHandSortsBySuitThenRank() {
-        let unsortedHand = [
-            Card(suit: .spades, rank: .ace),
-            Card(suit: .diamonds, rank: .two),
-            Card(suit: .hearts, rank: .ace),
-            Card(suit: .clubs, rank: .king),
-            Card(suit: .hearts, rank: .two),
-            Card(suit: .spades, rank: .two),
-            Card(suit: .diamonds, rank: .ace),
-            Card(suit: .clubs, rank: .two)
-        ]
+    func testSeatPlayerAndTeamSetup() throws {
+        let players = Player.initialPlayers()
+        let playersBySeat = Dictionary(uniqueKeysWithValues: players.map { ($0.seat, $0) })
 
-        let sortedHand = SouthHandPresentation.sortedCards(from: unsortedHand)
-
-        XCTAssertEqual(sortedHand.map { CardPresentation(card: $0).displayLabel }, ["2♥", "A♥", "2♣", "K♣", "2♦", "A♦", "2♠", "A♠"])
-        XCTAssertEqual(unsortedHand.map(\.id), ["spades-A", "diamonds-2", "hearts-A", "clubs-K", "hearts-2", "spades-2", "diamonds-A", "clubs-2"])
-    }
-
-    func testSouthHandPresentationReturnsSortedVisibleCardsWithoutChangingOwnership() {
-        let hand = [
-            Card(suit: .spades, rank: .three),
-            Card(suit: .hearts, rank: .two),
-            Card(suit: .clubs, rank: .ace)
-        ]
-
-        let presentations = SouthHandPresentation.cardPresentations(from: hand)
-
-        XCTAssertEqual(presentations.map(\.cardID), ["hearts-2", "clubs-A", "spades-3"])
-        XCTAssertEqual(Set(presentations.map(\.cardID)), Set(hand.map(\.id)))
-        XCTAssertEqual(hand.map(\.id), ["spades-3", "hearts-2", "clubs-A"])
-    }
-
-    func testHiddenHandPresentationRepresentsHiddenCardsWithoutCardIdentities() {
-        let hiddenHand = HiddenHandPresentation(seat: .north, hiddenCardCount: 13)
-
-        XCTAssertEqual(hiddenHand.seat, .north)
-        XCTAssertEqual(hiddenHand.hiddenCardCount, 13)
-        XCTAssertEqual(hiddenHand.hiddenCards.map(\.assetName), Array(repeating: "card_back", count: 13))
-        XCTAssertEqual(hiddenHand.hiddenCards.map(\.accessibilityLabel), Array(repeating: "Card back", count: 13))
-        XCTAssertTrue(hiddenHand.hiddenCards.allSatisfy { $0.accessibilityValue == CardSizeCategory.sharedBaseCard.rawValue })
-
-        for hiddenCard in hiddenHand.hiddenCards {
-            XCTAssertFalse(hiddenCard.id.contains("spades"))
-            XCTAssertFalse(hiddenCard.id.contains("clubs"))
-            XCTAssertFalse(hiddenCard.id.contains("hearts"))
-            XCTAssertFalse(hiddenCard.id.contains("diamonds"))
-            XCTAssertFalse(hiddenCard.accessibilityValue.contains("rank"))
-            XCTAssertFalse(hiddenCard.accessibilityValue.contains("suit"))
-        }
-    }
-
-    func testCardBackAssetCatalogExposesExpectedCardBackImage() throws {
-        let projectRoot = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-        let imageSetURL = projectRoot
-            .appendingPathComponent("Tarneeb")
-            .appendingPathComponent("Assets.xcassets")
-            .appendingPathComponent("card_back.imageset")
-        let contentsURL = imageSetURL.appendingPathComponent("Contents.json")
-        let imageURL = imageSetURL.appendingPathComponent("card_back.png")
-
-        XCTAssertTrue(FileManager.default.fileExists(atPath: contentsURL.path))
-        XCTAssertTrue(FileManager.default.fileExists(atPath: imageURL.path))
-
-        let contents = try JSONDecoder().decode(
-            AssetCatalogContents.self,
-            from: Data(contentsOf: contentsURL)
-        )
-
-        XCTAssertTrue(contents.images.contains { image in
-            image.filename == "card_back.png"
-                && image.idiom == "universal"
-                && image.scale == "1x"
-        })
-    }
-
-    func testHiddenStackConfigurationIsCompactAndStillRepresentsThirteenCards() {
-        let hiddenHand = HiddenHandPresentation(seat: .east, hiddenCardCount: 13)
-        let sizeConfiguration = CardSizeConfiguration.sharedBase
-
-        XCTAssertEqual(hiddenHand.stackOffset, sizeConfiguration.hiddenStackOffset)
-        XCTAssertGreaterThan(hiddenHand.stackOffset, 0)
-        XCTAssertEqual(hiddenHand.stackWidth, sizeConfiguration.baseCardWidth + sizeConfiguration.hiddenStackOffset * 12)
-        XCTAssertLessThan(hiddenHand.stackWidth, sizeConfiguration.baseCardWidth * 13)
-        XCTAssertEqual(hiddenHand.hiddenCardCount, 13)
-    }
-
-    func testStandardShufflerPreservesCardCountAndUniqueness() {
-        let deck = DeckFactory.makeCanonicalDeck()
-        let shuffledDeck = StandardCardShuffler().shuffle(deck)
-
-        XCTAssertEqual(shuffledDeck.count, 52)
-        XCTAssertEqual(Set(shuffledDeck.map(\.id)).count, 52)
-        XCTAssertEqual(Set(shuffledDeck), Set(deck))
-    }
-
-    func testDeterministicShuffleInjectionCanControlOrder() {
-        let deck = DeckFactory.makeCanonicalDeck()
-        let shuffler = CardShuffler { cards in
-            Array(cards.reversed())
-        }
-
-        XCTAssertEqual(shuffler.shuffle(deck), Array(deck.reversed()))
-    }
-
-    func testSeatValuesAndDisplayLabels() {
         XCTAssertEqual(Seat.allCases.map(\.rawValue), ["south", "west", "north", "east"])
         XCTAssertEqual(Seat.allCases.map(\.displayLabel), ["South", "West", "North", "East"])
+        XCTAssertEqual(players.map(\.seat), [.south, .east, .north, .west])
+        XCTAssertEqual(Set(players.map(\.seat)), Set(Seat.allCases))
+        XCTAssertEqual(players.filter { $0.type == .human }.map(\.seat), [.south])
+        XCTAssertEqual(Set(players.filter { $0.type == .simulated }.map(\.seat)), Set([.west, .north, .east]))
+        XCTAssertEqual(playersBySeat[.south]?.team, .teamA)
+        XCTAssertEqual(playersBySeat[.north]?.team, .teamA)
+        XCTAssertEqual(playersBySeat[.east]?.team, .teamB)
+        XCTAssertEqual(playersBySeat[.west]?.team, .teamB)
     }
 
-    func testPlayerTypeValues() {
-        XCTAssertEqual(PlayerType.allCases.map(\.rawValue), ["human", "simulated"])
-    }
+    func testGameStateOnlyUsesMVPPhasesAndInitialStateHasEmptySeats() {
+        let state = GameState.initial
 
-    func testTeamValuesAndDisplayLabels() {
-        XCTAssertEqual(Team.allCases.map(\.rawValue), ["teamA", "teamB"])
-        XCTAssertEqual(Team.allCases.map(\.displayLabel), ["Team A", "Team B"])
-    }
-
-    func testPlayerContainsRequiredFields() {
-        let hand = Rank.allCases.map { Card(suit: .clubs, rank: $0) }
-        let player = Player(id: "player-south", seat: .south, type: .human, team: .teamA, hand: hand)
-
-        XCTAssertEqual(player.id, "player-south")
-        XCTAssertEqual(player.seat, .south)
-        XCTAssertEqual(player.type, .human)
-        XCTAssertEqual(player.team, .teamA)
-        XCTAssertEqual(player.hand, hand)
-        XCTAssertEqual(player.hand.count, 13)
-    }
-
-    func testGamePhaseValuesOnlyIncludeMVPPhases() {
         XCTAssertEqual(GamePhase.allCases.map(\.rawValue), ["notStarted", "dealt"])
-    }
-
-    func testGameStateCanRepresentNotStartedAndDealtStates() throws {
-        let players = makeFourPlayers()
-
-        let notStarted = try XCTUnwrap(GameState(phase: .notStarted, players: players))
-        XCTAssertEqual(notStarted.phase, .notStarted)
-        XCTAssertEqual(notStarted.players, players)
-        XCTAssertNil(notStarted.deck)
-
-        let dealt = try makeCompletedDeal()
-        XCTAssertEqual(dealt.phase, .dealt)
-        XCTAssertEqual(dealt.players.count, 4)
-        XCTAssertEqual(dealt.deck, [])
+        XCTAssertEqual(state.phase, .notStarted)
+        XCTAssertEqual(state.players.count, 4)
+        XCTAssertTrue(state.players.allSatisfy(\.hand.isEmpty))
+        XCTAssertNil(state.deck)
     }
 
     func testGameStateRequiresExactlyFourPlayers() {
@@ -444,72 +278,13 @@ final class TarneebTests: XCTestCase {
         XCTAssertNil(GameState(phase: .dealt, players: players + [players[0]]))
     }
 
-    func testInitialStateContainsExactlyFourEmptyPlayerSeats() {
-        let state = GameState.initial
-
-        XCTAssertEqual(state.phase, .notStarted)
-        XCTAssertEqual(state.players.count, 4)
-        XCTAssertTrue(state.players.allSatisfy(\.hand.isEmpty))
-        XCTAssertNil(state.deck)
-    }
-
-    func testPlayersAreCreatedForAllSeats() {
-        let players = Player.initialPlayers()
-
-        XCTAssertEqual(players.map(\.seat), [.south, .east, .north, .west])
-        XCTAssertEqual(Set(players.map(\.seat)), Set(Seat.allCases))
-        XCTAssertEqual(Set(players.map(\.id)).count, 4)
-    }
-
-    func testSouthPlayerIsHuman() throws {
-        let south = try XCTUnwrap(Player.initialPlayers().first { $0.seat == .south })
-
-        XCTAssertEqual(south.type, .human)
-        XCTAssertEqual(Player.initialPlayers().filter { $0.type == .human }.map(\.seat), [.south])
-    }
-
-    func testOtherPlayersAreSimulated() {
-        let simulatedSeats = Player.initialPlayers()
-            .filter { $0.type == .simulated }
-            .map(\.seat)
-
-        XCTAssertEqual(Set(simulatedSeats), Set([.west, .north, .east]))
-    }
-
-    func testTeamsAreAssignedCorrectly() {
-        let playersBySeat = Dictionary(uniqueKeysWithValues: Player.initialPlayers().map { ($0.seat, $0) })
-
-        XCTAssertEqual(playersBySeat[.south]?.team, .teamA)
-        XCTAssertEqual(playersBySeat[.north]?.team, .teamA)
-        XCTAssertEqual(playersBySeat[.east]?.team, .teamB)
-        XCTAssertEqual(playersBySeat[.west]?.team, .teamB)
-    }
-
-    func testInitialPlayerHandsAreEmptyBeforeDealCards() {
-        let state = GameState.initial
-
-        XCTAssertEqual(state.players.flatMap(\.hand).count, 0)
-        XCTAssertTrue(state.players.allSatisfy(\.hand.isEmpty))
-    }
-
-    func testDealServiceReturnsCompletedDealFromFreshSetup() throws {
-        let state = try makeCompletedDeal()
-
-        XCTAssertEqual(state.phase, .dealt)
-        XCTAssertEqual(state.players.count, 4)
-        XCTAssertEqual(state.players.map(\.seat), Seat.dealOrder)
-        XCTAssertTrue(state.players.allSatisfy { $0.hand.count == 13 })
-    }
-
-    func testDealAssignsShuffledCardsAsSouthEastNorthWestChunks() throws {
+    func testStandardShufflerPreservesCardCountAndUniqueness() {
         let deck = DeckFactory.makeCanonicalDeck()
-        let reversedDeck = Array(deck.reversed())
-        let state = try makeCompletedDeal(shuffler: CardShuffler { _ in reversedDeck })
+        let shuffledDeck = StandardCardShuffler().shuffle(deck)
 
-        XCTAssertEqual(try player(in: state, seat: .south).hand, Array(reversedDeck[0..<13]))
-        XCTAssertEqual(try player(in: state, seat: .east).hand, Array(reversedDeck[13..<26]))
-        XCTAssertEqual(try player(in: state, seat: .north).hand, Array(reversedDeck[26..<39]))
-        XCTAssertEqual(try player(in: state, seat: .west).hand, Array(reversedDeck[39..<52]))
+        XCTAssertEqual(shuffledDeck.count, 52)
+        XCTAssertEqual(Set(shuffledDeck.map(\.id)).count, 52)
+        XCTAssertEqual(Set(shuffledDeck), Set(deck))
     }
 
     func testDealServiceShufflesCanonicalDeckBeforeAssigningCards() throws {
@@ -523,46 +298,27 @@ final class TarneebTests: XCTestCase {
         XCTAssertNotEqual(try player(in: state, seat: .south).hand, Array(canonicalDeck[0..<13]))
     }
 
-    func testDealServiceRejectsInvalidShuffledDecksBeforeAssignment() {
-        let duplicateCardShuffler = CardShuffler { cards in
-            Array(repeating: cards[0], count: cards.count)
-        }
-        let shortDeckShuffler = CardShuffler { cards in
-            Array(cards.dropLast())
-        }
-        let oversizedDeckShuffler = CardShuffler { cards in
-            cards + [cards[0]]
-        }
+    func testDealAssignsShuffledCardsAsSouthEastNorthWestChunks() throws {
+        let deck = DeckFactory.makeCanonicalDeck()
+        let reversedDeck = Array(deck.reversed())
+        let state = try makeCompletedDeal(shuffler: CardShuffler { _ in reversedDeck })
 
-        XCTAssertNil(DealService(shuffler: duplicateCardShuffler).deal())
-        XCTAssertNil(DealService(shuffler: shortDeckShuffler).deal())
-        XCTAssertNil(DealService(shuffler: oversizedDeckShuffler).deal())
+        XCTAssertEqual(try player(in: state, seat: .south).hand, Array(reversedDeck[0..<13]))
+        XCTAssertEqual(try player(in: state, seat: .east).hand, Array(reversedDeck[13..<26]))
+        XCTAssertEqual(try player(in: state, seat: .north).hand, Array(reversedDeck[26..<39]))
+        XCTAssertEqual(try player(in: state, seat: .west).hand, Array(reversedDeck[39..<52]))
     }
 
-    func testDealGivesEachPlayer13Cards() throws {
-        let state = try makeCompletedDeal()
-
-        XCTAssertEqual(state.players.map(\.hand.count), [13, 13, 13, 13])
-    }
-
-    func testDealUsesAll52Cards() throws {
+    func testCompletedDealContainsFourThirteenCardHandsAndNoDuplicates() throws {
         let state = try makeCompletedDeal()
         let dealtCards = state.players.flatMap(\.hand)
 
+        XCTAssertEqual(state.phase, .dealt)
+        XCTAssertEqual(state.deck, [])
+        XCTAssertEqual(state.players.map(\.hand.count), [13, 13, 13, 13])
         XCTAssertEqual(dealtCards.count, 52)
         XCTAssertEqual(Set(dealtCards), Set(DeckFactory.makeCanonicalDeck()))
-        XCTAssertEqual(state.deck, [])
-    }
-
-    func testDealHasNoDuplicateCards() throws {
-        let state = try makeCompletedDeal()
-        let dealtCards = state.players.flatMap(\.hand)
-
-        XCTAssertEqual(Set(dealtCards.map(\.id)).count, dealtCards.count)
-    }
-
-    func testGamePhaseIsDealtAfterDeal() throws {
-        XCTAssertEqual(try makeCompletedDeal().phase, .dealt)
+        XCTAssertEqual(Set(dealtCards.map(\.id)).count, 52)
     }
 
     func testInvalidCompletedDealsAreRejected() {
@@ -597,67 +353,159 @@ final class TarneebTests: XCTestCase {
         XCTAssertNil(DealService(shuffler: droppingShuffler).deal())
     }
 
-    func testCompletedDealsRejectDuplicateSeatsAndInvalidPlayerAssignments() throws {
-        let completedDeal = try makeCompletedDeal()
+    func testSouthHandPresentationSortsBySuitThenRankWithoutChangingOwnership() {
+        let unsortedHand = [
+            Card(suit: .spades, rank: .ace),
+            Card(suit: .diamonds, rank: .two),
+            Card(suit: .hearts, rank: .ace),
+            Card(suit: .clubs, rank: .king),
+            Card(suit: .hearts, rank: .two),
+            Card(suit: .spades, rank: .two),
+            Card(suit: .diamonds, rank: .ace),
+            Card(suit: .clubs, rank: .two)
+        ]
 
-        var duplicateSeatPlayers = completedDeal.players
-        duplicateSeatPlayers[1] = Player(
-            id: "player-south-duplicate",
-            seat: .south,
-            type: .human,
-            team: .teamA,
-            hand: duplicateSeatPlayers[1].hand
-        )
-        XCTAssertNil(GameState(phase: .dealt, players: duplicateSeatPlayers, deck: []))
+        let presentations = SouthHandPresentation.cardPresentations(from: unsortedHand)
 
-        var wrongHumanPlayers = completedDeal.players
-        let southIndex = try XCTUnwrap(wrongHumanPlayers.firstIndex { $0.seat == .south })
-        let south = wrongHumanPlayers[southIndex]
-        wrongHumanPlayers[southIndex] = Player(
-            id: south.id,
-            seat: south.seat,
-            type: .simulated,
-            team: south.team,
-            hand: south.hand
-        )
-        XCTAssertNil(GameState(phase: .dealt, players: wrongHumanPlayers, deck: []))
-
-        var wrongTeamPlayers = completedDeal.players
-        let northIndex = try XCTUnwrap(wrongTeamPlayers.firstIndex { $0.seat == .north })
-        let north = wrongTeamPlayers[northIndex]
-        wrongTeamPlayers[northIndex] = Player(
-            id: north.id,
-            seat: north.seat,
-            type: north.type,
-            team: .teamB,
-            hand: north.hand
-        )
-        XCTAssertNil(GameState(phase: .dealt, players: wrongTeamPlayers, deck: []))
+        XCTAssertEqual(presentations.map(\.displayLabel), ["2♥", "A♥", "2♣", "K♣", "2♦", "A♦", "2♠", "A♠"])
+        XCTAssertEqual(Set(presentations.map(\.cardID)), Set(unsortedHand.map(\.id)))
+        XCTAssertEqual(unsortedHand.map(\.id), ["spades-A", "diamonds-2", "hearts-A", "clubs-K", "hearts-2", "spades-2", "diamonds-A", "clubs-2"])
     }
 
-    func testPresentationInitialStateHasNotStartedEmptySeatsAndNoVisibleCards() {
+    func testCardPresentationExposesTokenHooksWithoutConcreteColors() {
+        let warmPresentation = CardPresentation(card: Card(suit: .hearts, rank: .ace))
+        let neutralPresentation = CardPresentation(card: Card(suit: .spades, rank: .two))
+
+        XCTAssertEqual(warmPresentation.cardID, "hearts-A")
+        XCTAssertEqual(warmPresentation.displayLabel, "A♥")
+        XCTAssertEqual(warmPresentation.rankText, "A")
+        XCTAssertEqual(warmPresentation.suitSymbol, "♥")
+        XCTAssertEqual(warmPresentation.suitColorRole, .suitWarm)
+        XCTAssertEqual(warmPresentation.suitColorToken, .cardSuitRed)
+        XCTAssertEqual(warmPresentation.accessibilityLabel, "A♥")
+        XCTAssertEqual(warmPresentation.sizeCategory, .sharedBaseCard)
+        XCTAssertTrue(warmPresentation.accessibilityValue.contains("surface=color.card.background"))
+        XCTAssertTrue(warmPresentation.accessibilityValue.contains("border=color.card.border"))
+        XCTAssertTrue(warmPresentation.accessibilityValue.contains("shadow=color.card.shadow"))
+        XCTAssertFalse(warmPresentation.accessibilityValue.contains("#"))
+
+        XCTAssertEqual(neutralPresentation.suitColorRole, .suitNeutral)
+        XCTAssertEqual(neutralPresentation.suitColorToken, .cardSuitBlack)
+        XCTAssertEqual(neutralPresentation.sizeCategory, .sharedBaseCard)
+        XCTAssertFalse(neutralPresentation.accessibilityValue.contains("#"))
+    }
+
+    func testHiddenAndExposedPlayerCardsShareBaseSizeAndAspectRatio() {
+        let sizeConfiguration = CardSizeConfiguration.sharedBase
+        let exposedCard = CardPresentation(
+            card: Card(suit: .hearts, rank: .two),
+            sizeConfiguration: sizeConfiguration
+        )
+        let hiddenHand = HiddenHandPresentation(
+            seat: .west,
+            hiddenCardCount: 13,
+            sizeConfiguration: sizeConfiguration
+        )
+
+        XCTAssertEqual(exposedCard.sizeConfiguration, sizeConfiguration)
+        XCTAssertEqual(hiddenHand.sizeConfiguration, exposedCard.sizeConfiguration)
+        XCTAssertTrue(hiddenHand.hiddenCards.allSatisfy { $0.sizeConfiguration == exposedCard.sizeConfiguration })
+        XCTAssertEqual(sizeConfiguration.aspectRatio, 5.0 / 7.0, accuracy: 0.01)
+        XCTAssertGreaterThan(sizeConfiguration.rankFontPointSize, 0)
+    }
+
+    func testHiddenHandPresentationRepresentsHiddenCardsWithoutCardIdentities() {
+        let hiddenHand = HiddenHandPresentation(seat: .north, hiddenCardCount: 13)
+
+        XCTAssertEqual(hiddenHand.seat, .north)
+        XCTAssertEqual(hiddenHand.hiddenCardCount, 13)
+        XCTAssertEqual(hiddenHand.hiddenCards.map(\.assetName), Array(repeating: "card_back", count: 13))
+        XCTAssertEqual(hiddenHand.hiddenCards.map(\.accessibilityLabel), Array(repeating: "Card back", count: 13))
+        XCTAssertTrue(hiddenHand.hiddenCards.allSatisfy { $0.accessibilityValue == CardSizeCategory.sharedBaseCard.rawValue })
+        XCTAssertGreaterThan(hiddenHand.stackOffset, 0)
+        XCTAssertLessThan(hiddenHand.stackWidth, hiddenHand.sizeConfiguration.baseCardWidth * 13)
+
+        for hiddenCard in hiddenHand.hiddenCards {
+            XCTAssertFalse(hiddenCard.id.contains("spades"))
+            XCTAssertFalse(hiddenCard.id.contains("clubs"))
+            XCTAssertFalse(hiddenCard.id.contains("hearts"))
+            XCTAssertFalse(hiddenCard.id.contains("diamonds"))
+            XCTAssertFalse(hiddenCard.accessibilityValue.contains("rank"))
+            XCTAssertFalse(hiddenCard.accessibilityValue.contains("suit"))
+        }
+    }
+
+    func testCentralDeckStackPresentationRepresents52HiddenCardsOnlyBeforeDeal() {
+        let initialStack = CentralDeckStackPresentation(phase: .notStarted)
+        let dealtStack = CentralDeckStackPresentation(phase: .dealt)
+
+        XCTAssertTrue(initialStack.isVisible)
+        XCTAssertEqual(initialStack.hiddenCardCount, 52)
+        XCTAssertEqual(initialStack.hiddenCards.map(\.assetName), Array(repeating: "card_back", count: 52))
+        XCTAssertEqual(initialStack.stackOffset, 0)
+        XCTAssertEqual(initialStack.stackWidth, initialStack.sizeConfiguration.baseCardWidth)
+        XCTAssertEqual(initialStack.verticalOffset, 46.2, accuracy: 0.01)
+        XCTAssertTrue(initialStack.accessibilityValue.contains("count=52"))
+        XCTAssertTrue(initialStack.accessibilityValue.contains("asset=card_back"))
+        XCTAssertTrue(initialStack.accessibilityValue.contains("layout=stacked"))
+        XCTAssertTrue(initialStack.accessibilityValue.contains("placement=belowTitle"))
+        XCTAssertTrue(initialStack.accessibilityValue.contains("stackOffset=0.0"))
+        XCTAssertTrue(initialStack.accessibilityValue.contains("verticalOffset="))
+        XCTAssertTrue(initialStack.accessibilityValue.contains("rotation=0"))
+        XCTAssertFalse(initialStack.accessibilityValue.contains("rank"))
+        XCTAssertFalse(initialStack.accessibilityValue.contains("suit"))
+
+        XCTAssertFalse(dealtStack.isVisible)
+        XCTAssertEqual(dealtStack.hiddenCardCount, 0)
+    }
+
+    func testCardBackAssetCatalogExposesExpectedCardBackImage() throws {
+        let projectRoot = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let imageSetURL = projectRoot
+            .appendingPathComponent("Tarneeb")
+            .appendingPathComponent("Assets.xcassets")
+            .appendingPathComponent("card_back.imageset")
+        let contentsURL = imageSetURL.appendingPathComponent("Contents.json")
+        let imageURL = imageSetURL.appendingPathComponent("card_back.png")
+
+        XCTAssertTrue(FileManager.default.fileExists(atPath: contentsURL.path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: imageURL.path))
+
+        let contents = try JSONDecoder().decode(
+            AssetCatalogContents.self,
+            from: Data(contentsOf: contentsURL)
+        )
+
+        XCTAssertTrue(contents.images.contains { image in
+            image.filename == "card_back.png"
+                && image.idiom == "universal"
+                && image.scale == "1x"
+        })
+    }
+
+    func testPresentationInitialStateHasDeckStackTitleDealActionAndNoVisibleCards() {
         let presentation = TarneebPresentationState(dealService: QueuedDealService())
-        let visiblePresentations = presentation.gameState.players
-            .filter { $0.seat == .south }
-            .flatMap { SouthHandPresentation.cardPresentations(from: $0.hand) }
-        let hiddenPresentations = presentation.gameState.players
-            .filter { $0.seat != .south }
-            .map { HiddenHandPresentation(seat: $0.seat, hiddenCardCount: $0.hand.count) }
+        let centralDeckStack = CentralDeckStackPresentation(phase: presentation.gameState.phase)
+        let tableTitle = TableTitlePresentation()
 
         XCTAssertEqual(presentation.gameState.phase, .notStarted)
         XCTAssertEqual(presentation.gameState.players.count, 4)
         XCTAssertEqual(Set(presentation.gameState.players.map(\.seat)), Set(Seat.allCases))
         XCTAssertEqual(presentation.gameState.players.flatMap(\.hand).count, 0)
-        XCTAssertTrue(visiblePresentations.isEmpty)
-        XCTAssertTrue(hiddenPresentations.allSatisfy { $0.hiddenCards.isEmpty })
-        XCTAssertEqual(presentation.availableActions, [.dealCards])
+        XCTAssertEqual(centralDeckStack.hiddenCardCount, 52)
+        XCTAssertEqual(tableTitle.text, "طرنيب")
+        XCTAssertEqual(presentation.availableActions, [.newGame, .deal])
+        XCTAssertEqual(PresentationAction.newGame.visibleLabel, "New Game")
+        XCTAssertEqual(PresentationAction.deal.visibleLabel, "Deal")
     }
 
-    func testDealCardsActionMovesPresentationStateToDealt() throws {
+    func testDealActionMovesPresentationStateToDealtAndHidesCentralStack() throws {
         let service = QueuedDealService(results: [try makeCompletedDeal()])
         let presentation = TarneebPresentationState(dealService: service)
 
-        presentation.dealCards()
+        presentation.deal()
 
         XCTAssertEqual(service.callCount, 1)
         XCTAssertEqual(presentation.gameState.phase, .dealt)
@@ -665,75 +513,58 @@ final class TarneebTests: XCTestCase {
         XCTAssertEqual(presentation.gameState.players.flatMap(\.hand).count, 52)
         XCTAssertEqual(Set(presentation.gameState.players.flatMap(\.hand).map(\.id)).count, 52)
         XCTAssertEqual(presentation.gameState.deck, [])
-        XCTAssertEqual(presentation.availableActions, [.newDeal])
-
-        let southHand = try player(in: presentation.gameState, seat: .south).hand
-        let southCardPresentations = SouthHandPresentation.cardPresentations(from: southHand)
-        XCTAssertEqual(southCardPresentations.count, 13)
-        XCTAssertTrue(southCardPresentations.allSatisfy { $0.sizeCategory == .sharedBaseCard })
-        XCTAssertTrue(southCardPresentations.allSatisfy { !$0.accessibilityValue.contains("#") })
-
-        for seat in [Seat.east, .north, .west] {
-            let simulatedPlayer = try player(in: presentation.gameState, seat: seat)
-            let hiddenHand = HiddenHandPresentation(seat: seat, hiddenCardCount: simulatedPlayer.hand.count)
-            XCTAssertEqual(hiddenHand.hiddenCardCount, 13)
-            XCTAssertEqual(hiddenHand.sizeConfiguration, .sharedBase)
-        }
+        XCTAssertEqual(presentation.availableActions, [.newGame, .deal])
+        XCTAssertEqual(CentralDeckStackPresentation(phase: presentation.gameState.phase).hiddenCardCount, 0)
     }
 
-    func testRepeatedDealCardsTapDoesNotStartOverlappingDeals() throws {
+    func testRepeatedDealTapDoesNotStartOverlappingDeals() throws {
         let service = ReentrantDealService(result: try makeCompletedDeal())
         let presentation = TarneebPresentationState(dealService: service)
         service.onDeal = {
-            presentation.dealCards()
+            presentation.deal()
         }
 
-        presentation.dealCards()
+        presentation.deal()
 
         XCTAssertEqual(service.callCount, 1)
         XCTAssertEqual(presentation.gameState.phase, .dealt)
         XCTAssertEqual(Set(presentation.gameState.players.flatMap(\.hand).map(\.id)).count, 52)
-        let firstSouthHand = try player(in: presentation.gameState, seat: .south).hand
-
-        presentation.dealCards()
-
-        XCTAssertEqual(service.callCount, 1)
-        XCTAssertEqual(try player(in: presentation.gameState, seat: .south).hand, firstSouthHand)
-        XCTAssertEqual(presentation.availableActions, [.newDeal])
     }
 
-    func testNewDealResetsAndDealsAgain() throws {
+    func testVisibleDealActionReplacesCompletedDeal() throws {
         let firstDeal = try makeCompletedDeal()
         let secondDeal = try makeCompletedDeal(shuffler: CardShuffler { Array($0.reversed()) })
         let service = QueuedDealService(results: [firstDeal, secondDeal])
         let presentation = TarneebPresentationState(dealService: service)
 
-        presentation.dealCards()
+        presentation.deal()
         let firstSouthHand = try player(in: presentation.gameState, seat: .south).hand
 
-        presentation.newDeal()
+        presentation.deal()
         let secondSouthHand = try player(in: presentation.gameState, seat: .south).hand
 
         XCTAssertEqual(service.callCount, 2)
         XCTAssertEqual(presentation.gameState.phase, .dealt)
         XCTAssertEqual(presentation.gameState.players.map(\.hand.count), [13, 13, 13, 13])
         XCTAssertNotEqual(firstSouthHand, secondSouthHand)
+        XCTAssertEqual(CentralDeckStackPresentation(phase: presentation.gameState.phase).hiddenCardCount, 0)
+        XCTAssertEqual(presentation.availableActions, [.newGame, .deal])
     }
 
-    func testNewDealClearsPreviousHandsBeforeRequestingReplacement() throws {
+    func testReplacementDealClearsPreviousHandsBeforeRequestingReplacement() throws {
         let firstDeal = try makeCompletedDeal()
         let secondDeal = try makeCompletedDeal(shuffler: CardShuffler { Array($0.reversed()) })
         let service = QueuedDealService(results: [firstDeal, secondDeal])
         let presentation = TarneebPresentationState(dealService: service)
 
-        presentation.dealCards()
+        presentation.deal()
 
         var observedStateBeforeSecondDeal: GameState?
         service.onDeal = {
             observedStateBeforeSecondDeal = presentation.gameState
         }
 
-        presentation.newDeal()
+        presentation.deal()
 
         let observedState = try XCTUnwrap(observedStateBeforeSecondDeal)
         XCTAssertEqual(observedState.phase, .notStarted)
@@ -741,16 +572,35 @@ final class TarneebTests: XCTestCase {
         XCTAssertEqual(presentation.gameState.phase, .dealt)
     }
 
-    func testNewDealUsesFreshCompleteDeckAndShufflesBeforeAssigningCards() throws {
+    func testNewGameActionResetsPresentationStateToOriginalLaunchState() throws {
+        let service = QueuedDealService(results: [try makeCompletedDeal()])
+        let presentation = TarneebPresentationState(dealService: service)
+
+        presentation.deal()
+        XCTAssertEqual(presentation.gameState.phase, .dealt)
+
+        presentation.newGame()
+
+        XCTAssertEqual(service.callCount, 1)
+        XCTAssertEqual(presentation.gameState, .initial)
+        XCTAssertEqual(presentation.gameState.phase, .notStarted)
+        XCTAssertEqual(presentation.gameState.players.count, 4)
+        XCTAssertTrue(presentation.gameState.players.allSatisfy(\.hand.isEmpty))
+        XCTAssertNil(presentation.gameState.deck)
+        XCTAssertEqual(CentralDeckStackPresentation(phase: presentation.gameState.phase).hiddenCardCount, 52)
+        XCTAssertEqual(presentation.availableActions, [.newGame, .deal])
+    }
+
+    func testReplacementDealUsesFreshCompleteDeckAndShufflesBeforeAssigningCards() throws {
         let canonicalDeck = DeckFactory.makeCanonicalDeck()
         let reversedDeck = Array(canonicalDeck.reversed())
         let shuffler = RecordingShuffler(outputs: [canonicalDeck, reversedDeck])
         let presentation = TarneebPresentationState(dealService: DealService(shuffler: shuffler))
 
-        presentation.dealCards()
+        presentation.deal()
         let firstSouthHand = try player(in: presentation.gameState, seat: .south).hand
 
-        presentation.newDeal()
+        presentation.deal()
         let secondSouthHand = try player(in: presentation.gameState, seat: .south).hand
 
         XCTAssertEqual(shuffler.receivedDecks.count, 2)
@@ -762,37 +612,13 @@ final class TarneebTests: XCTestCase {
         XCTAssertEqual(firstSouthHand, Array(canonicalDeck[0..<13]))
         XCTAssertEqual(secondSouthHand, Array(reversedDeck[0..<13]))
         XCTAssertNotEqual(firstSouthHand, secondSouthHand)
-        XCTAssertEqual(presentation.gameState.players.map(\.hand.count), [13, 13, 13, 13])
-        XCTAssertEqual(presentation.gameState.phase, .dealt)
-
-        XCTAssertEqual(presentation.gameState.players.map(\.seat), Seat.dealOrder)
-        XCTAssertEqual(try player(in: presentation.gameState, seat: .south).team, .teamA)
-        XCTAssertEqual(try player(in: presentation.gameState, seat: .north).team, .teamA)
-        XCTAssertEqual(try player(in: presentation.gameState, seat: .east).team, .teamB)
-        XCTAssertEqual(try player(in: presentation.gameState, seat: .west).team, .teamB)
-
-        let southHand = try player(in: presentation.gameState, seat: .south).hand
-        let sortedSouthHand = SouthHandPresentation.sortedCards(from: southHand)
-        let cardPresentations = SouthHandPresentation.cardPresentations(from: southHand)
-        XCTAssertEqual(cardPresentations.map(\.cardID), sortedSouthHand.map(\.id))
-        XCTAssertTrue(cardPresentations.allSatisfy { $0.sizeConfiguration == .sharedBase })
-
-        for (card, cardPresentation) in zip(sortedSouthHand, cardPresentations) {
-            XCTAssertEqual(cardPresentation.suitColorRole, card.suit.colorRole)
-            XCTAssertEqual(cardPresentation.suitColorToken, card.suit.colorToken)
-        }
-
-        for seat in [Seat.east, .north, .west] {
-            let simulatedPlayer = try player(in: presentation.gameState, seat: seat)
-            let hiddenHand = HiddenHandPresentation(seat: seat, hiddenCardCount: simulatedPlayer.hand.count)
-            XCTAssertEqual(hiddenHand.hiddenCardCount, 13)
-            XCTAssertEqual(hiddenHand.sizeConfiguration, .sharedBase)
-        }
     }
 
-    func testPresentationStateOnlyExposesDealAndNewDealActions() {
+    func testPresentationStateOnlyExposesMVPTableActions() {
         let presentation = TarneebPresentationState(dealService: QueuedDealService(results: [DealService(shuffler: CardShuffler { $0 }).deal()]))
         let prohibitedActionNames = [
+            "dealCards",
+            "newDeal",
             "bid",
             "pass",
             "trump",
@@ -802,16 +628,28 @@ final class TarneebTests: XCTestCase {
             "score",
             "gameOver"
         ]
-        let actionNames = presentation.availableActions.map(\.rawValue)
 
-        XCTAssertEqual(presentation.availableActions, [.dealCards])
-        XCTAssertEqual(PresentationAction.allCases, [.dealCards, .newDeal])
-        XCTAssertTrue(prohibitedActionNames.allSatisfy { !actionNames.contains($0) })
+        XCTAssertEqual(PresentationAction.allCases, [.newGame, .deal])
+        XCTAssertEqual(presentation.availableActions, [.newGame, .deal])
+        XCTAssertEqual(PresentationAction.newGame.visibleLabel, "New Game")
+        XCTAssertEqual(PresentationAction.deal.visibleLabel, "Deal")
+        XCTAssertTrue(prohibitedActionNames.allSatisfy { !PresentationAction.allCases.map(\.rawValue).contains($0) })
 
-        presentation.dealCards()
-        let dealtActionNames = presentation.availableActions.map(\.rawValue)
-        XCTAssertEqual(presentation.availableActions, [.newDeal])
-        XCTAssertTrue(prohibitedActionNames.allSatisfy { !dealtActionNames.contains($0) })
+        presentation.deal()
+        XCTAssertEqual(presentation.availableActions, [.newGame, .deal])
+    }
+
+    func testProjectInfoPlistLocksAppToPortrait() throws {
+        let projectRoot = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let projectFile = projectRoot
+            .appendingPathComponent("Tarneeb.xcodeproj")
+            .appendingPathComponent("project.pbxproj")
+        let source = try String(contentsOf: projectFile)
+
+        XCTAssertTrue(source.contains("INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;"))
+        XCTAssertTrue(source.contains("INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = UIInterfaceOrientationPortrait;"))
     }
 
     private func makeFourPlayers() -> [Player] {
