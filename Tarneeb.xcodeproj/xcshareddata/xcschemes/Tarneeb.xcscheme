@@ -35,6 +35,20 @@
                ReferencedContainer = "container:Tarneeb.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "NO"
+            buildForProfiling = "NO"
+            buildForArchiving = "NO"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "1A2B3C4D5E6F700000000402"
+               BuildableName = "TarneebUITests.xctest"
+               BlueprintName = "TarneebUITests"
+               ReferencedContainer = "container:Tarneeb.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
       </BuildActionEntries>
    </BuildAction>
    <TestAction

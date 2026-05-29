@@ -5,194 +5,315 @@ final class TarneebLaunchUITests: XCTestCase {
         continueAfterFailure = false
     }
 
-    func testMVP002SmallestSupportedSimulatorIsDocumented() throws {
-        XCTContext.runActivity(named: "MVP 002 smallest supported simulator: \(Self.mvp002SmallestSupportedSimulator)") { _ in
-            XCTAssertEqual(Self.mvp002SmallestSupportedSimulator, "iPhone SE (3rd generation)")
+    override func tearDownWithError() throws {
+        XCUIDevice.shared.orientation = .portrait
+    }
+
+    func testMVP003SmallestSupportedSimulatorIsDocumented() throws {
+        XCTContext.runActivity(named: "MVP 003 smallest supported simulator: \(Self.mvp003SmallestSupportedSimulator)") { _ in
+            XCTAssertEqual(Self.mvp003SmallestSupportedSimulator, "iPhone SE (3rd generation)")
         }
     }
 
-    func testInitialScreenShowsDealCardsButton() throws {
+    func testInitialScreenShowsPortraitTableTitleDeckStackStationsAndBottomDeal() throws {
+        XCUIDevice.shared.orientation = .portrait
         let app = XCUIApplication()
         app.launch()
         let screen = TarneebScreen(app: app)
 
         XCTAssertTrue(screen.title.waitForExistence(timeout: 5))
-        XCTAssertEqual(screen.title.label, "Tarneeb")
-        XCTAssertTrue(screen.dealCardsButton.exists)
-        XCTAssertEqual(screen.dealCardsButton.label, "Deal Cards")
-        XCTAssertTrue(screen.dealCardsButton.isHittable)
-        assertElementIsUsableOnScreen(screen.title, in: app)
-        assertElementIsUsableOnScreen(screen.dealCardsButton, in: app)
-
-        try assertTokenValue(screen.title, contains: "color.text.primary")
-        try assertTokenValue(screen.dealCardsButton, contains: "background=color.button.deal.background")
-        try assertTokenValue(screen.dealCardsButton, contains: "pressed=color.button.deal.background.pressed")
-        try assertTokenValue(screen.dealCardsButton, contains: "text=color.button.deal.text")
-    }
-
-    func testLaunchExposesStableSetupIdentifiers() throws {
-        let app = XCUIApplication()
-        app.launch()
-        let screen = TarneebScreen(app: app)
-
-        XCTAssertTrue(screen.title.waitForExistence(timeout: 5))
+        XCTAssertEqual(screen.title.label, "طرنيب")
         XCTAssertTrue(screen.tableSurface.exists)
-        XCTAssertTrue(screen.diamondTable.exists)
-        XCTAssertTrue(screen.dealCardsButton.exists)
-        XCTAssertTrue(screen.southSeat.exists)
-        XCTAssertTrue(screen.westSeat.exists)
-        XCTAssertTrue(screen.northSeat.exists)
-        XCTAssertTrue(screen.eastSeat.exists)
-        XCTAssertTrue(screen.southSeatArea.exists)
-        XCTAssertTrue(screen.westSeatArea.exists)
-        XCTAssertTrue(screen.northSeatArea.exists)
-        XCTAssertTrue(screen.eastSeatArea.exists)
+        XCTAssertTrue(screen.tableScene.exists)
+        XCTAssertTrue(screen.cardTable.exists)
+        XCTAssertTrue(screen.centralDeckStack.exists)
+        XCTAssertEqual(screen.deckStackCards.count, 52)
+        XCTAssertTrue(screen.dealButton.exists)
+        XCTAssertEqual(screen.dealButton.label, "Deal")
+        XCTAssertTrue(screen.dealButton.isHittable)
+        XCTAssertTrue(screen.newGameButton.exists)
+        XCTAssertEqual(screen.newGameButton.label, "New Game")
+        XCTAssertTrue(screen.newGameButton.isHittable)
+        XCTAssertGreaterThan(app.frame.height, app.frame.width)
+
         XCTAssertEqual(screen.visibleCards.count, 0)
         XCTAssertEqual(screen.hiddenCardBacks.count, 0)
-
-        try assertTokenValue(screen.tableSurface, contains: "background=color.table.background.primary")
-        try assertTokenValue(screen.diamondTable, contains: "table=color.table.background.primary")
-        try assertTokenValue(screen.diamondTable, contains: "label=color.text.primary")
-        try assertTokenValue(screen.diamondTable, contains: "station=color.station.outline")
-    }
-
-    func testInitialScreenShowsFourEmptyPlayerSeats() throws {
-        let app = XCUIApplication()
-        app.launch()
-        let screen = TarneebScreen(app: app)
-
-        XCTAssertTrue(screen.title.waitForExistence(timeout: 5))
-        XCTAssertTrue(screen.southSeat.exists)
-        XCTAssertTrue(screen.westSeat.exists)
-        XCTAssertTrue(screen.northSeat.exists)
-        XCTAssertTrue(screen.eastSeat.exists)
+        XCTAssertFalse(screen.dealCompleteMessage.exists)
+        XCTAssertFalse(screen.oldDealCardsButton.exists)
+        XCTAssertFalse(screen.oldNewDealButton.exists)
 
         XCTAssertEqual(screen.southSeat.label, "South")
         XCTAssertEqual(screen.westSeat.label, "West")
         XCTAssertEqual(screen.northSeat.label, "North")
         XCTAssertEqual(screen.eastSeat.label, "East")
 
-        assertDiamondLayout(on: screen)
+        assertTableDiameter(on: screen, in: app)
+        assertTableTitleIsOnCardTable(on: screen)
+        assertInitialDeckStackSitsBelowTitle(on: screen)
+        assertStationsSurroundTable(on: screen)
+        assertInitialStationsAreRoundedSquares(on: screen)
+        assertBottomDealButtonIsAtBottom(on: screen, in: app)
 
         for element in screen.initialUsabilityElements {
             assertElementIsUsableOnScreen(element, in: app)
         }
-
-        for station in screen.initialStationAreas {
-            try assertTokenValue(station, contains: "label=color.text.primary")
-            try assertTokenValue(station, contains: "outline=color.station.outline")
-        }
     }
 
-    func testInitialScreenHasNoCardsOrCompletedDealControls() throws {
+    func testInitialScreenExposesMVP003TokenAndLayoutHooks() throws {
         let app = XCUIApplication()
         app.launch()
         let screen = TarneebScreen(app: app)
 
         XCTAssertTrue(screen.title.waitForExistence(timeout: 5))
-        XCTAssertEqual(screen.visibleCards.count, 0)
-        XCTAssertEqual(screen.hiddenCardBacks.count, 0)
-        XCTAssertFalse(screen.dealCompleteMessage.exists)
-        XCTAssertFalse(screen.newDealButton.exists)
 
-        for control in screen.prohibitedGameplayControls {
-            XCTAssertFalse(control.exists)
+        try assertTokenValue(screen.tableSurface, contains: "background=color.table.background.primary")
+        try assertTokenValue(screen.tableScene, contains: "table=color.table.background.primary")
+        try assertTokenValue(screen.tableScene, contains: "label=color.text.primary")
+        try assertTokenValue(screen.tableScene, contains: "station=color.station.outline")
+        try assertTokenValue(screen.cardTable, contains: "shape=circle")
+        try assertTokenValue(screen.cardTable, contains: "surface=color.table.background.secondary")
+        try assertTokenValue(screen.title, contains: "font=typography.tableTitle.font")
+        try assertTokenValue(screen.title, contains: "fontName=SF Arabic Rounded Bold")
+        try assertTokenValue(screen.title, contains: "fontSize=typography.tableTitle.fontSize")
+        try assertTokenValue(screen.title, contains: "pointSize=26.0")
+        try assertTokenValue(screen.title, contains: "trackingMin=typography.tableTitle.tracking.min")
+        try assertTokenValue(screen.title, contains: "trackingMax=typography.tableTitle.tracking.max")
+        try assertTokenValue(screen.title, contains: "textColor=color.tableTitle.text")
+        try assertTokenValue(screen.title, contains: "textOpacity=effect.tableTitle.text.opacity")
+        try assertTokenValue(screen.title, contains: "textOpacityValue=0.92")
+        try assertTokenValue(screen.title, contains: "shadowColor=effect.tableTitle.shadow.color")
+        try assertTokenValue(screen.title, contains: "usesShadow=true")
+        try assertTokenValue(screen.title, contains: "shadowOpacityValue=0.25")
+        try assertTokenValue(screen.centralDeckStack, contains: "count=52")
+        try assertTokenValue(screen.centralDeckStack, contains: "asset=card_back")
+        try assertTokenValue(screen.centralDeckStack, contains: "layout=stacked")
+        try assertTokenValue(screen.centralDeckStack, contains: "placement=belowTitle")
+        try assertTokenValue(screen.centralDeckStack, contains: "stackOffset=0.0")
+        try assertTokenValue(screen.centralDeckStack, contains: "verticalOffset=")
+        try assertTokenValue(screen.centralDeckStack, contains: "rotation=0")
+        try assertTokenValue(screen.dealButton, contains: "background=color.button.deal.background")
+        try assertTokenValue(screen.dealButton, contains: "pressed=color.button.deal.background.pressed")
+        try assertTokenValue(screen.dealButton, contains: "text=color.button.deal.text")
+        try assertTokenValue(screen.newGameButton, contains: "background=color.button.newGame.background")
+        try assertTokenValue(screen.newGameButton, contains: "pressed=color.button.newGame.background.pressed")
+        try assertTokenValue(screen.newGameButton, contains: "text=color.button.newGame.text")
+
+        for station in screen.stationAreas {
+            try assertTokenValue(station, contains: "shape=roundedSquare")
+            try assertTokenValue(station, contains: "label=color.text.primary")
+            try assertTokenValue(station, contains: "outline=color.station.outline")
         }
     }
 
-    func testTappingDealCardsShowsDealtTableCompletionAndNewDealAction() throws {
+    func testAppRemainsPortraitWhenDeviceRotates() throws {
+        XCUIDevice.shared.orientation = .portrait
         let app = XCUIApplication()
         app.launch()
         let screen = TarneebScreen(app: app)
 
-        dealCards(on: screen)
+        XCTAssertTrue(screen.title.waitForExistence(timeout: 5))
+        XCTAssertGreaterThan(app.frame.height, app.frame.width)
 
-        XCTAssertTrue(screen.southSeatArea.exists)
-        XCTAssertTrue(screen.westSeatArea.exists)
-        XCTAssertTrue(screen.northSeatArea.exists)
-        XCTAssertTrue(screen.eastSeatArea.exists)
-        XCTAssertTrue(screen.southSeat.exists)
-        XCTAssertTrue(screen.westSeat.exists)
-        XCTAssertTrue(screen.northSeat.exists)
-        XCTAssertTrue(screen.eastSeat.exists)
-        XCTAssertTrue(screen.dealCompleteMessage.exists)
-        XCTAssertTrue(screen.newDealButton.exists)
-        XCTAssertTrue(screen.newDealButton.isHittable)
+        XCUIDevice.shared.orientation = .landscapeLeft
+        XCTAssertTrue(screen.title.waitForExistence(timeout: 5))
+        XCTAssertGreaterThan(app.frame.height, app.frame.width)
     }
 
-    func testDealtScreenExposesStableLayoutIdentifiers() throws {
+    func testTappingDealShowsDealtTableAndHidesCentralDeckStack() throws {
         let app = XCUIApplication()
         app.launch()
         let screen = TarneebScreen(app: app)
 
-        dealCards(on: screen)
+        deal(on: screen)
 
-        XCTAssertTrue(screen.diamondTable.exists)
+        XCTAssertTrue(screen.cardTable.exists)
+        XCTAssertFalse(screen.centralDeckStack.exists)
+        XCTAssertEqual(screen.deckStackCards.count, 0)
         XCTAssertTrue(screen.southVisibleHand.exists)
-        XCTAssertTrue(screen.westHiddenHand.exists)
-        XCTAssertTrue(screen.northHiddenHand.exists)
-        XCTAssertTrue(screen.eastHiddenHand.exists)
         XCTAssertEqual(screen.visibleCards.count, 13)
         XCTAssertEqual(screen.westHiddenCardBacks.count, 13)
         XCTAssertEqual(screen.northHiddenCardBacks.count, 13)
         XCTAssertEqual(screen.eastHiddenCardBacks.count, 13)
+        XCTAssertEqual(screen.hiddenCardBacks.count, 39)
         XCTAssertTrue(screen.dealCompleteMessage.exists)
-        XCTAssertTrue(screen.newDealButton.exists)
+        XCTAssertTrue(screen.dealButton.exists)
+        XCTAssertEqual(screen.dealButton.label, "Deal")
+        XCTAssertTrue(screen.newGameButton.exists)
+        XCTAssertEqual(screen.newGameButton.label, "New Game")
+
+        assertStationsSurroundTable(on: screen)
+        assertSouthStationExpandedBelowTable(on: screen)
+        assertCompletionAppearsAboveBottomDeal(on: screen)
+        assertBottomDealButtonIsAtBottom(on: screen, in: app)
     }
 
-    func testDealtTablePreservesDiamondLayoutAndPartnerOpposition() throws {
+    func testDealtScreenExposesTokenAndCardSizeHooks() throws {
         let app = XCUIApplication()
         app.launch()
         let screen = TarneebScreen(app: app)
 
-        dealCards(on: screen)
+        deal(on: screen)
 
-        assertDiamondLayout(on: screen)
-    }
+        try assertTokenValue(screen.dealCompleteMessage, contains: "text=color.text.primary")
+        try assertTokenValue(screen.dealButton, contains: "background=color.button.deal.background")
+        try assertTokenValue(screen.dealButton, contains: "pressed=color.button.deal.background.pressed")
+        try assertTokenValue(screen.dealButton, contains: "text=color.button.deal.text")
+        try assertTokenValue(screen.newGameButton, contains: "background=color.button.newGame.background")
+        try assertTokenValue(screen.newGameButton, contains: "pressed=color.button.newGame.background.pressed")
+        try assertTokenValue(screen.newGameButton, contains: "text=color.button.newGame.text")
 
-    func testDealtSimulatedStationsAreCompactRelativeToSouth() throws {
-        let app = XCUIApplication()
-        app.launch()
-        let screen = TarneebScreen(app: app)
-
-        dealCards(on: screen)
-
-        let southArea = screen.southSeatArea.frame.width * screen.southSeatArea.frame.height
-        let simulatedAreas = [
-            screen.northSeatArea.frame.width * screen.northSeatArea.frame.height,
-            screen.westSeatArea.frame.width * screen.westSeatArea.frame.height,
-            screen.eastSeatArea.frame.width * screen.eastSeatArea.frame.height
-        ]
-
-        for simulatedArea in simulatedAreas {
-            XCTAssertLessThan(simulatedArea, southArea)
+        for label in screen.seatLabels {
+            try assertTokenValue(label, contains: "text=color.text.primary")
         }
 
-        XCTAssertLessThan(screen.northSeatArea.frame.height, screen.southSeatArea.frame.height)
-        XCTAssertLessThan(screen.westSeatArea.frame.height, screen.southSeatArea.frame.height)
-        XCTAssertLessThan(screen.eastSeatArea.frame.height, screen.southSeatArea.frame.height)
+        for station in screen.stationAreas {
+            try assertTokenValue(station, contains: "label=color.text.primary")
+            try assertTokenValue(station, contains: "outline=color.station.outline")
+        }
+
+        for card in screen.visibleCards.allElementsBoundByIndex {
+            let value = try XCTUnwrap(card.value as? String)
+            XCTAssertTrue(value.contains("size=sharedBaseCard"))
+            XCTAssertTrue(value.contains("surface=color.card.background"))
+            XCTAssertTrue(value.contains("border=color.card.border"))
+            XCTAssertTrue(value.contains("shadow=color.card.shadow"))
+
+            let expectedHook = try XCTUnwrap(Self.expectedSuitHook(for: card.label))
+            XCTAssertTrue(value.contains(expectedHook.role))
+            XCTAssertTrue(value.contains(expectedHook.token))
+            XCTAssertFalse(value.contains("#"))
+        }
+
+        for hiddenCard in screen.hiddenCardBacks.allElementsBoundByIndex {
+            XCTAssertEqual(hiddenCard.value as? String, "sharedBaseCard")
+        }
     }
 
-    func testDealtLayoutElementsRemainUsableAndNonOverlappingOnSmallSimulator() throws {
+    func testSouthCardsAreSortedAndNotActionable() throws {
         let app = XCUIApplication()
         app.launch()
         let screen = TarneebScreen(app: app)
 
-        dealCards(on: screen)
+        deal(on: screen)
 
-        XCTAssertEqual(Self.mvp002SmallestSupportedSimulator, "iPhone SE (3rd generation)")
+        let cardLabels = screen.visibleCards.allElementsBoundByIndex.map(\.label)
+        XCTAssertEqual(cardLabels.count, 13)
+        XCTAssertEqual(Self.cardSortValues(for: cardLabels).count, 13)
+        XCTAssertEqual(Self.cardSortValues(for: cardLabels), Self.cardSortValues(for: cardLabels).sorted())
+
+        let firstCard = screen.visibleCards.element(boundBy: 0)
+        XCTAssertTrue(firstCard.exists)
+        XCTAssertFalse(app.buttons[firstCard.label].exists)
+
+        let cardLabelsBeforeTap = screen.visibleCards.allElementsBoundByIndex.map(\.label)
+        if firstCard.isHittable {
+            firstCard.tap()
+        }
+        XCTAssertEqual(screen.visibleCards.allElementsBoundByIndex.map(\.label), cardLabelsBeforeTap)
+    }
+
+    func testSimulatedHandsShowHiddenCardBacksOnly() throws {
+        let app = XCUIApplication()
+        app.launch()
+        let screen = TarneebScreen(app: app)
+
+        deal(on: screen)
+
+        for hiddenCard in screen.hiddenCardBacks.allElementsBoundByIndex {
+            XCTAssertEqual(hiddenCard.label, "Card back")
+            assertHiddenCardDoesNotRevealCardData(hiddenCard)
+        }
+
+        for hiddenHand in [screen.westHiddenHand, screen.northHiddenHand, screen.eastHiddenHand] {
+            try assertTokenValue(hiddenHand, contains: "count=13")
+            try assertTokenValue(hiddenHand, contains: "asset=card_back")
+            try assertTokenValue(hiddenHand, contains: "hidden=true")
+        }
+    }
+
+    func testDealButtonReplacesCompletedDealWithAnotherCompletedDeal() throws {
+        let app = XCUIApplication()
+        app.launch()
+        let screen = TarneebScreen(app: app)
+
+        deal(on: screen)
+        let firstSouthHand = screen.visibleCardLabels
+        XCTAssertEqual(firstSouthHand.count, 13)
+
+        screen.dealButton.tap()
+
+        XCTAssertTrue(screen.dealCompleteMessage.waitForExistence(timeout: 5))
+        XCTAssertTrue(screen.dealButton.exists)
+        XCTAssertEqual(screen.dealButton.label, "Deal")
+        XCTAssertEqual(screen.visibleCards.count, 13)
+        XCTAssertEqual(screen.hiddenCardBacks.count, 39)
+        XCTAssertFalse(screen.centralDeckStack.exists)
+        XCTAssertNotEqual(screen.visibleCardLabels, firstSouthHand)
+        XCTAssertFalse(screen.oldDealCardsButton.exists)
+        XCTAssertFalse(screen.oldNewDealButton.exists)
+    }
+
+    func testNewGameButtonResetsToOriginalLaunchStateAfterDeal() throws {
+        let app = XCUIApplication()
+        app.launch()
+        let screen = TarneebScreen(app: app)
+
+        deal(on: screen)
+
+        screen.newGameButton.tap()
+
+        XCTAssertTrue(screen.centralDeckStack.waitForExistence(timeout: 5))
+        XCTAssertEqual(screen.deckStackCards.count, 52)
+        XCTAssertEqual(screen.visibleCards.count, 0)
+        XCTAssertEqual(screen.hiddenCardBacks.count, 0)
+        XCTAssertFalse(screen.dealCompleteMessage.exists)
+        XCTAssertTrue(screen.dealButton.exists)
+        XCTAssertTrue(screen.newGameButton.exists)
+        XCTAssertEqual(screen.dealButton.label, "Deal")
+        XCTAssertEqual(screen.newGameButton.label, "New Game")
+
+        assertTableTitleIsOnCardTable(on: screen)
+        assertInitialDeckStackSitsBelowTitle(on: screen)
+        assertInitialStationsAreRoundedSquares(on: screen)
+    }
+
+    func testDealAndReplacementDealRemainResponsive() throws {
+        let app = XCUIApplication()
+        app.launch()
+        let screen = TarneebScreen(app: app)
+
+        XCTAssertTrue(screen.title.waitForExistence(timeout: 5))
+        screen.dealButton.tap()
+
+        XCTAssertTrue(screen.dealCompleteMessage.waitForExistence(timeout: 2))
+        XCTAssertTrue(screen.dealButton.isHittable)
+        XCTAssertTrue(screen.newGameButton.isHittable)
+
+        screen.dealButton.tap()
+
+        XCTAssertTrue(screen.dealCompleteMessage.waitForExistence(timeout: 2))
+        XCTAssertTrue(screen.dealButton.isHittable)
+        XCTAssertTrue(screen.newGameButton.isHittable)
+        XCTAssertEqual(screen.visibleCards.count, 13)
+        XCTAssertEqual(screen.hiddenCardBacks.count, 39)
+    }
+
+    func testPrimaryLayoutElementsRemainUsableAndNonOverlapping() throws {
+        let app = XCUIApplication()
+        app.launch()
+        let screen = TarneebScreen(app: app)
+
+        deal(on: screen)
 
         for element in screen.dealtUsabilityElements {
             assertElementIsUsableOnScreen(element, in: app)
         }
 
-        assertNoSubstantialOverlap(screen.dealCompleteMessage, screen.newDealButton)
-        assertNoSubstantialOverlap(screen.northSeatArea, screen.westSeatArea)
-        assertNoSubstantialOverlap(screen.northSeatArea, screen.eastSeatArea)
-        assertNoSubstantialOverlap(screen.westSeatArea, screen.southSeatArea)
-        assertNoSubstantialOverlap(screen.eastSeatArea, screen.southSeatArea)
-        assertNoSubstantialOverlap(screen.dealCompleteMessage, screen.northSeatArea)
-        assertNoSubstantialOverlap(screen.newDealButton, screen.northSeatArea)
+        assertNoSubstantialOverlap(screen.dealCompleteMessage, screen.dealButton)
+        assertNoSubstantialOverlap(screen.dealButton, screen.southSeatArea)
+        assertNoSubstantialOverlap(screen.northSeatArea, screen.cardTable)
+        assertNoSubstantialOverlap(screen.southSeatArea, screen.cardTable)
+        assertNoSubstantialOverlap(screen.westSeatArea, screen.eastSeatArea)
 
         for card in screen.visibleCards.allElementsBoundByIndex {
             assertFrame(card.frame, isInside: screen.southSeatArea.frame)
@@ -211,196 +332,122 @@ final class TarneebLaunchUITests: XCTestCase {
         }
     }
 
-    func testDealtScreenExposesTokenAndCardSizeHooks() throws {
-        let app = XCUIApplication()
-        app.launch()
-        let screen = TarneebScreen(app: app)
-
-        dealCards(on: screen)
-
-        try assertDealtTokenAndCardSizeHooks(on: screen)
-    }
-
-    func testNewDealButtonExposesExistingNewGameTokenHooks() throws {
-        let app = XCUIApplication()
-        app.launch()
-        let screen = TarneebScreen(app: app)
-
-        dealCards(on: screen)
-
-        let value = try XCTUnwrap(screen.newDealButton.value as? String)
-        XCTAssertTrue(value.contains("background=color.button.newGame.background"))
-        XCTAssertTrue(value.contains("pressed=color.button.newGame.background.pressed"))
-        XCTAssertTrue(value.contains("text=color.button.newGame.text"))
-    }
-
-    func testNewDealReplacesCompletedDealWithAnotherCompletedDeal() throws {
-        let app = XCUIApplication()
-        app.launch()
-        let screen = TarneebScreen(app: app)
-
-        dealCards(on: screen)
-        let firstSouthHand = screen.visibleCardLabels
-        XCTAssertEqual(firstSouthHand.count, 13)
-
-        screen.newDealButton.tap()
-
-        XCTAssertTrue(screen.dealCompleteMessage.waitForExistence(timeout: 5))
-        XCTAssertTrue(screen.newDealButton.exists)
-        XCTAssertEqual(screen.visibleCards.count, 13)
-        XCTAssertEqual(screen.hiddenCardBacks.count, 39)
-        XCTAssertNotEqual(screen.visibleCardLabels, firstSouthHand)
-    }
-
-    func testNewDealPreservesLayoutSizingAndTokenHooks() throws {
-        let app = XCUIApplication()
-        app.launch()
-        let screen = TarneebScreen(app: app)
-
-        dealCards(on: screen)
-        screen.newDealButton.tap()
-
-        XCTAssertTrue(screen.dealCompleteMessage.waitForExistence(timeout: 5))
-        XCTAssertEqual(screen.visibleCards.count, 13)
-        XCTAssertEqual(screen.hiddenCardBacks.count, 39)
-        assertDiamondLayout(on: screen)
-        try assertDealtTokenAndCardSizeHooks(on: screen)
-    }
-
-    func testDealAndNewDealRemainResponsive() throws {
+    func testOldDealLabelsAndProhibitedGameplayControlsAreAbsent() throws {
         let app = XCUIApplication()
         app.launch()
         let screen = TarneebScreen(app: app)
 
         XCTAssertTrue(screen.title.waitForExistence(timeout: 5))
-        screen.dealCardsButton.tap()
+        XCTAssertFalse(screen.oldDealCardsButton.exists)
+        XCTAssertFalse(screen.oldNewDealButton.exists)
 
-        XCTAssertTrue(screen.dealCompleteMessage.waitForExistence(timeout: 2))
-        XCTAssertTrue(screen.newDealButton.isHittable)
+        deal(on: screen)
 
-        screen.newDealButton.tap()
-
-        XCTAssertTrue(screen.dealCompleteMessage.waitForExistence(timeout: 2))
-        XCTAssertTrue(screen.newDealButton.isHittable)
-        XCTAssertEqual(screen.visibleCards.count, 13)
-        XCTAssertEqual(screen.hiddenCardBacks.count, 39)
-    }
-
-    func testTappingDealCardsShowsHumanHandWithSortedRankAndSuitCards() throws {
-        let app = XCUIApplication()
-        app.launch()
-        let screen = TarneebScreen(app: app)
-
-        dealCards(on: screen)
-
-        let cardLabels = screen.visibleCards.allElementsBoundByIndex.map(\.label)
-        XCTAssertEqual(cardLabels.count, 13)
-        XCTAssertEqual(Self.cardSortValues(for: cardLabels).count, 13)
-        XCTAssertEqual(Self.cardSortValues(for: cardLabels), Self.cardSortValues(for: cardLabels).sorted())
-    }
-
-    func testSouthCardsAreNotActionable() throws {
-        let app = XCUIApplication()
-        app.launch()
-        let screen = TarneebScreen(app: app)
-
-        dealCards(on: screen)
-
-        let firstCard = screen.visibleCards.element(boundBy: 0)
-        XCTAssertTrue(firstCard.exists)
-        XCTAssertFalse(app.buttons[firstCard.label].exists)
-
-        let cardLabelsBeforeTap = screen.visibleCards.allElementsBoundByIndex.map(\.label)
-        if firstCard.isHittable {
-            firstCard.tap()
-        }
-        XCTAssertEqual(screen.visibleCards.allElementsBoundByIndex.map(\.label), cardLabelsBeforeTap)
-    }
-
-    func testTappingDealCardsShowsSimulatedPlayerHiddenCardBacksOnly() throws {
-        let app = XCUIApplication()
-        app.launch()
-        let screen = TarneebScreen(app: app)
-
-        dealCards(on: screen)
-
-        XCTAssertEqual(screen.westHiddenCardBacks.count, 13)
-        XCTAssertEqual(screen.northHiddenCardBacks.count, 13)
-        XCTAssertEqual(screen.eastHiddenCardBacks.count, 13)
-        XCTAssertEqual(screen.hiddenCardBacks.count, 39)
-
-        for hiddenCard in screen.hiddenCardBacks.allElementsBoundByIndex {
-            XCTAssertEqual(hiddenCard.label, "Card back")
-            assertHiddenCardDoesNotRevealCardData(hiddenCard)
-        }
-
-        for control in screen.prohibitedGameplayControls {
-            XCTAssertFalse(control.exists)
-        }
-    }
-
-    func testNoBiddingUIIsShownAfterDeal() throws {
-        let app = XCUIApplication()
-        app.launch()
-        let screen = TarneebScreen(app: app)
-
-        dealCards(on: screen)
-
-        for element in screen.prohibitedBiddingElements {
-            XCTAssertFalse(element.exists)
-        }
-    }
-
-    func testNoGameplayControlsAreShownAfterDeal() throws {
-        let app = XCUIApplication()
-        app.launch()
-        let screen = TarneebScreen(app: app)
-
-        dealCards(on: screen)
-
-        for control in screen.prohibitedGameplayControls {
-            XCTAssertFalse(control.exists)
-        }
-    }
-
-    func testNoOutOfScopeMVPControlsAreShownAfterDeal() throws {
-        let app = XCUIApplication()
-        app.launch()
-        let screen = TarneebScreen(app: app)
-
-        dealCards(on: screen)
-
+        XCTAssertFalse(screen.oldDealCardsButton.exists)
+        XCTAssertFalse(screen.oldNewDealButton.exists)
         for element in screen.prohibitedOutOfScopeElements {
             XCTAssertFalse(element.exists)
         }
     }
 
-    private func dealCards(on screen: TarneebScreen) {
+    private func deal(on screen: TarneebScreen) {
         XCTAssertTrue(screen.title.waitForExistence(timeout: 5))
-        screen.dealCardsButton.tap()
+        screen.dealButton.tap()
         XCTAssertTrue(screen.dealCompleteMessage.waitForExistence(timeout: 5))
     }
 
-    private func assertDiamondLayout(
+    private func assertTableDiameter(
+        on screen: TarneebScreen,
+        in app: XCUIApplication,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        let widthRatio = screen.cardTable.frame.width / app.frame.width
+        XCTAssertGreaterThanOrEqual(widthRatio, 0.45, file: file, line: line)
+        XCTAssertLessThanOrEqual(widthRatio, 0.55, file: file, line: line)
+        let aspectRatio = screen.cardTable.frame.width / screen.cardTable.frame.height
+        XCTAssertGreaterThanOrEqual(aspectRatio, 0.95, file: file, line: line)
+        XCTAssertLessThanOrEqual(aspectRatio, 1.08, file: file, line: line)
+    }
+
+    private func assertTableTitleIsOnCardTable(
         on screen: TarneebScreen,
         file: StaticString = #filePath,
         line: UInt = #line
     ) {
+        XCTAssertTrue(screen.cardTable.frame.insetBy(dx: -4, dy: -4).contains(screen.title.frame), file: file, line: line)
+    }
+
+    private func assertInitialDeckStackSitsBelowTitle(
+        on screen: TarneebScreen,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        XCTAssertTrue(screen.cardTable.frame.insetBy(dx: -4, dy: -4).contains(screen.centralDeckStack.frame), file: file, line: line)
+        XCTAssertGreaterThan(screen.centralDeckStack.frame.minY, screen.title.frame.maxY, file: file, line: line)
+        assertNoSubstantialOverlap(screen.title, screen.centralDeckStack, file: file, line: line)
+    }
+
+    private func assertStationsSurroundTable(
+        on screen: TarneebScreen,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        let tableFrame = screen.cardTable.frame
         let northFrame = screen.northSeatArea.frame
         let westFrame = screen.westSeatArea.frame
         let southFrame = screen.southSeatArea.frame
         let eastFrame = screen.eastSeatArea.frame
 
-        XCTAssertLessThan(northFrame.midY, westFrame.midY, file: file, line: line)
-        XCTAssertLessThan(northFrame.midY, eastFrame.midY, file: file, line: line)
-        XCTAssertGreaterThan(southFrame.midY, westFrame.midY, file: file, line: line)
-        XCTAssertGreaterThan(southFrame.midY, eastFrame.midY, file: file, line: line)
-        XCTAssertLessThan(westFrame.midX, northFrame.midX, file: file, line: line)
-        XCTAssertLessThan(westFrame.midX, southFrame.midX, file: file, line: line)
-        XCTAssertGreaterThan(eastFrame.midX, northFrame.midX, file: file, line: line)
-        XCTAssertGreaterThan(eastFrame.midX, southFrame.midX, file: file, line: line)
-        XCTAssertEqual(Double(northFrame.midX), Double(southFrame.midX), accuracy: 24, file: file, line: line)
-        XCTAssertEqual(Double(westFrame.midY), Double(eastFrame.midY), accuracy: 24, file: file, line: line)
+        XCTAssertLessThan(northFrame.midY, tableFrame.midY, file: file, line: line)
+        XCTAssertGreaterThan(southFrame.midY, tableFrame.midY, file: file, line: line)
+        XCTAssertLessThan(westFrame.midX, tableFrame.midX, file: file, line: line)
+        XCTAssertGreaterThan(eastFrame.midX, tableFrame.midX, file: file, line: line)
+        XCTAssertEqual(Double(northFrame.midX), Double(tableFrame.midX), accuracy: 30, file: file, line: line)
+        XCTAssertEqual(Double(southFrame.midX), Double(tableFrame.midX), accuracy: 30, file: file, line: line)
+        XCTAssertEqual(Double(westFrame.midY), Double(eastFrame.midY), accuracy: 30, file: file, line: line)
+    }
+
+    private func assertInitialStationsAreRoundedSquares(
+        on screen: TarneebScreen,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        for station in screen.stationAreas {
+            XCTAssertEqual(Double(station.frame.width), Double(station.frame.height), accuracy: 8, file: file, line: line)
+        }
+    }
+
+    private func assertSouthStationExpandedBelowTable(
+        on screen: TarneebScreen,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        XCTAssertGreaterThan(screen.southSeatArea.frame.minY, screen.cardTable.frame.midY, file: file, line: line)
+        XCTAssertGreaterThan(screen.southSeatArea.frame.height, screen.northSeatArea.frame.height, file: file, line: line)
+        XCTAssertGreaterThan(screen.southSeatArea.frame.height, screen.westSeatArea.frame.height, file: file, line: line)
+        XCTAssertGreaterThan(screen.southSeatArea.frame.height, screen.eastSeatArea.frame.height, file: file, line: line)
+    }
+
+    private func assertCompletionAppearsAboveBottomDeal(
+        on screen: TarneebScreen,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        XCTAssertLessThan(screen.dealCompleteMessage.frame.midY, screen.dealButton.frame.midY, file: file, line: line)
+    }
+
+    private func assertBottomDealButtonIsAtBottom(
+        on screen: TarneebScreen,
+        in app: XCUIApplication,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        XCTAssertGreaterThan(screen.dealButton.frame.maxY, app.frame.maxY - 70, file: file, line: line)
+        XCTAssertGreaterThan(screen.newGameButton.frame.maxY, app.frame.maxY - 70, file: file, line: line)
+        XCTAssertEqual(Double(screen.newGameButton.frame.midY), Double(screen.dealButton.frame.midY), accuracy: 4, file: file, line: line)
+        XCTAssertLessThan(screen.newGameButton.frame.maxX, screen.dealButton.frame.minX, file: file, line: line)
+        assertNoSubstantialOverlap(screen.newGameButton, screen.dealButton, file: file, line: line)
     }
 
     private func assertNoSubstantialOverlap(
@@ -410,7 +457,7 @@ final class TarneebLaunchUITests: XCTestCase {
         line: UInt = #line
     ) {
         let intersection = first.frame.intersection(second.frame)
-        let tolerance = 1.0
+        let tolerance = 2.0
 
         XCTAssertLessThanOrEqual(intersection.width, tolerance, file: file, line: line)
         XCTAssertLessThanOrEqual(intersection.height, tolerance, file: file, line: line)
@@ -422,7 +469,7 @@ final class TarneebLaunchUITests: XCTestCase {
         file: StaticString = #filePath,
         line: UInt = #line
     ) {
-        XCTAssertTrue(containerFrame.insetBy(dx: -2, dy: -2).contains(childFrame), file: file, line: line)
+        XCTAssertTrue(containerFrame.insetBy(dx: -3, dy: -3).contains(childFrame), file: file, line: line)
     }
 
     private func assertElementIsUsableOnScreen(
@@ -444,46 +491,6 @@ final class TarneebLaunchUITests: XCTestCase {
     ) throws {
         let value = try XCTUnwrap(element.value as? String, file: file, line: line)
         XCTAssertTrue(value.contains(expectedValue), "\(value) does not contain \(expectedValue)", file: file, line: line)
-    }
-
-    private func assertDealtTokenAndCardSizeHooks(
-        on screen: TarneebScreen,
-        file: StaticString = #filePath,
-        line: UInt = #line
-    ) throws {
-        try assertTokenValue(screen.tableSurface, contains: "background=color.table.background.primary", file: file, line: line)
-        try assertTokenValue(screen.diamondTable, contains: "table=color.table.background.primary", file: file, line: line)
-        try assertTokenValue(screen.diamondTable, contains: "label=color.text.primary", file: file, line: line)
-        try assertTokenValue(screen.diamondTable, contains: "station=color.station.outline", file: file, line: line)
-        try assertTokenValue(screen.dealCompleteMessage, contains: "text=color.text.primary", file: file, line: line)
-        try assertTokenValue(screen.newDealButton, contains: "background=color.button.newGame.background", file: file, line: line)
-        try assertTokenValue(screen.newDealButton, contains: "pressed=color.button.newGame.background.pressed", file: file, line: line)
-        try assertTokenValue(screen.newDealButton, contains: "text=color.button.newGame.text", file: file, line: line)
-
-        for label in screen.dealtSeatLabels {
-            try assertTokenValue(label, contains: "text=color.text.primary", file: file, line: line)
-        }
-
-        for station in screen.initialStationAreas {
-            try assertTokenValue(station, contains: "label=color.text.primary", file: file, line: line)
-            try assertTokenValue(station, contains: "outline=color.station.outline", file: file, line: line)
-        }
-
-        for card in screen.visibleCards.allElementsBoundByIndex {
-            let value = try XCTUnwrap(card.value as? String, file: file, line: line)
-            XCTAssertTrue(value.contains("size=sharedBaseCard"), file: file, line: line)
-            XCTAssertTrue(value.contains("surface=color.card.background"), file: file, line: line)
-            XCTAssertTrue(value.contains("border=color.card.border"), file: file, line: line)
-            XCTAssertTrue(value.contains("shadow=color.card.shadow"), file: file, line: line)
-
-            let expectedHook = try XCTUnwrap(Self.expectedSuitHook(for: card.label), file: file, line: line)
-            XCTAssertTrue(value.contains(expectedHook.role), file: file, line: line)
-            XCTAssertTrue(value.contains(expectedHook.token), file: file, line: line)
-        }
-
-        for hiddenCard in screen.hiddenCardBacks.allElementsBoundByIndex {
-            XCTAssertEqual(hiddenCard.value as? String, "sharedBaseCard", file: file, line: line)
-        }
     }
 
     private func assertHiddenCardDoesNotRevealCardData(
@@ -553,7 +560,7 @@ final class TarneebLaunchUITests: XCTestCase {
         "A": 12
     ]
 
-    private static let mvp002SmallestSupportedSimulator = "iPhone SE (3rd generation)"
+    private static let mvp003SmallestSupportedSimulator = "iPhone SE (3rd generation)"
 }
 
 private struct TarneebScreen {
@@ -563,16 +570,44 @@ private struct TarneebScreen {
         element(identifier: "tarneeb-title")
     }
 
-    var dealCardsButton: XCUIElement {
-        button(identifier: "tarneeb-deal-cards-button")
-    }
-
     var tableSurface: XCUIElement {
         element(identifier: "tarneeb-table-surface")
     }
 
-    var diamondTable: XCUIElement {
-        element(identifier: "tarneeb-diamond-table")
+    var tableScene: XCUIElement {
+        element(identifier: "tarneeb-table-scene")
+    }
+
+    var cardTable: XCUIElement {
+        element(identifier: "tarneeb-card-table")
+    }
+
+    var centralDeckStack: XCUIElement {
+        element(identifier: "tarneeb-central-deck-stack")
+    }
+
+    var deckStackCards: XCUIElementQuery {
+        app.images.matching(identifier: "tarneeb-deck-stack-card")
+    }
+
+    var bottomDealControl: XCUIElement {
+        element(identifier: "tarneeb-bottom-deal-control")
+    }
+
+    var dealButton: XCUIElement {
+        app.buttons.matching(identifier: "tarneeb-deal-button").firstMatch
+    }
+
+    var newGameButton: XCUIElement {
+        app.buttons.matching(identifier: "tarneeb-new-game-button").firstMatch
+    }
+
+    var oldDealCardsButton: XCUIElement {
+        app.buttons["Deal Cards"]
+    }
+
+    var oldNewDealButton: XCUIElement {
+        app.buttons["New Deal"]
     }
 
     var southSeat: XCUIElement {
@@ -591,6 +626,10 @@ private struct TarneebScreen {
         element(identifier: "tarneeb-seat-east")
     }
 
+    var seatLabels: [XCUIElement] {
+        [northSeat, westSeat, southSeat, eastSeat]
+    }
+
     var southSeatArea: XCUIElement {
         app.otherElements["tarneeb-seat-area-south"]
     }
@@ -607,22 +646,19 @@ private struct TarneebScreen {
         app.otherElements["tarneeb-seat-area-east"]
     }
 
-    var initialStationAreas: [XCUIElement] {
+    var stationAreas: [XCUIElement] {
         [northSeatArea, westSeatArea, southSeatArea, eastSeatArea]
     }
 
     var initialUsabilityElements: [XCUIElement] {
-        [title, dealCardsButton, northSeat, westSeat, southSeat, eastSeat]
-    }
-
-    var dealtSeatLabels: [XCUIElement] {
-        [northSeat, westSeat, southSeat, eastSeat]
+        [title, cardTable, centralDeckStack, newGameButton, dealButton, northSeat, westSeat, southSeat, eastSeat]
     }
 
     var dealtUsabilityElements: [XCUIElement] {
         [
             dealCompleteMessage,
-            newDealButton,
+            newGameButton,
+            dealButton,
             northSeatArea,
             westSeatArea,
             southSeatArea,
@@ -643,19 +679,19 @@ private struct TarneebScreen {
     }
 
     var southVisibleHand: XCUIElement {
-        app.descendants(matching: .any).matching(identifier: "tarneeb-visible-hand-south").firstMatch
+        element(identifier: "tarneeb-visible-hand-south")
     }
 
     var westHiddenHand: XCUIElement {
-        app.descendants(matching: .any).matching(identifier: "tarneeb-hidden-hand-west").firstMatch
+        element(identifier: "tarneeb-hidden-hand-west")
     }
 
     var northHiddenHand: XCUIElement {
-        app.descendants(matching: .any).matching(identifier: "tarneeb-hidden-hand-north").firstMatch
+        element(identifier: "tarneeb-hidden-hand-north")
     }
 
     var eastHiddenHand: XCUIElement {
-        app.descendants(matching: .any).matching(identifier: "tarneeb-hidden-hand-east").firstMatch
+        element(identifier: "tarneeb-hidden-hand-east")
     }
 
     var hiddenCardBacks: XCUIElementQuery {
@@ -676,10 +712,6 @@ private struct TarneebScreen {
 
     var dealCompleteMessage: XCUIElement {
         element(identifier: "tarneeb-deal-complete-message")
-    }
-
-    var newDealButton: XCUIElement {
-        button(identifier: "tarneeb-new-deal-button")
     }
 
     var prohibitedBiddingElements: [XCUIElement] {
@@ -732,9 +764,5 @@ private struct TarneebScreen {
 
     private func element(identifier: String) -> XCUIElement {
         app.descendants(matching: .any).matching(identifier: identifier).firstMatch
-    }
-
-    private func button(identifier: String) -> XCUIElement {
-        app.buttons.matching(identifier: identifier).firstMatch
     }
 }

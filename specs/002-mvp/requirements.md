@@ -477,3 +477,20 @@ The MVP 002 revision is complete when:
 - The minimum required small-screen simulator is not specified. Use the smallest simulator supported by the project unless product specifies a stricter target.
 - Exact red and black/dark color values are not specified. Use platform-appropriate colors unless product provides design tokens.
 - Exact hidden card stack spread distance is not specified. The spread should conserve space while still representing 13 hidden cards.
+
+## Product feedback
+
+- Big title at the top is in the wrong place
+- Player Stations should be square and surround a table
+- New Deal and Deal Cards buttons should just say Deal
+- Deal button should be at the very bottom, with Deal complete label above it
+
+## Requirement changes
+
+- App should be locked in the portrait orientation
+- Add a circle to represent a card table in the center of the screen.  The diameter should be half the screen width.  The player stations should be round squares surrounding the card table, and should be represented as rounded squares.
+- When the cards are dealt, the South station should expand below the card table to display the revealed cards
+- When the game begins, the deck of cards should be represented as a stack of 52 hidden cards, slightly fanned, in the center of the card table.  When the cards are dealt, this stack should disappear.
+- The Tarneeb title should be in the center of the card table.  It can be obscured by cards.
+- New Deal and Deal Cards buttons should just say Deal
+- Deal button should be at the very bottom, with Deal complete label above it

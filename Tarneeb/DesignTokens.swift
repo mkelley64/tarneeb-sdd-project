@@ -16,6 +16,8 @@ enum GameColorToken: String, CaseIterable, Equatable, Hashable {
     case textSecondary = "color.text.secondary"
     case textDisabled = "color.text.disabled"
     case textWarning = "color.text.warning"
+    case tableTitleText = "color.tableTitle.text"
+    case tableTitleShadow = "effect.tableTitle.shadow.color"
     case buttonDealBackground = "color.button.deal.background"
     case buttonDealBackgroundPressed = "color.button.deal.background.pressed"
     case buttonDealText = "color.button.deal.text"
@@ -61,6 +63,10 @@ enum GameColorToken: String, CaseIterable, Equatable, Hashable {
             return "#FFFFFF66"
         case .textWarning:
             return "#FFD166"
+        case .tableTitleText:
+            return "#E8DFC8"
+        case .tableTitleShadow:
+            return "#000000"
         case .buttonDealBackground:
             return "#1976D2"
         case .buttonDealBackgroundPressed:
@@ -99,6 +105,8 @@ enum GameColorRole: String, CaseIterable, Equatable, Hashable {
     case textSecondary
     case textDisabled
     case textWarning
+    case tableTitleText
+    case tableTitleShadow
     case dealActionBackground
     case dealActionPressedBackground
     case dealActionText
@@ -142,6 +150,10 @@ enum GameColorRole: String, CaseIterable, Equatable, Hashable {
             return .textDisabled
         case .textWarning:
             return .textWarning
+        case .tableTitleText:
+            return .tableTitleText
+        case .tableTitleShadow:
+            return .tableTitleShadow
         case .dealActionBackground:
             return .buttonDealBackground
         case .dealActionPressedBackground:
@@ -158,6 +170,56 @@ enum GameColorRole: String, CaseIterable, Equatable, Hashable {
     }
 }
 
+enum GameTypographyToken: String, CaseIterable, Equatable, Hashable {
+    case tableTitleFont = "typography.tableTitle.font"
+    case tableTitleFontSize = "typography.tableTitle.fontSize"
+    case tableTitleTrackingMinimum = "typography.tableTitle.tracking.min"
+    case tableTitleTrackingMaximum = "typography.tableTitle.tracking.max"
+
+    var stringValue: String {
+        switch self {
+        case .tableTitleFont:
+            return "SF Arabic Rounded Bold"
+        case .tableTitleFontSize:
+            return "26pt"
+        case .tableTitleTrackingMinimum:
+            return "+2"
+        case .tableTitleTrackingMaximum:
+            return "+4"
+        }
+    }
+
+    var numericValue: Double? {
+        switch self {
+        case .tableTitleFont:
+            return nil
+        case .tableTitleFontSize:
+            return 26
+        case .tableTitleTrackingMinimum:
+            return 2
+        case .tableTitleTrackingMaximum:
+            return 4
+        }
+    }
+}
+
+enum GameEffectToken: String, CaseIterable, Equatable, Hashable {
+    case tableTitleTextOpacity = "effect.tableTitle.text.opacity"
+    case tableTitleShadowOpacity = "effect.tableTitle.shadow.opacity"
+    case tableTitleShadowBlurRadius = "effect.tableTitle.shadow.blurRadius"
+
+    var value: Double {
+        switch self {
+        case .tableTitleTextOpacity:
+            return 0.92
+        case .tableTitleShadowOpacity:
+            return 0.25
+        case .tableTitleShadowBlurRadius:
+            return 4
+        }
+    }
+}
+
 enum CardSizeCategory: String, CaseIterable, Equatable, Hashable {
     case sharedBaseCard
 }
@@ -169,14 +231,16 @@ struct CardSizeConfiguration: Equatable {
     let cornerRadius: Double
     let rankFontPointSize: Double
     let hiddenStackOffset: Double
+    let deckStackOffset: Double
 
     static let sharedBase = CardSizeConfiguration(
         category: .sharedBaseCard,
-        baseCardWidth: 40,
-        baseCardHeight: 56,
+        baseCardWidth: 36,
+        baseCardHeight: 50.4,
         cornerRadius: 6,
-        rankFontPointSize: 13,
-        hiddenStackOffset: 4
+        rankFontPointSize: 12,
+        hiddenStackOffset: 2.5,
+        deckStackOffset: 0
     )
 
     var aspectRatio: Double {
@@ -189,6 +253,14 @@ struct CardSizeConfiguration: Equatable {
         }
 
         return baseCardWidth + hiddenStackOffset * Double(count - 1)
+    }
+
+    func deckStackWidth(for count: Int) -> Double {
+        guard count > 0 else {
+            return 0
+        }
+
+        return baseCardWidth + deckStackOffset * Double(count - 1)
     }
 }
 
@@ -203,14 +275,65 @@ struct ButtonTokenSet: Equatable {
         text: .buttonDealText
     )
 
-    static let newDeal = ButtonTokenSet(
+    static let newGame = ButtonTokenSet(
         background: .buttonNewGameBackground,
         pressedBackground: .buttonNewGameBackgroundPressed,
         text: .buttonNewGameText
     )
 
+    static let newDeal = newGame
+
     var accessibilityValue: String {
         "background=\(background.rawValue);pressed=\(pressedBackground.rawValue);text=\(text.rawValue)"
+    }
+}
+
+struct TableTitlePresentation: Equatable {
+    let text = "طرنيب"
+    let fontToken = GameTypographyToken.tableTitleFont
+    let fontSizeToken = GameTypographyToken.tableTitleFontSize
+    let trackingMinimumToken = GameTypographyToken.tableTitleTrackingMinimum
+    let trackingMaximumToken = GameTypographyToken.tableTitleTrackingMaximum
+    let tracking: Double
+    let textColorRole = GameColorRole.tableTitleText
+    let textOpacityToken = GameEffectToken.tableTitleTextOpacity
+    let shadowColorRole = GameColorRole.tableTitleShadow
+    let shadowOpacityToken = GameEffectToken.tableTitleShadowOpacity
+    let shadowBlurRadiusToken = GameEffectToken.tableTitleShadowBlurRadius
+    let usesShadow: Bool
+
+    init(
+        tracking: Double = GameTypographyToken.tableTitleTrackingMinimum.numericValue ?? 2,
+        usesShadow: Bool = true
+    ) {
+        let minimumTracking = GameTypographyToken.tableTitleTrackingMinimum.numericValue ?? tracking
+        let maximumTracking = GameTypographyToken.tableTitleTrackingMaximum.numericValue ?? tracking
+        self.tracking = min(max(tracking, minimumTracking), maximumTracking)
+        self.usesShadow = usesShadow
+    }
+
+    var fontPointSize: Double {
+        fontSizeToken.numericValue ?? 26
+    }
+
+    var accessibilityValue: String {
+        [
+            "font=\(fontToken.rawValue)",
+            "fontName=\(fontToken.stringValue)",
+            "fontSize=\(fontSizeToken.rawValue)",
+            "pointSize=\(fontPointSize)",
+            "tracking=\(tracking)",
+            "trackingMin=\(trackingMinimumToken.rawValue)",
+            "trackingMax=\(trackingMaximumToken.rawValue)",
+            "textColor=\(textColorRole.token.rawValue)",
+            "textOpacity=\(textOpacityToken.rawValue)",
+            "textOpacityValue=\(textOpacityToken.value)",
+            "shadowColor=\(shadowColorRole.token.rawValue)",
+            "usesShadow=\(usesShadow)",
+            "shadowOpacity=\(shadowOpacityToken.rawValue)",
+            "shadowOpacityValue=\(shadowOpacityToken.value)",
+            "shadowBlur=\(shadowBlurRadiusToken.rawValue)"
+        ].joined(separator: ";")
     }
 }
 
@@ -294,6 +417,46 @@ struct HiddenHandPresentation: Equatable {
 
     var stackWidth: Double {
         sizeConfiguration.hiddenStackWidth(for: hiddenCardCount)
+    }
+}
+
+struct CentralDeckStackPresentation: Equatable {
+    let hiddenCards: [HiddenCardBackPresentation]
+    let sizeConfiguration: CardSizeConfiguration
+    let isVisible: Bool
+
+    init(
+        phase: GamePhase,
+        hiddenCardCount: Int = 52,
+        sizeConfiguration: CardSizeConfiguration = .sharedBase
+    ) {
+        self.isVisible = phase == .notStarted
+        self.sizeConfiguration = sizeConfiguration
+        self.hiddenCards = isVisible
+            ? (0..<hiddenCardCount).map { index in
+                HiddenCardBackPresentation(index: index, sizeConfiguration: sizeConfiguration)
+            }
+            : []
+    }
+
+    var hiddenCardCount: Int {
+        hiddenCards.count
+    }
+
+    var stackOffset: Double {
+        sizeConfiguration.deckStackOffset
+    }
+
+    var stackWidth: Double {
+        sizeConfiguration.deckStackWidth(for: hiddenCardCount)
+    }
+
+    var verticalOffset: Double {
+        sizeConfiguration.baseCardHeight * (11.0 / 12.0)
+    }
+
+    var accessibilityValue: String {
+        "count=\(hiddenCardCount);asset=card_back;hidden=true;layout=stacked;placement=belowTitle;stackOffset=\(stackOffset);verticalOffset=\(verticalOffset);rotation=0;size=\(sizeConfiguration.category.rawValue)"
     }
 }
 
