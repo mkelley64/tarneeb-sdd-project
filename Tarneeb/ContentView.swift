@@ -1,11 +1,19 @@
 import SwiftUI
 
 struct ContentView: View {
-    @State private var presentationState = TarneebPresentationState()
-    @State private var gameState = GameState.initial
+    @State private var presentationState: TarneebPresentationState
+    @State private var gameState: GameState
+    @State private var pendingDealtState: GameState?
+    @State private var dealAnimation: DealAnimationPlayback?
+    @State private var lastDealAnimationPresentation: DealAnimationPresentation?
 
     private let cardSizeConfiguration = CardSizeConfiguration.sharedBase
     private let tableTitle = TableTitlePresentation()
+
+    init(presentationState: TarneebPresentationState = TarneebPresentationState()) {
+        _presentationState = State(initialValue: presentationState)
+        _gameState = State(initialValue: presentationState.gameState)
+    }
 
     var body: some View {
         GeometryReader { proxy in
@@ -31,31 +39,39 @@ struct ContentView: View {
     private func tableScene(screenWidth: CGFloat) -> some View {
         let metrics = TableLayoutMetrics(screenWidth: screenWidth)
 
-        return VStack(spacing: metrics.verticalSpacing) {
-            playerStation(for: player(for: .north), metrics: metrics)
+        return ZStack {
+            VStack(spacing: metrics.verticalSpacing) {
+                playerStation(for: displayPlayer(for: .north), metrics: metrics)
 
-            HStack(alignment: .center, spacing: metrics.horizontalSpacing) {
-                playerStation(for: player(for: .west), metrics: metrics)
+                HStack(alignment: .center, spacing: metrics.horizontalSpacing) {
+                    playerStation(for: displayPlayer(for: .west), metrics: metrics)
 
-                circularCardTable(metrics: metrics)
+                    circularCardTable(metrics: metrics)
 
-                playerStation(for: player(for: .east), metrics: metrics)
+                    playerStation(for: displayPlayer(for: .east), metrics: metrics)
+                }
+
+                playerStation(for: displayPlayer(for: .south), metrics: metrics)
             }
 
-            playerStation(for: player(for: .south), metrics: metrics)
+            if let movingStackPresentation = dealAnimation?.movingStackPresentation {
+                movingDealStackView(movingStackPresentation)
+                    .id(movingStackPresentation.targetSeat)
+                    .offset(dealAnimationOffset(to: movingStackPresentation.targetSeat, metrics: metrics))
+            }
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("tarneeb-table-scene")
         .accessibilityValue(
-            "table=\(GameColorRole.tableSurface.token.rawValue);label=\(GameColorRole.textPrimary.token.rawValue);station=\(GameColorRole.stationOutline.token.rawValue);diameter=\(Int(metrics.tableDiameter.rounded()))"
+            "table=\(GameColorRole.tableSurface.token.rawValue);label=\(GameColorRole.textPrimary.token.rawValue);station=\(GameColorRole.stationOutline.token.rawValue);dealer=\(gameState.dealerSeat.rawValue);diameter=\(Int(metrics.tableDiameter.rounded()));\(dealAnimationAccessibilityValue)"
         )
     }
 
     private func circularCardTable(metrics: TableLayoutMetrics) -> some View {
-        let centralDeckStack = CentralDeckStackPresentation(
-            phase: gameState.phase,
+        let undealtDeckStack = currentUndealtDeckStackPresentation(
             sizeConfiguration: cardSizeConfiguration
         )
+        let deckOffset = undealtDeckStack.layout.offset(forTableDiameter: Double(metrics.tableDiameter))
 
         return ZStack {
             Circle()
@@ -67,22 +83,38 @@ struct ContentView: View {
 
             tableTitleView()
 
-            if centralDeckStack.isVisible {
-                centralDeckStackView(centralDeckStack)
-                    .offset(y: CGFloat(centralDeckStack.verticalOffset))
+            if undealtDeckStack.isVisible && undealtDeckStack.hiddenCardCount > 0 {
+                undealtDeckStackView(undealtDeckStack)
+                    .offset(x: CGFloat(deckOffset.x), y: CGFloat(deckOffset.y))
             }
+
         }
         .frame(width: metrics.tableDiameter, height: metrics.tableDiameter)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("tarneeb-card-table")
         .accessibilityValue(
-            "shape=circle;diameter=\(Int(metrics.tableDiameter.rounded()));surface=\(GameColorRole.tableSurfaceSecondary.token.rawValue);highlight=\(GameColorRole.tableHighlight.token.rawValue)"
+            "shape=circle;diameter=\(Int(metrics.tableDiameter.rounded()));surface=\(GameColorRole.tableSurfaceSecondary.token.rawValue);highlight=\(GameColorRole.tableHighlight.token.rawValue);dealer=\(gameState.dealerSeat.rawValue);\(dealAnimationAccessibilityValue)"
+        )
+    }
+
+    private func currentUndealtDeckStackPresentation(sizeConfiguration: CardSizeConfiguration) -> UndealtDeckStackPresentation {
+        if let dealAnimation {
+            return UndealtDeckStackPresentation(
+                phase: .notStarted,
+                hiddenCardCount: dealAnimation.centralCardCount,
+                sizeConfiguration: sizeConfiguration
+            )
+        }
+
+        return UndealtDeckStackPresentation(
+            phase: gameState.phase,
+            sizeConfiguration: sizeConfiguration
         )
     }
 
     private func tableTitleView() -> some View {
         Text(tableTitle.text)
-            .font(.system(size: CGFloat(tableTitle.fontPointSize), weight: .bold, design: .rounded))
+            .font(.custom(tableTitle.fontName, fixedSize: CGFloat(tableTitle.fontPointSize)))
             .tracking(tableTitle.tracking)
             .foregroundStyle(
                 tableTitle.textColorRole.token.swiftUIColor.opacity(tableTitle.textOpacityToken.value)
@@ -99,8 +131,33 @@ struct ContentView: View {
             .accessibilityValue(tableTitle.accessibilityValue)
     }
 
-    private func centralDeckStackView(_ presentation: CentralDeckStackPresentation) -> some View {
-        ZStack(alignment: .leading) {
+    private func undealtDeckStackView(_ presentation: UndealtDeckStackPresentation) -> some View {
+        ZStack {
+            ForEach(presentation.hiddenCards) { hiddenCard in
+                let transform = presentation.visualTransform(for: hiddenCard)
+
+                Image(hiddenCard.assetName)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(
+                        width: hiddenCard.sizeConfiguration.baseCardWidth,
+                        height: hiddenCard.sizeConfiguration.baseCardHeight
+                    )
+                    .rotationEffect(.degrees(transform.rotationDegrees))
+                    .offset(x: CGFloat(transform.offsetX), y: CGFloat(transform.offsetY))
+                    .accessibilityLabel("Deck card back")
+                    .accessibilityIdentifier("tarneeb-undealt-deck-stack-card")
+                    .accessibilityValue("asset=card_back;hidden=true;size=\(hiddenCard.sizeConfiguration.category.rawValue)")
+            }
+        }
+        .frame(width: presentation.stackWidth, height: presentation.stackHeight)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("tarneeb-undealt-deck-stack")
+        .accessibilityValue(presentation.accessibilityValue)
+    }
+
+    private func movingDealStackView(_ presentation: DealAnimationStackPresentation) -> some View {
+        ZStack {
             ForEach(presentation.hiddenCards) { hiddenCard in
                 Image(hiddenCard.assetName)
                     .resizable()
@@ -109,20 +166,24 @@ struct ContentView: View {
                         width: hiddenCard.sizeConfiguration.baseCardWidth,
                         height: hiddenCard.sizeConfiguration.baseCardHeight
                     )
-                    .offset(x: Double(hiddenCard.index) * presentation.stackOffset)
-                    .accessibilityLabel("Deck card back")
-                    .accessibilityIdentifier("tarneeb-deck-stack-card")
+                    .accessibilityLabel("Deal animation card back")
+                    .accessibilityIdentifier("tarneeb-deal-animation-stack-card")
                     .accessibilityValue("asset=card_back;hidden=true;size=\(hiddenCard.sizeConfiguration.category.rawValue)")
             }
         }
-        .frame(width: presentation.stackWidth, height: presentation.sizeConfiguration.baseCardHeight)
+        .frame(width: presentation.stackWidth, height: presentation.stackHeight)
         .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("tarneeb-central-deck-stack")
+        .accessibilityIdentifier("tarneeb-deal-animation-stack")
         .accessibilityValue(presentation.accessibilityValue)
     }
 
     @ViewBuilder
     private func playerStation(for player: Player, metrics: TableLayoutMetrics) -> some View {
+        let dealerPresentation = DealerStationPresentation(
+            seat: player.seat,
+            phase: gameState.phase,
+            dealerSeat: gameState.dealerSeat
+        )
         let stationContent = VStack(spacing: 4) {
             Text(player.seat.displayLabel)
                 .font(.headline)
@@ -132,7 +193,7 @@ struct ContentView: View {
                 .accessibilityIdentifier("tarneeb-seat-\(player.seat.rawValue)")
                 .accessibilityValue("text=\(GameColorRole.textPrimary.token.rawValue)")
 
-            if gameState.phase == .dealt {
+            if showsDealtHand(for: player.seat) {
                 if player.seat == .south {
                     visibleHand(for: player)
                 } else {
@@ -142,28 +203,65 @@ struct ContentView: View {
         }
         .padding(4)
 
-        if player.seat == .south && gameState.phase == .dealt {
+        if player.seat == .south && showsDealtHand(for: player.seat) {
             stationContent
                 .frame(maxWidth: metrics.southStationMaxWidth)
                 .frame(minHeight: metrics.southStationMinHeight)
                 .background(
                     RoundedRectangle(cornerRadius: metrics.stationCornerRadius)
-                        .stroke(GameColorRole.stationOutline.token.swiftUIColor, lineWidth: 1)
+                        .stroke(dealerPresentation.outlineColorRole.token.swiftUIColor, lineWidth: 1)
                 )
+                .overlay(alignment: .topLeading) {
+                    if dealerPresentation.showsDealerBadge {
+                        dealerBadgeView(dealerPresentation)
+                            .padding(6)
+                    }
+                }
                 .accessibilityElement(children: .contain)
                 .accessibilityIdentifier("tarneeb-seat-area-\(player.seat.rawValue)")
-                .accessibilityValue(stationAccessibilityValue(for: player, metrics: metrics))
+                .accessibilityValue(stationAccessibilityValue(for: player, metrics: metrics, dealerPresentation: dealerPresentation))
+                .animation(
+                    .easeInOut(duration: GameAnimationToken.dealStationExpansionDuration.seconds),
+                    value: showsDealtHand(for: player.seat)
+                )
         } else {
             stationContent
                 .frame(width: metrics.compactStationSide, height: metrics.compactStationSide)
                 .background(
                     RoundedRectangle(cornerRadius: metrics.stationCornerRadius)
-                        .stroke(GameColorRole.stationOutline.token.swiftUIColor, lineWidth: 1)
+                        .stroke(dealerPresentation.outlineColorRole.token.swiftUIColor, lineWidth: 1)
                 )
+                .overlay(alignment: .topLeading) {
+                    if dealerPresentation.showsDealerBadge {
+                        dealerBadgeView(dealerPresentation)
+                            .padding(6)
+                    }
+                }
                 .accessibilityElement(children: .contain)
                 .accessibilityIdentifier("tarneeb-seat-area-\(player.seat.rawValue)")
-                .accessibilityValue(stationAccessibilityValue(for: player, metrics: metrics))
+                .accessibilityValue(stationAccessibilityValue(for: player, metrics: metrics, dealerPresentation: dealerPresentation))
+                .animation(
+                    .easeInOut(duration: GameAnimationToken.dealStationExpansionDuration.seconds),
+                    value: showsDealtHand(for: player.seat)
+                )
         }
+    }
+
+    private func dealerBadgeView(_ presentation: DealerStationPresentation) -> some View {
+        ZStack {
+            Circle()
+                .fill(presentation.badgeBackgroundToken.swiftUIColor)
+
+            Text("D")
+                .font(.caption2.weight(.bold))
+                .foregroundStyle(presentation.badgeTextToken.swiftUIColor)
+                .accessibilityHidden(true)
+        }
+        .frame(width: 22, height: 22)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("D")
+        .accessibilityIdentifier("tarneeb-dealer-badge-\(presentation.seat.rawValue)")
+        .accessibilityValue(presentation.accessibilityValue)
     }
 
     private func visibleHand(for player: Player) -> some View {
@@ -236,13 +334,15 @@ struct ContentView: View {
             HStack(spacing: 10) {
                 Button(PresentationAction.newGame.visibleLabel, action: newGame)
                     .buttonStyle(TokenButtonStyle(tokens: .newGame))
+                    .disabled(isDealAnimationRunning)
                     .accessibilityIdentifier("tarneeb-new-game-button")
-                    .accessibilityValue(ButtonTokenSet.newGame.accessibilityValue)
+                    .accessibilityValue("\(ButtonTokenSet.newGame.accessibilityValue);dealAnimationRunning=\(dealAnimationRunningValue)")
 
                 Button(PresentationAction.deal.visibleLabel, action: deal)
                     .buttonStyle(TokenButtonStyle(tokens: .deal))
+                    .disabled(isDealAnimationRunning)
                     .accessibilityIdentifier("tarneeb-deal-button")
-                    .accessibilityValue(ButtonTokenSet.deal.accessibilityValue)
+                    .accessibilityValue("\(ButtonTokenSet.deal.accessibilityValue);dealAnimationRunning=\(dealAnimationRunningValue)")
             }
         }
         .frame(maxWidth: .infinity)
@@ -256,37 +356,209 @@ struct ContentView: View {
     }
 
     private func deal() {
+        guard !isDealAnimationRunning else {
+            return
+        }
+
         presentationState.deal()
-        gameState = presentationState.gameState
+        let dealtState = presentationState.gameState
+
+        guard dealtState.phase == .dealt else {
+            gameState = dealtState
+            return
+        }
+
+        pendingDealtState = dealtState
+        gameState = .initial(dealerSeat: dealtState.dealerSeat)
+        let animationPresentation = DealAnimationPresentation(
+            dealerSeat: dealtState.dealerSeat,
+            sizeConfiguration: cardSizeConfiguration
+        )
+        lastDealAnimationPresentation = animationPresentation
+        dealAnimation = DealAnimationPlayback(presentation: animationPresentation)
+
+        Task {
+            await runDealAnimation(finalState: dealtState)
+        }
     }
 
     private func newGame() {
+        guard !isDealAnimationRunning else {
+            return
+        }
+
         presentationState.newGame()
+        pendingDealtState = nil
+        lastDealAnimationPresentation = nil
         gameState = presentationState.gameState
     }
 
+    @MainActor
+    private func runDealAnimation(finalState: GameState) async {
+        for stepIndex in 0..<Seat.dealerRotationOrder.count {
+            guard dealAnimation != nil else {
+                return
+            }
+
+            dealAnimation?.activeStepIndex = stepIndex
+            dealAnimation?.movingStackAtTarget = false
+            dealAnimation?.isMovingStackVisible = true
+
+            try? await Task.sleep(nanoseconds: GameAnimationToken.dealStepPauseDuration.nanoseconds)
+
+            guard dealAnimation != nil else {
+                return
+            }
+
+            withAnimation(.easeInOut(duration: GameAnimationToken.dealStackFlightDuration.seconds)) {
+                dealAnimation?.movingStackAtTarget = true
+            }
+
+            try? await Task.sleep(nanoseconds: GameAnimationToken.dealStackFlightDuration.nanoseconds)
+
+            guard let targetSeat = dealAnimation?.activeTargetSeat else {
+                return
+            }
+
+            withAnimation(.easeInOut(duration: GameAnimationToken.dealStationExpansionDuration.seconds)) {
+                dealAnimation?.deliveredSeats.insert(targetSeat)
+                dealAnimation?.isMovingStackVisible = false
+            }
+
+            try? await Task.sleep(nanoseconds: GameAnimationToken.dealStationExpansionDuration.nanoseconds)
+        }
+
+        guard dealAnimation != nil else {
+            return
+        }
+
+        withAnimation(.easeInOut(duration: GameAnimationToken.dealStationExpansionDuration.seconds)) {
+            gameState = finalState
+            pendingDealtState = nil
+            dealAnimation = nil
+        }
+    }
+
     private func player(for seat: Seat) -> Player {
-        guard let player = gameState.players.first(where: { $0.seat == seat }) else {
+        player(for: seat, in: gameState)
+    }
+
+    private func player(for seat: Seat, in state: GameState) -> Player {
+        guard let player = state.players.first(where: { $0.seat == seat }) else {
             preconditionFailure("Expected player for \(seat.rawValue) seat.")
         }
 
         return player
     }
 
-    private func stationAccessibilityValue(for player: Player, metrics: TableLayoutMetrics) -> String {
-        let stateValue = gameState.phase == .dealt ? "dealt" : "notStarted"
-        let shapeValue = player.seat == .south && gameState.phase == .dealt ? "expandedRoundedStation" : "roundedSquare"
+    private func displayPlayer(for seat: Seat) -> Player {
+        if showsAnimatedHand(for: seat), let pendingPlayer = pendingDealtState?.players.first(where: { $0.seat == seat }) {
+            return pendingPlayer
+        }
+
+        return player(for: seat)
+    }
+
+    private var isDealAnimationRunning: Bool {
+        dealAnimation != nil
+    }
+
+    private var dealAnimationRunningValue: String {
+        isDealAnimationRunning ? "true" : "false"
+    }
+
+    private var dealAnimationAccessibilityValue: String {
+        if let dealAnimation {
+            return "dealAnimation=running;\(dealAnimation.presentation.accessibilityValue)"
+        }
+
+        if let lastDealAnimationPresentation {
+            return "dealAnimation=idle;lastDealAnimation=completed;\(lastDealAnimationPresentation.accessibilityValue)"
+        }
+
+        return "dealAnimation=idle"
+    }
+
+    private func showsDealtHand(for seat: Seat) -> Bool {
+        gameState.phase == .dealt || showsAnimatedHand(for: seat)
+    }
+
+    private func showsAnimatedHand(for seat: Seat) -> Bool {
+        dealAnimation?.deliveredSeats.contains(seat) ?? false
+    }
+
+    private func dealAnimationOffset(to seat: Seat, metrics: TableLayoutMetrics) -> CGSize {
+        let path = DealAnimationPathPresentation(
+            tableDiameter: Double(metrics.tableDiameter),
+            compactStationSide: Double(metrics.compactStationSide),
+            southStationHeight: Double(southStationHeight(metrics: metrics)),
+            horizontalSpacing: Double(metrics.horizontalSpacing),
+            verticalSpacing: Double(metrics.verticalSpacing)
+        )
+        let offset = path.offset(
+            to: seat,
+            stackAtTarget: dealAnimation?.movingStackAtTarget == true
+        )
+
+        return CGSize(width: CGFloat(offset.x), height: CGFloat(offset.y))
+    }
+
+    private func southStationHeight(metrics: TableLayoutMetrics) -> CGFloat {
+        showsDealtHand(for: .south) ? metrics.southStationMinHeight : metrics.compactStationSide
+    }
+
+    private func stationAccessibilityValue(
+        for player: Player,
+        metrics: TableLayoutMetrics,
+        dealerPresentation: DealerStationPresentation
+    ) -> String {
+        let stateValue: String
+        if dealAnimation != nil {
+            stateValue = showsDealtHand(for: player.seat) ? "dealingDelivered" : "dealingWaiting"
+        } else {
+            stateValue = gameState.phase == .dealt ? "dealt" : "notStarted"
+        }
+        let shapeValue = player.seat == .south && showsDealtHand(for: player.seat) ? "expandedRoundedStation" : "roundedSquare"
 
         return [
             "label=\(GameColorRole.textPrimary.token.rawValue)",
-            "outline=\(GameColorRole.stationOutline.token.rawValue)",
+            "outline=\(dealerPresentation.outlineToken.rawValue)",
             "shape=\(shapeValue)",
             "position=\(player.seat.rawValue)",
             "state=\(stateValue)",
-            "compactSide=\(Int(metrics.compactStationSide.rounded()))"
+            "dealAnimationDelivered=\(showsAnimatedHand(for: player.seat))",
+            "compactSide=\(Int(metrics.compactStationSide.rounded()))",
+            dealerPresentation.accessibilityValue
         ].joined(separator: ";")
     }
 
+}
+
+private struct DealAnimationPlayback: Equatable {
+    let presentation: DealAnimationPresentation
+    var activeStepIndex = 0
+    var movingStackAtTarget = false
+    var isMovingStackVisible = false
+    var deliveredSeats: Set<Seat> = []
+
+    var activeTargetSeat: Seat? {
+        presentation.targetSeat(forStep: activeStepIndex)
+    }
+
+    var movingStackPresentation: DealAnimationStackPresentation? {
+        guard isMovingStackVisible else {
+            return nil
+        }
+
+        return presentation.movingStackPresentation(forStep: activeStepIndex)
+    }
+
+    var centralCardCount: Int {
+        presentation.centralCardCount(
+            deliveredSeatCount: deliveredSeats.count,
+            movingStackVisible: isMovingStackVisible
+        )
+    }
 }
 
 private struct TableLayoutMetrics {

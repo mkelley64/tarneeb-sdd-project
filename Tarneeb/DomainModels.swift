@@ -1,3 +1,5 @@
+import Foundation
+
 enum Suit: String, CaseIterable, Equatable, Hashable {
     case spades
     case clubs
@@ -82,7 +84,7 @@ struct CardShuffler: CardShuffling {
 }
 
 protocol Dealing {
-    func deal() -> GameState?
+    func deal(dealerSeat: Seat) -> GameState?
 }
 
 enum Seat: String, CaseIterable, Equatable, Hashable {
@@ -93,6 +95,7 @@ enum Seat: String, CaseIterable, Equatable, Hashable {
 
     static let dealOrder: [Seat] = [.south, .east, .north, .west]
     static let initialSetupOrder: [Seat] = dealOrder
+    static let dealerRotationOrder: [Seat] = dealOrder
 
     var displayLabel: String {
         switch self {
@@ -105,6 +108,59 @@ enum Seat: String, CaseIterable, Equatable, Hashable {
         case .east:
             return "East"
         }
+    }
+
+    var nextCounterclockwiseDealer: Seat {
+        guard let currentIndex = Seat.dealerRotationOrder.firstIndex(of: self) else {
+            return .south
+        }
+
+        let nextIndex = Seat.dealerRotationOrder.index(after: currentIndex)
+        return Seat.dealerRotationOrder[nextIndex == Seat.dealerRotationOrder.endIndex ? Seat.dealerRotationOrder.startIndex : nextIndex]
+    }
+}
+
+protocol DealerSelecting {
+    func selectDealer() -> Seat
+}
+
+struct RandomDealerSelector: DealerSelecting {
+    private let randomIndex: (Range<Int>) -> Int
+
+    init(randomIndex: @escaping (Range<Int>) -> Int = { Int.random(in: $0) }) {
+        self.randomIndex = randomIndex
+    }
+
+    func selectDealer() -> Seat {
+        let seats = Seat.dealerRotationOrder
+        let index = randomIndex(seats.indices)
+        guard seats.indices.contains(index) else {
+            return seats[0]
+        }
+
+        return seats[index]
+    }
+}
+
+struct EnvironmentDealerSelector: DealerSelecting {
+    private let environment: [String: String]
+    private let fallback: DealerSelecting
+
+    init(
+        environment: [String: String] = ProcessInfo.processInfo.environment,
+        fallback: DealerSelecting = RandomDealerSelector()
+    ) {
+        self.environment = environment
+        self.fallback = fallback
+    }
+
+    func selectDealer() -> Seat {
+        guard let rawSeat = environment["TARNEEB_INITIAL_DEALER"]?.lowercased(),
+              let forcedSeat = Seat(rawValue: rawSeat) else {
+            return fallback.selectDealer()
+        }
+
+        return forcedSeat
     }
 }
 
@@ -155,9 +211,10 @@ enum GamePhase: String, CaseIterable, Equatable, Hashable {
 struct GameState: Equatable {
     let phase: GamePhase
     let players: [Player]
+    let dealerSeat: Seat
     let deck: [Card]?
 
-    init?(phase: GamePhase, players: [Player], deck: [Card]? = nil) {
+    init?(phase: GamePhase, players: [Player], dealerSeat: Seat, deck: [Card]? = nil) {
         guard players.count == 4 else {
             return nil
         }
@@ -170,11 +227,16 @@ struct GameState: Equatable {
 
         self.phase = phase
         self.players = players
+        self.dealerSeat = dealerSeat
         self.deck = deck
     }
 
     static var initial: GameState {
-        guard let state = GameState(phase: .notStarted, players: Player.initialPlayers()) else {
+        initial(dealerSeat: EnvironmentDealerSelector().selectDealer())
+    }
+
+    static func initial(dealerSeat: Seat) -> GameState {
+        guard let state = GameState(phase: .notStarted, players: Player.initialPlayers(), dealerSeat: dealerSeat) else {
             preconditionFailure("Initial Tarneeb state must contain exactly four players.")
         }
 
@@ -227,7 +289,7 @@ struct DealService: Dealing {
         self.shuffler = shuffler
     }
 
-    func deal() -> GameState? {
+    func deal(dealerSeat: Seat) -> GameState? {
         let deck = DeckFactory.makeCanonicalDeck()
         let shuffledDeck = shuffler.shuffle(deck)
 
@@ -249,7 +311,7 @@ struct DealService: Dealing {
             players[playerIndex].hand = hand
         }
 
-        return GameState(phase: .dealt, players: players, deck: [])
+        return GameState(phase: .dealt, players: players, dealerSeat: dealerSeat, deck: [])
     }
 }
 
@@ -269,6 +331,7 @@ enum PresentationAction: String, CaseIterable, Equatable {
 
 final class TarneebPresentationState {
     private let dealService: Dealing
+    private let dealerSelector: DealerSelecting
     private var isDealing = false
 
     private(set) var gameState: GameState
@@ -277,9 +340,13 @@ final class TarneebPresentationState {
         [.newGame, .deal]
     }
 
-    init(dealService: Dealing = DealService()) {
+    init(
+        dealService: Dealing = DealService(),
+        dealerSelector: DealerSelecting = EnvironmentDealerSelector()
+    ) {
         self.dealService = dealService
-        self.gameState = .initial
+        self.dealerSelector = dealerSelector
+        self.gameState = .initial(dealerSeat: dealerSelector.selectDealer())
     }
 
     func deal() {
@@ -292,11 +359,15 @@ final class TarneebPresentationState {
             isDealing = false
         }
 
+        let dealerForDeal: Seat
         if gameState.phase == .dealt {
-            gameState = .initial
+            dealerForDeal = gameState.dealerSeat.nextCounterclockwiseDealer
+            gameState = .initial(dealerSeat: dealerForDeal)
+        } else {
+            dealerForDeal = gameState.dealerSeat
         }
 
-        guard let dealtState = dealService.deal() else {
+        guard let dealtState = dealService.deal(dealerSeat: dealerForDeal) else {
             return
         }
 
@@ -308,6 +379,6 @@ final class TarneebPresentationState {
             return
         }
 
-        gameState = .initial
+        gameState = .initial(dealerSeat: dealerSelector.selectDealer())
     }
 }

@@ -6,7 +6,7 @@ final class TarneebTests: XCTestCase {
         XCTAssertEqual(Bundle.main.bundleIdentifier, "com.mkelley.Tarneeb")
     }
 
-    func testDesignTokenSourceCoversRequiredMVP003TokenKeys() {
+    func testDesignTokenSourceCoversRequiredMVP004TokenKeys() {
         let requiredTokenKeys = [
             "color.table.background.primary",
             "color.table.background.secondary",
@@ -21,6 +21,8 @@ final class TarneebTests: XCTestCase {
             "color.station.outline",
             "color.station.outline.active",
             "color.station.outline.inactive",
+            "color.dealerBadge.background",
+            "color.dealerBadge.text",
             "color.text.primary",
             "color.text.secondary",
             "color.text.disabled",
@@ -57,6 +59,8 @@ final class TarneebTests: XCTestCase {
             .stationOutline: .stationOutline,
             .stationOutlineActive: .stationOutlineActive,
             .stationOutlineInactive: .stationOutlineInactive,
+            .dealerBadgeBackground: .dealerBadgeBackground,
+            .dealerBadgeText: .dealerBadgeText,
             .textPrimary: .textPrimary,
             .textSecondary: .textSecondary,
             .textDisabled: .textDisabled,
@@ -66,9 +70,9 @@ final class TarneebTests: XCTestCase {
             .dealActionBackground: .buttonDealBackground,
             .dealActionPressedBackground: .buttonDealBackgroundPressed,
             .dealActionText: .buttonDealText,
-            .newDealActionBackground: .buttonNewGameBackground,
-            .newDealActionPressedBackground: .buttonNewGameBackgroundPressed,
-            .newDealActionText: .buttonNewGameText
+            .newGameActionBackground: .buttonNewGameBackground,
+            .newGameActionPressedBackground: .buttonNewGameBackgroundPressed,
+            .newGameActionText: .buttonNewGameText
         ]
 
         let actualRoleTokens = Dictionary(uniqueKeysWithValues: GameColorRole.allCases.map { ($0, $0.token) })
@@ -87,6 +91,55 @@ final class TarneebTests: XCTestCase {
         XCTAssertEqual(GameEffectToken.tableTitleTextOpacity.value, 0.92)
         XCTAssertEqual(GameEffectToken.tableTitleShadowOpacity.value, 0.25)
         XCTAssertEqual(GameEffectToken.tableTitleShadowBlurRadius.value, 4)
+    }
+
+    func testUndealtDeckLayoutTokensAreAvailable() {
+        let requiredLayoutTokenKeys = [
+            "layout.undealtDeck.anchor.x",
+            "layout.undealtDeck.anchor.y",
+            "layout.undealtDeck.centerOffset.x",
+            "layout.undealtDeck.centerOffset.y",
+            "layout.undealtDeck.stack.rotation",
+            "layout.undealtDeck.stack.offset.x",
+            "layout.undealtDeck.stack.offset.y",
+            "layout.undealtDeck.edgeBuffer.min"
+        ]
+
+        XCTAssertEqual(Set(GameLayoutToken.allCases.map(\.rawValue)), Set(requiredLayoutTokenKeys))
+        XCTAssertEqual(GameLayoutToken.undealtDeckAnchorX.numericValue, 0.5)
+        XCTAssertEqual(GameLayoutToken.undealtDeckAnchorY.numericValue, 0.5)
+        XCTAssertEqual(GameLayoutToken.undealtDeckCenterOffsetX.numericValue, 0)
+        XCTAssertEqual(GameLayoutToken.undealtDeckCenterOffsetY.numericValue, 0)
+        XCTAssertEqual(GameLayoutToken.undealtDeckStackRotation.numericValue, 0)
+        XCTAssertEqual(GameLayoutToken.undealtDeckStackOffsetX.numericValue, 0)
+        XCTAssertEqual(GameLayoutToken.undealtDeckStackOffsetY.numericValue, 0)
+        XCTAssertEqual(GameLayoutToken.undealtDeckEdgeBufferMinimum.numericValue, 12)
+    }
+
+    func testDealAnimationTokensAreAvailable() {
+        let requiredAnimationTokenKeys = [
+            "animation.deal.stack.flight.duration",
+            "animation.deal.station.expand.duration",
+            "animation.deal.step.pause.duration"
+        ]
+
+        XCTAssertEqual(Set(GameAnimationToken.allCases.map(\.rawValue)), Set(requiredAnimationTokenKeys))
+        XCTAssertGreaterThan(GameAnimationToken.dealStackFlightDuration.seconds, 0)
+        XCTAssertGreaterThan(GameAnimationToken.dealStationExpansionDuration.seconds, 0)
+        XCTAssertGreaterThan(GameAnimationToken.dealStepPauseDuration.seconds, 0)
+        XCTAssertGreaterThan(GameAnimationToken.dealStackFlightDuration.nanoseconds, 0)
+        XCTAssertGreaterThan(GameAnimationToken.dealStationExpansionDuration.nanoseconds, 0)
+        XCTAssertGreaterThan(GameAnimationToken.dealStepPauseDuration.nanoseconds, 0)
+        XCTAssertEqual(GameAnimationToken.dealStackFlightDuration.seconds, 0.36)
+        XCTAssertEqual(GameAnimationToken.dealStationExpansionDuration.seconds, 0.16)
+        XCTAssertEqual(GameAnimationToken.dealStepPauseDuration.seconds, 0.06)
+    }
+
+    func testDealerBadgeTokensMatchDealButtonAndWhiteText() {
+        XCTAssertEqual(GameColorToken.dealerBadgeBackground.hexValue, GameColorToken.buttonDealBackground.hexValue)
+        XCTAssertEqual(GameColorToken.dealerBadgeText.hexValue, GameColorToken.buttonDealText.hexValue)
+        XCTAssertEqual(GameColorRole.dealerBadgeBackground.token, .dealerBadgeBackground)
+        XCTAssertEqual(GameColorRole.dealerBadgeText.token, .dealerBadgeText)
     }
 
     func testTableTitlePresentationUsesOnlyTokenizedVisualValues() {
@@ -261,21 +314,50 @@ final class TarneebTests: XCTestCase {
     }
 
     func testGameStateOnlyUsesMVPPhasesAndInitialStateHasEmptySeats() {
-        let state = GameState.initial
+        let state = GameState.initial(dealerSeat: .east)
 
         XCTAssertEqual(GamePhase.allCases.map(\.rawValue), ["notStarted", "dealt"])
         XCTAssertEqual(state.phase, .notStarted)
         XCTAssertEqual(state.players.count, 4)
         XCTAssertTrue(state.players.allSatisfy(\.hand.isEmpty))
+        XCTAssertEqual(state.dealerSeat, .east)
         XCTAssertNil(state.deck)
+    }
+
+    func testRandomDealerSelectorCanSelectAnySeatThroughInjectedRandomIndex() {
+        for (index, expectedSeat) in Seat.dealerRotationOrder.enumerated() {
+            let selector = RandomDealerSelector { range in
+                XCTAssertEqual(range, 0..<4)
+                return index
+            }
+
+            XCTAssertEqual(selector.selectDealer(), expectedSeat)
+        }
+    }
+
+    func testEnvironmentDealerSelectorUsesForcedDealerWhenProvided() {
+        let selector = EnvironmentDealerSelector(
+            environment: ["TARNEEB_INITIAL_DEALER": "north"],
+            fallback: RandomDealerSelector { _ in 0 }
+        )
+
+        XCTAssertEqual(selector.selectDealer(), .north)
+    }
+
+    func testDealerRotationOrderIsCounterclockwise() {
+        XCTAssertEqual(Seat.dealerRotationOrder, [.south, .east, .north, .west])
+        XCTAssertEqual(Seat.south.nextCounterclockwiseDealer, .east)
+        XCTAssertEqual(Seat.east.nextCounterclockwiseDealer, .north)
+        XCTAssertEqual(Seat.north.nextCounterclockwiseDealer, .west)
+        XCTAssertEqual(Seat.west.nextCounterclockwiseDealer, .south)
     }
 
     func testGameStateRequiresExactlyFourPlayers() {
         let players = makeFourPlayers()
 
-        XCTAssertNil(GameState(phase: .notStarted, players: Array(players.prefix(3))))
-        XCTAssertNotNil(GameState(phase: .notStarted, players: players))
-        XCTAssertNil(GameState(phase: .dealt, players: players + [players[0]]))
+        XCTAssertNil(GameState(phase: .notStarted, players: Array(players.prefix(3)), dealerSeat: .south))
+        XCTAssertNotNil(GameState(phase: .notStarted, players: players, dealerSeat: .south))
+        XCTAssertNil(GameState(phase: .dealt, players: players + [players[0]], dealerSeat: .south))
     }
 
     func testStandardShufflerPreservesCardCountAndUniqueness() {
@@ -310,10 +392,11 @@ final class TarneebTests: XCTestCase {
     }
 
     func testCompletedDealContainsFourThirteenCardHandsAndNoDuplicates() throws {
-        let state = try makeCompletedDeal()
+        let state = try makeCompletedDeal(dealerSeat: .west)
         let dealtCards = state.players.flatMap(\.hand)
 
         XCTAssertEqual(state.phase, .dealt)
+        XCTAssertEqual(state.dealerSeat, .west)
         XCTAssertEqual(state.deck, [])
         XCTAssertEqual(state.players.map(\.hand.count), [13, 13, 13, 13])
         XCTAssertEqual(dealtCards.count, 52)
@@ -321,9 +404,24 @@ final class TarneebTests: XCTestCase {
         XCTAssertEqual(Set(dealtCards.map(\.id)).count, 52)
     }
 
+    func testDealerSelectionDoesNotAlterChunkAssignmentOrder() throws {
+        let deck = DeckFactory.makeCanonicalDeck()
+        let reversedDeck = Array(deck.reversed())
+        let state = try makeCompletedDeal(
+            shuffler: CardShuffler { _ in reversedDeck },
+            dealerSeat: .west
+        )
+
+        XCTAssertEqual(state.dealerSeat, .west)
+        XCTAssertEqual(try player(in: state, seat: .south).hand, Array(reversedDeck[0..<13]))
+        XCTAssertEqual(try player(in: state, seat: .east).hand, Array(reversedDeck[13..<26]))
+        XCTAssertEqual(try player(in: state, seat: .north).hand, Array(reversedDeck[26..<39]))
+        XCTAssertEqual(try player(in: state, seat: .west).hand, Array(reversedDeck[39..<52]))
+    }
+
     func testInvalidCompletedDealsAreRejected() {
         let emptyHandPlayers = Player.initialPlayers()
-        XCTAssertNil(GameState(phase: .dealt, players: emptyHandPlayers, deck: []))
+        XCTAssertNil(GameState(phase: .dealt, players: emptyHandPlayers, dealerSeat: .south, deck: []))
 
         var shortHandPlayers = Player.initialPlayers()
         let canonicalDeck = DeckFactory.makeCanonicalDeck()
@@ -334,23 +432,23 @@ final class TarneebTests: XCTestCase {
             let playerIndex = shortHandPlayers.firstIndex { $0.seat == seat }!
             shortHandPlayers[playerIndex].hand = seat == .south ? Array(hand.dropLast()) : hand
         }
-        XCTAssertNil(GameState(phase: .dealt, players: shortHandPlayers, deck: []))
+        XCTAssertNil(GameState(phase: .dealt, players: shortHandPlayers, dealerSeat: .south, deck: []))
 
         var duplicateCardPlayers = Player.initialPlayers()
         let repeatedHand = Array(repeating: Card(suit: .spades, rank: .ace), count: 13)
         for index in duplicateCardPlayers.indices {
             duplicateCardPlayers[index].hand = repeatedHand
         }
-        XCTAssertNil(GameState(phase: .dealt, players: duplicateCardPlayers, deck: []))
+        XCTAssertNil(GameState(phase: .dealt, players: duplicateCardPlayers, dealerSeat: .south, deck: []))
 
-        let validDeal = DealService(shuffler: CardShuffler { $0 }).deal()
+        let validDeal = DealService(shuffler: CardShuffler { $0 }).deal(dealerSeat: .south)
         let validPlayers = validDeal?.players ?? []
-        XCTAssertNil(GameState(phase: .dealt, players: validPlayers, deck: [canonicalDeck[0]]))
+        XCTAssertNil(GameState(phase: .dealt, players: validPlayers, dealerSeat: .south, deck: [canonicalDeck[0]]))
 
         let droppingShuffler = CardShuffler { cards in
             Array(cards.dropLast())
         }
-        XCTAssertNil(DealService(shuffler: droppingShuffler).deal())
+        XCTAssertNil(DealService(shuffler: droppingShuffler).deal(dealerSeat: .south))
     }
 
     func testSouthHandPresentationSortsBySuitThenRankWithoutChangingOwnership() {
@@ -435,28 +533,213 @@ final class TarneebTests: XCTestCase {
         }
     }
 
-    func testCentralDeckStackPresentationRepresents52HiddenCardsOnlyBeforeDeal() {
-        let initialStack = CentralDeckStackPresentation(phase: .notStarted)
-        let dealtStack = CentralDeckStackPresentation(phase: .dealt)
+    func testUndealtDeckStackPresentationRepresents52HiddenCardsOnlyBeforeDeal() {
+        let initialStack = UndealtDeckStackPresentation(phase: .notStarted)
+        let dealtStack = UndealtDeckStackPresentation(phase: .dealt)
+        let firstCardTransform = initialStack.visualTransform(for: initialStack.hiddenCards[0])
+        let lastCardTransform = initialStack.visualTransform(for: initialStack.hiddenCards[51])
 
         XCTAssertTrue(initialStack.isVisible)
         XCTAssertEqual(initialStack.hiddenCardCount, 52)
         XCTAssertEqual(initialStack.hiddenCards.map(\.assetName), Array(repeating: "card_back", count: 52))
-        XCTAssertEqual(initialStack.stackOffset, 0)
         XCTAssertEqual(initialStack.stackWidth, initialStack.sizeConfiguration.baseCardWidth)
-        XCTAssertEqual(initialStack.verticalOffset, 46.2, accuracy: 0.01)
+        XCTAssertEqual(initialStack.stackHeight, initialStack.sizeConfiguration.baseCardHeight)
+        XCTAssertEqual(initialStack.layout.placementLabel, "veryCenter")
+        XCTAssertEqual(initialStack.layout.anchorLabel, "center")
+        XCTAssertEqual(initialStack.layout.anchorXToken, .undealtDeckAnchorX)
+        XCTAssertEqual(initialStack.layout.anchorYToken, .undealtDeckAnchorY)
+        XCTAssertEqual(initialStack.layout.centerOffsetXToken, .undealtDeckCenterOffsetX)
+        XCTAssertEqual(initialStack.layout.centerOffsetYToken, .undealtDeckCenterOffsetY)
+        XCTAssertEqual(initialStack.layout.stackRotationToken, .undealtDeckStackRotation)
+        XCTAssertEqual(initialStack.layout.stackOffsetXToken, .undealtDeckStackOffsetX)
+        XCTAssertEqual(initialStack.layout.stackOffsetYToken, .undealtDeckStackOffsetY)
+        XCTAssertEqual(initialStack.layout.edgeBufferToken, .undealtDeckEdgeBufferMinimum)
+        XCTAssertEqual(initialStack.layout.anchorX, 0.5)
+        XCTAssertEqual(initialStack.layout.anchorY, 0.5)
+        XCTAssertEqual(initialStack.layout.centerOffsetX, 0)
+        XCTAssertEqual(initialStack.layout.centerOffsetY, 0)
+        XCTAssertEqual(initialStack.layout.offset(forTableDiameter: 200).x, 0)
+        XCTAssertEqual(initialStack.layout.offset(forTableDiameter: 200).y, 0)
+        XCTAssertEqual(initialStack.layout.stackRotation, 0)
+        XCTAssertEqual(initialStack.layout.stackOffsetX, 0)
+        XCTAssertEqual(initialStack.layout.stackOffsetY, 0)
+        XCTAssertEqual(initialStack.layout.edgeBuffer, 12)
+        XCTAssertTrue(initialStack.layout.titleOverlapAllowed)
+        XCTAssertEqual(firstCardTransform.offsetX, 0)
+        XCTAssertEqual(firstCardTransform.offsetY, 0)
+        XCTAssertEqual(firstCardTransform.rotationDegrees, 0)
+        XCTAssertEqual(lastCardTransform.offsetX, 0)
+        XCTAssertEqual(lastCardTransform.offsetY, 0)
+        XCTAssertEqual(lastCardTransform.rotationDegrees, 0)
         XCTAssertTrue(initialStack.accessibilityValue.contains("count=52"))
         XCTAssertTrue(initialStack.accessibilityValue.contains("asset=card_back"))
-        XCTAssertTrue(initialStack.accessibilityValue.contains("layout=stacked"))
-        XCTAssertTrue(initialStack.accessibilityValue.contains("placement=belowTitle"))
-        XCTAssertTrue(initialStack.accessibilityValue.contains("stackOffset=0.0"))
-        XCTAssertTrue(initialStack.accessibilityValue.contains("verticalOffset="))
-        XCTAssertTrue(initialStack.accessibilityValue.contains("rotation=0"))
+        XCTAssertTrue(initialStack.accessibilityValue.contains("layout=squaredStack"))
+        XCTAssertTrue(initialStack.accessibilityValue.contains("placement=veryCenter"))
+        XCTAssertTrue(initialStack.accessibilityValue.contains("anchor=center"))
+        XCTAssertTrue(initialStack.accessibilityValue.contains("anchorX=layout.undealtDeck.anchor.x"))
+        XCTAssertTrue(initialStack.accessibilityValue.contains("anchorXValue=0.5"))
+        XCTAssertTrue(initialStack.accessibilityValue.contains("anchorY=layout.undealtDeck.anchor.y"))
+        XCTAssertTrue(initialStack.accessibilityValue.contains("anchorYValue=0.5"))
+        XCTAssertTrue(initialStack.accessibilityValue.contains("centerOffsetX=layout.undealtDeck.centerOffset.x"))
+        XCTAssertTrue(initialStack.accessibilityValue.contains("centerOffsetXValue=0.0"))
+        XCTAssertTrue(initialStack.accessibilityValue.contains("centerOffsetY=layout.undealtDeck.centerOffset.y"))
+        XCTAssertTrue(initialStack.accessibilityValue.contains("centerOffsetYValue=0.0"))
+        XCTAssertTrue(initialStack.accessibilityValue.contains("stackRotation=layout.undealtDeck.stack.rotation"))
+        XCTAssertTrue(initialStack.accessibilityValue.contains("stackRotationValue=0.0"))
+        XCTAssertTrue(initialStack.accessibilityValue.contains("stackOffsetX=layout.undealtDeck.stack.offset.x"))
+        XCTAssertTrue(initialStack.accessibilityValue.contains("stackOffsetXValue=0.0"))
+        XCTAssertTrue(initialStack.accessibilityValue.contains("stackOffsetY=layout.undealtDeck.stack.offset.y"))
+        XCTAssertTrue(initialStack.accessibilityValue.contains("stackOffsetYValue=0.0"))
+        XCTAssertTrue(initialStack.accessibilityValue.contains("edgeBuffer=layout.undealtDeck.edgeBuffer.min"))
+        XCTAssertTrue(initialStack.accessibilityValue.contains("edgeBufferValue=12.0"))
+        XCTAssertTrue(initialStack.accessibilityValue.contains("titleOverlapAllowed=true"))
         XCTAssertFalse(initialStack.accessibilityValue.contains("rank"))
         XCTAssertFalse(initialStack.accessibilityValue.contains("suit"))
 
         XCTAssertFalse(dealtStack.isVisible)
         XCTAssertEqual(dealtStack.hiddenCardCount, 0)
+    }
+
+    func testCenteredDeckLayoutProvidesVeryCenterSquaredTableAnchor() {
+        let layout = CenteredDeckLayoutPresentation(sizeConfiguration: .sharedBase)
+
+        XCTAssertEqual(layout.placementLabel, "veryCenter")
+        XCTAssertEqual(layout.anchorLabel, "center")
+        XCTAssertEqual(layout.anchorX, 0.5)
+        XCTAssertEqual(layout.anchorY, 0.5)
+        XCTAssertEqual(layout.centerOffsetX, 0)
+        XCTAssertEqual(layout.centerOffsetY, 0)
+        XCTAssertEqual(layout.stackRotation, 0)
+        XCTAssertEqual(layout.stackOffsetX, 0)
+        XCTAssertEqual(layout.stackOffsetY, 0)
+        XCTAssertGreaterThan(layout.edgeBuffer, 0)
+        XCTAssertEqual(layout.offset(forTableDiameter: 200).x, 0)
+        XCTAssertEqual(layout.offset(forTableDiameter: 200).y, 0)
+        XCTAssertTrue(layout.titleOverlapAllowed)
+    }
+
+    func testDealAnimationPresentationStartsAtDealerRightAndMovesCounterclockwiseInThirteenCardStacks() throws {
+        let southDealerAnimation = DealAnimationPresentation(dealerSeat: .south)
+        let westDealerAnimation = DealAnimationPresentation(dealerSeat: .west)
+        let movingStack = try XCTUnwrap(southDealerAnimation.movingStackPresentation(forStep: 0))
+
+        XCTAssertEqual(DealAnimationPresentation.cardsPerStack, 13)
+        XCTAssertEqual(DealAnimationPresentation.totalCards, 52)
+        XCTAssertEqual(southDealerAnimation.targetOrder, [.east, .north, .west, .south])
+        XCTAssertEqual(westDealerAnimation.targetOrder, [.south, .east, .north, .west])
+        XCTAssertEqual(southDealerAnimation.targetSeat(forStep: 0), .east)
+        XCTAssertEqual(southDealerAnimation.targetSeat(forStep: 1), .north)
+        XCTAssertEqual(southDealerAnimation.targetSeat(forStep: 2), .west)
+        XCTAssertEqual(southDealerAnimation.targetSeat(forStep: 3), .south)
+        XCTAssertNil(southDealerAnimation.targetSeat(forStep: 4))
+        XCTAssertEqual(southDealerAnimation.deliveredSeats(afterCompletedSteps: 0), [])
+        XCTAssertEqual(southDealerAnimation.deliveredSeats(afterCompletedSteps: 2), [.east, .north])
+        XCTAssertEqual(southDealerAnimation.deliveredSeats(afterCompletedSteps: 99), [.east, .north, .west, .south])
+        XCTAssertEqual(southDealerAnimation.centralCardCount(deliveredSeatCount: 0, movingStackVisible: false), 52)
+        XCTAssertEqual(southDealerAnimation.centralCardCount(deliveredSeatCount: 0, movingStackVisible: true), 39)
+        XCTAssertEqual(southDealerAnimation.centralCardCount(deliveredSeatCount: 1, movingStackVisible: true), 26)
+        XCTAssertEqual(southDealerAnimation.centralCardCount(deliveredSeatCount: 3, movingStackVisible: true), 0)
+        XCTAssertEqual(southDealerAnimation.centralCardCount(deliveredSeatCount: 4, movingStackVisible: false), 0)
+        XCTAssertTrue(southDealerAnimation.accessibilityValue.contains("dealerSeat=south"))
+        XCTAssertTrue(southDealerAnimation.accessibilityValue.contains("start=dealerRight"))
+        XCTAssertTrue(southDealerAnimation.accessibilityValue.contains("direction=counterclockwise"))
+        XCTAssertTrue(southDealerAnimation.accessibilityValue.contains("targetOrder=east,north,west,south"))
+        XCTAssertTrue(southDealerAnimation.accessibilityValue.contains("flightDuration=animation.deal.stack.flight.duration"))
+
+        XCTAssertEqual(movingStack.targetSeat, .east)
+        XCTAssertEqual(movingStack.hiddenCardCount, 13)
+        XCTAssertEqual(movingStack.hiddenCards.map(\.assetName), Array(repeating: "card_back", count: 13))
+        XCTAssertEqual(movingStack.stackWidth, movingStack.sizeConfiguration.baseCardWidth)
+        XCTAssertEqual(movingStack.stackHeight, movingStack.sizeConfiguration.baseCardHeight)
+        XCTAssertTrue(movingStack.accessibilityValue.contains("count=13"))
+        XCTAssertTrue(movingStack.accessibilityValue.contains("from=center"))
+        XCTAssertTrue(movingStack.accessibilityValue.contains("origin=centerDeck"))
+        XCTAssertTrue(movingStack.accessibilityValue.contains("destination=playerStation"))
+        XCTAssertTrue(movingStack.accessibilityValue.contains("renderLayer=tableSceneOverlay"))
+        XCTAssertTrue(movingStack.accessibilityValue.contains("target=east"))
+        XCTAssertTrue(movingStack.accessibilityValue.contains("targetOrder=east,north,west,south"))
+        XCTAssertFalse(movingStack.accessibilityValue.contains("rank"))
+        XCTAssertFalse(movingStack.accessibilityValue.contains("suit"))
+    }
+
+    func testDealAnimationPathStartsEveryStackAtCenterDeckBeforeMovingToTargetStation() {
+        let compactPath = DealAnimationPathPresentation(
+            tableDiameter: 196,
+            compactStationSide: 112,
+            southStationHeight: 112,
+            horizontalSpacing: 6,
+            verticalSpacing: 10
+        )
+        let southRevealedPath = DealAnimationPathPresentation(
+            tableDiameter: 196,
+            compactStationSide: 112,
+            southStationHeight: 142,
+            horizontalSpacing: 6,
+            verticalSpacing: 10
+        )
+
+        XCTAssertEqual(compactPath.deckCenterOffsetFromSceneCenter, DealAnimationOffset(x: 0, y: 0))
+        XCTAssertEqual(southRevealedPath.deckCenterOffsetFromSceneCenter, DealAnimationOffset(x: 0, y: -15))
+
+        for seat in Seat.dealerRotationOrder {
+            XCTAssertEqual(
+                compactPath.offset(to: seat, stackAtTarget: false),
+                compactPath.deckCenterOffsetFromSceneCenter
+            )
+            XCTAssertEqual(
+                southRevealedPath.offset(to: seat, stackAtTarget: false),
+                southRevealedPath.deckCenterOffsetFromSceneCenter
+            )
+        }
+
+        XCTAssertEqual(compactPath.offset(to: .east, stackAtTarget: true), DealAnimationOffset(x: 160, y: 0))
+        XCTAssertEqual(compactPath.offset(to: .north, stackAtTarget: true), DealAnimationOffset(x: 0, y: -164))
+        XCTAssertEqual(compactPath.offset(to: .west, stackAtTarget: true), DealAnimationOffset(x: -160, y: 0))
+        XCTAssertEqual(compactPath.offset(to: .south, stackAtTarget: true), DealAnimationOffset(x: 0, y: 164))
+
+        XCTAssertEqual(southRevealedPath.offset(to: .east, stackAtTarget: true), DealAnimationOffset(x: 160, y: -15))
+        XCTAssertEqual(southRevealedPath.offset(to: .north, stackAtTarget: true), DealAnimationOffset(x: 0, y: -179))
+        XCTAssertEqual(southRevealedPath.offset(to: .west, stackAtTarget: true), DealAnimationOffset(x: -160, y: -15))
+        XCTAssertEqual(southRevealedPath.offset(to: .south, stackAtTarget: true), DealAnimationOffset(x: 0, y: 149))
+    }
+
+    func testDealerStationPresentationShowsBadgeOnCurrentDealerWithoutChangingOutline() {
+        let dealerStation = DealerStationPresentation(seat: .north, phase: .notStarted, dealerSeat: .north)
+        let otherStation = DealerStationPresentation(seat: .south, phase: .notStarted, dealerSeat: .north)
+        let dealtStation = DealerStationPresentation(seat: .north, phase: .dealt, dealerSeat: .north)
+
+        XCTAssertTrue(dealerStation.showsDealerBadge)
+        XCTAssertEqual(dealerStation.outlineColorRole, .stationOutline)
+        XCTAssertEqual(dealerStation.outlineToken, .stationOutline)
+        XCTAssertEqual(dealerStation.badgeBackgroundToken, .dealerBadgeBackground)
+        XCTAssertEqual(dealerStation.badgeTextToken, .dealerBadgeText)
+        XCTAssertTrue(dealerStation.accessibilityValue.contains("dealerBadgeVisible=true"))
+        XCTAssertTrue(dealerStation.accessibilityValue.contains("badgeShape=circle"))
+        XCTAssertTrue(dealerStation.accessibilityValue.contains("badgePlacement=upper-left"))
+        XCTAssertTrue(dealerStation.accessibilityValue.contains("badgeBackground=color.dealerBadge.background"))
+        XCTAssertTrue(dealerStation.accessibilityValue.contains("badgeTextColor=color.dealerBadge.text"))
+        XCTAssertTrue(dealerStation.accessibilityValue.contains("outline=color.station.outline"))
+
+        XCTAssertFalse(otherStation.showsDealerBadge)
+        XCTAssertEqual(otherStation.outlineColorRole, .stationOutline)
+        XCTAssertEqual(otherStation.outlineToken, .stationOutline)
+
+        XCTAssertTrue(dealtStation.showsDealerBadge)
+        XCTAssertEqual(dealtStation.outlineColorRole, .stationOutline)
+        XCTAssertEqual(dealtStation.outlineToken, .stationOutline)
+    }
+
+    func testTableLayoutPresentationExposesDiameterStationPlacementsAndCenteredDeckAnchor() {
+        let layout = TableLayoutPresentation(screenWidth: 390)
+
+        XCTAssertEqual(layout.tableDiameter, 195)
+        XCTAssertEqual(layout.stationPlacement(for: .north), .aboveTable)
+        XCTAssertEqual(layout.stationPlacement(for: .west), .leftOfTable)
+        XCTAssertEqual(layout.stationPlacement(for: .south), .belowTable)
+        XCTAssertEqual(layout.stationPlacement(for: .east), .rightOfTable)
+        XCTAssertEqual(layout.undealtDeckLayout().placementLabel, "veryCenter")
+        XCTAssertEqual(layout.undealtDeckLayout().anchorLabel, "center")
+        XCTAssertTrue(layout.undealtDeckLayout().titleOverlapAllowed)
     }
 
     func testCardBackAssetCatalogExposesExpectedCardBackImage() throws {
@@ -485,16 +768,74 @@ final class TarneebTests: XCTestCase {
         })
     }
 
+    func testAppIconAssetCatalogUsesTarneebImage() throws {
+        let projectRoot = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let appIconSetURL = projectRoot
+            .appendingPathComponent("Tarneeb")
+            .appendingPathComponent("Assets.xcassets")
+            .appendingPathComponent("AppIcon.appiconset")
+        let contentsURL = appIconSetURL.appendingPathComponent("Contents.json")
+        let marketingIconURL = appIconSetURL.appendingPathComponent("AppIcon-1024.png")
+        let projectFile = projectRoot
+            .appendingPathComponent("Tarneeb.xcodeproj")
+            .appendingPathComponent("project.pbxproj")
+
+        XCTAssertTrue(FileManager.default.fileExists(atPath: contentsURL.path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: marketingIconURL.path))
+
+        let contents = try JSONDecoder().decode(
+            AssetCatalogContents.self,
+            from: Data(contentsOf: contentsURL)
+        )
+        let source = try String(contentsOf: projectFile)
+
+        XCTAssertEqual(contents.images.count, 18)
+        XCTAssertTrue(contents.images.contains { image in
+            image.filename == "AppIcon-1024.png"
+                && image.idiom == "ios-marketing"
+                && image.size == "1024x1024"
+                && image.scale == "1x"
+        })
+        XCTAssertTrue(contents.images.contains { image in
+            image.filename == "AppIcon-60@3x.png"
+                && image.idiom == "iphone"
+                && image.size == "60x60"
+                && image.scale == "3x"
+        })
+        XCTAssertTrue(contents.images.contains { image in
+            image.filename == "AppIcon-83.5-ipad@2x.png"
+                && image.idiom == "ipad"
+                && image.size == "83.5x83.5"
+                && image.scale == "2x"
+        })
+        XCTAssertTrue(source.contains("ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;"))
+    }
+
     func testPresentationInitialStateHasDeckStackTitleDealActionAndNoVisibleCards() {
-        let presentation = TarneebPresentationState(dealService: QueuedDealService())
-        let centralDeckStack = CentralDeckStackPresentation(phase: presentation.gameState.phase)
+        let presentation = TarneebPresentationState(
+            dealService: QueuedDealService(),
+            dealerSelector: QueuedDealerSelector(seats: [.west])
+        )
+        let undealtDeckStack = UndealtDeckStackPresentation(phase: presentation.gameState.phase)
+        let dealerStation = DealerStationPresentation(
+            seat: presentation.gameState.dealerSeat,
+            phase: presentation.gameState.phase,
+            dealerSeat: presentation.gameState.dealerSeat
+        )
         let tableTitle = TableTitlePresentation()
 
         XCTAssertEqual(presentation.gameState.phase, .notStarted)
+        XCTAssertEqual(presentation.gameState.dealerSeat, .west)
         XCTAssertEqual(presentation.gameState.players.count, 4)
         XCTAssertEqual(Set(presentation.gameState.players.map(\.seat)), Set(Seat.allCases))
         XCTAssertEqual(presentation.gameState.players.flatMap(\.hand).count, 0)
-        XCTAssertEqual(centralDeckStack.hiddenCardCount, 52)
+        XCTAssertEqual(undealtDeckStack.hiddenCardCount, 52)
+        XCTAssertEqual(undealtDeckStack.layout.placementLabel, "veryCenter")
+        XCTAssertTrue(undealtDeckStack.layout.titleOverlapAllowed)
+        XCTAssertTrue(dealerStation.showsDealerBadge)
+        XCTAssertEqual(dealerStation.outlineToken, .stationOutline)
         XCTAssertEqual(tableTitle.text, "طرنيب")
         XCTAssertEqual(presentation.availableActions, [.newGame, .deal])
         XCTAssertEqual(PresentationAction.newGame.visibleLabel, "New Game")
@@ -502,24 +843,32 @@ final class TarneebTests: XCTestCase {
     }
 
     func testDealActionMovesPresentationStateToDealtAndHidesCentralStack() throws {
-        let service = QueuedDealService(results: [try makeCompletedDeal()])
-        let presentation = TarneebPresentationState(dealService: service)
+        let service = QueuedDealService(results: [try makeCompletedDeal(dealerSeat: .north)])
+        let presentation = TarneebPresentationState(
+            dealService: service,
+            dealerSelector: QueuedDealerSelector(seats: [.north])
+        )
 
         presentation.deal()
 
         XCTAssertEqual(service.callCount, 1)
+        XCTAssertEqual(service.receivedDealerSeats, [.north])
         XCTAssertEqual(presentation.gameState.phase, .dealt)
+        XCTAssertEqual(presentation.gameState.dealerSeat, .north)
         XCTAssertEqual(presentation.gameState.players.map(\.hand.count), [13, 13, 13, 13])
         XCTAssertEqual(presentation.gameState.players.flatMap(\.hand).count, 52)
         XCTAssertEqual(Set(presentation.gameState.players.flatMap(\.hand).map(\.id)).count, 52)
         XCTAssertEqual(presentation.gameState.deck, [])
         XCTAssertEqual(presentation.availableActions, [.newGame, .deal])
-        XCTAssertEqual(CentralDeckStackPresentation(phase: presentation.gameState.phase).hiddenCardCount, 0)
+        XCTAssertEqual(UndealtDeckStackPresentation(phase: presentation.gameState.phase).hiddenCardCount, 0)
     }
 
     func testRepeatedDealTapDoesNotStartOverlappingDeals() throws {
-        let service = ReentrantDealService(result: try makeCompletedDeal())
-        let presentation = TarneebPresentationState(dealService: service)
+        let service = ReentrantDealService(result: try makeCompletedDeal(dealerSeat: .south))
+        let presentation = TarneebPresentationState(
+            dealService: service,
+            dealerSelector: QueuedDealerSelector(seats: [.south])
+        )
         service.onDeal = {
             presentation.deal()
         }
@@ -532,30 +881,39 @@ final class TarneebTests: XCTestCase {
     }
 
     func testVisibleDealActionReplacesCompletedDeal() throws {
-        let firstDeal = try makeCompletedDeal()
-        let secondDeal = try makeCompletedDeal(shuffler: CardShuffler { Array($0.reversed()) })
+        let firstDeal = try makeCompletedDeal(dealerSeat: .south)
+        let secondDeal = try makeCompletedDeal(shuffler: CardShuffler { Array($0.reversed()) }, dealerSeat: .east)
         let service = QueuedDealService(results: [firstDeal, secondDeal])
-        let presentation = TarneebPresentationState(dealService: service)
+        let presentation = TarneebPresentationState(
+            dealService: service,
+            dealerSelector: QueuedDealerSelector(seats: [.south])
+        )
 
         presentation.deal()
         let firstSouthHand = try player(in: presentation.gameState, seat: .south).hand
+        XCTAssertEqual(presentation.gameState.dealerSeat, .south)
 
         presentation.deal()
         let secondSouthHand = try player(in: presentation.gameState, seat: .south).hand
 
         XCTAssertEqual(service.callCount, 2)
+        XCTAssertEqual(service.receivedDealerSeats, [.south, .east])
         XCTAssertEqual(presentation.gameState.phase, .dealt)
+        XCTAssertEqual(presentation.gameState.dealerSeat, .east)
         XCTAssertEqual(presentation.gameState.players.map(\.hand.count), [13, 13, 13, 13])
         XCTAssertNotEqual(firstSouthHand, secondSouthHand)
-        XCTAssertEqual(CentralDeckStackPresentation(phase: presentation.gameState.phase).hiddenCardCount, 0)
+        XCTAssertEqual(UndealtDeckStackPresentation(phase: presentation.gameState.phase).hiddenCardCount, 0)
         XCTAssertEqual(presentation.availableActions, [.newGame, .deal])
     }
 
     func testReplacementDealClearsPreviousHandsBeforeRequestingReplacement() throws {
-        let firstDeal = try makeCompletedDeal()
-        let secondDeal = try makeCompletedDeal(shuffler: CardShuffler { Array($0.reversed()) })
+        let firstDeal = try makeCompletedDeal(dealerSeat: .west)
+        let secondDeal = try makeCompletedDeal(shuffler: CardShuffler { Array($0.reversed()) }, dealerSeat: .south)
         let service = QueuedDealService(results: [firstDeal, secondDeal])
-        let presentation = TarneebPresentationState(dealService: service)
+        let presentation = TarneebPresentationState(
+            dealService: service,
+            dealerSelector: QueuedDealerSelector(seats: [.west])
+        )
 
         presentation.deal()
 
@@ -568,13 +926,18 @@ final class TarneebTests: XCTestCase {
 
         let observedState = try XCTUnwrap(observedStateBeforeSecondDeal)
         XCTAssertEqual(observedState.phase, .notStarted)
+        XCTAssertEqual(observedState.dealerSeat, .south)
         XCTAssertTrue(observedState.players.allSatisfy(\.hand.isEmpty))
         XCTAssertEqual(presentation.gameState.phase, .dealt)
+        XCTAssertEqual(presentation.gameState.dealerSeat, .south)
     }
 
     func testNewGameActionResetsPresentationStateToOriginalLaunchState() throws {
-        let service = QueuedDealService(results: [try makeCompletedDeal()])
-        let presentation = TarneebPresentationState(dealService: service)
+        let service = QueuedDealService(results: [try makeCompletedDeal(dealerSeat: .south)])
+        let presentation = TarneebPresentationState(
+            dealService: service,
+            dealerSelector: QueuedDealerSelector(seats: [.south, .north])
+        )
 
         presentation.deal()
         XCTAssertEqual(presentation.gameState.phase, .dealt)
@@ -582,12 +945,30 @@ final class TarneebTests: XCTestCase {
         presentation.newGame()
 
         XCTAssertEqual(service.callCount, 1)
-        XCTAssertEqual(presentation.gameState, .initial)
         XCTAssertEqual(presentation.gameState.phase, .notStarted)
+        XCTAssertEqual(presentation.gameState.dealerSeat, .north)
         XCTAssertEqual(presentation.gameState.players.count, 4)
         XCTAssertTrue(presentation.gameState.players.allSatisfy(\.hand.isEmpty))
         XCTAssertNil(presentation.gameState.deck)
-        XCTAssertEqual(CentralDeckStackPresentation(phase: presentation.gameState.phase).hiddenCardCount, 52)
+        XCTAssertEqual(
+            UndealtDeckStackPresentation(phase: presentation.gameState.phase).hiddenCardCount,
+            52
+        )
+        XCTAssertEqual(presentation.availableActions, [.newGame, .deal])
+    }
+
+    func testNewGameFromInitialStateDoesNotStartADeal() {
+        let service = QueuedDealService()
+        let presentation = TarneebPresentationState(
+            dealService: service,
+            dealerSelector: QueuedDealerSelector(seats: [.south, .east])
+        )
+
+        presentation.newGame()
+
+        XCTAssertEqual(service.callCount, 0)
+        XCTAssertEqual(presentation.gameState.phase, .notStarted)
+        XCTAssertTrue(presentation.gameState.players.allSatisfy(\.hand.isEmpty))
         XCTAssertEqual(presentation.availableActions, [.newGame, .deal])
     }
 
@@ -595,7 +976,10 @@ final class TarneebTests: XCTestCase {
         let canonicalDeck = DeckFactory.makeCanonicalDeck()
         let reversedDeck = Array(canonicalDeck.reversed())
         let shuffler = RecordingShuffler(outputs: [canonicalDeck, reversedDeck])
-        let presentation = TarneebPresentationState(dealService: DealService(shuffler: shuffler))
+        let presentation = TarneebPresentationState(
+            dealService: DealService(shuffler: shuffler),
+            dealerSelector: QueuedDealerSelector(seats: [.south])
+        )
 
         presentation.deal()
         let firstSouthHand = try player(in: presentation.gameState, seat: .south).hand
@@ -604,6 +988,7 @@ final class TarneebTests: XCTestCase {
         let secondSouthHand = try player(in: presentation.gameState, seat: .south).hand
 
         XCTAssertEqual(shuffler.receivedDecks.count, 2)
+        XCTAssertEqual(presentation.gameState.dealerSeat, .east)
         for receivedDeck in shuffler.receivedDecks {
             XCTAssertEqual(receivedDeck, canonicalDeck)
             XCTAssertEqual(receivedDeck.count, 52)
@@ -615,7 +1000,10 @@ final class TarneebTests: XCTestCase {
     }
 
     func testPresentationStateOnlyExposesMVPTableActions() {
-        let presentation = TarneebPresentationState(dealService: QueuedDealService(results: [DealService(shuffler: CardShuffler { $0 }).deal()]))
+        let presentation = TarneebPresentationState(
+            dealService: QueuedDealService(results: [DealService(shuffler: CardShuffler { $0 }).deal(dealerSeat: .south)]),
+            dealerSelector: QueuedDealerSelector(seats: [.south])
+        )
         let prohibitedActionNames = [
             "dealCards",
             "newDeal",
@@ -663,10 +1051,11 @@ final class TarneebTests: XCTestCase {
 
     private func makeCompletedDeal(
         shuffler: CardShuffling = CardShuffler { $0 },
+        dealerSeat: Seat = .south,
         file: StaticString = #filePath,
         line: UInt = #line
     ) throws -> GameState {
-        try XCTUnwrap(DealService(shuffler: shuffler).deal(), file: file, line: line)
+        try XCTUnwrap(DealService(shuffler: shuffler).deal(dealerSeat: dealerSeat), file: file, line: line)
     }
 
     private func player(
@@ -682,14 +1071,16 @@ final class TarneebTests: XCTestCase {
 private final class QueuedDealService: Dealing {
     private var results: [GameState?]
     var callCount = 0
+    private(set) var receivedDealerSeats: [Seat] = []
     var onDeal: (() -> Void)?
 
     init(results: [GameState?] = []) {
         self.results = results
     }
 
-    func deal() -> GameState? {
+    func deal(dealerSeat: Seat) -> GameState? {
         callCount += 1
+        receivedDealerSeats.append(dealerSeat)
         onDeal?()
 
         guard !results.isEmpty else {
@@ -709,10 +1100,26 @@ private final class ReentrantDealService: Dealing {
         self.result = result
     }
 
-    func deal() -> GameState? {
+    func deal(dealerSeat: Seat) -> GameState? {
         callCount += 1
         onDeal?()
         return result
+    }
+}
+
+private final class QueuedDealerSelector: DealerSelecting {
+    private var seats: [Seat]
+
+    init(seats: [Seat]) {
+        self.seats = seats
+    }
+
+    func selectDealer() -> Seat {
+        guard !seats.isEmpty else {
+            return .south
+        }
+
+        return seats.removeFirst()
     }
 }
 
@@ -742,5 +1149,6 @@ private struct AssetCatalogContents: Decodable {
 private struct AssetCatalogImage: Decodable {
     let filename: String?
     let idiom: String
+    let size: String?
     let scale: String?
 }

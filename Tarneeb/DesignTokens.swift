@@ -12,6 +12,8 @@ enum GameColorToken: String, CaseIterable, Equatable, Hashable {
     case stationOutline = "color.station.outline"
     case stationOutlineActive = "color.station.outline.active"
     case stationOutlineInactive = "color.station.outline.inactive"
+    case dealerBadgeBackground = "color.dealerBadge.background"
+    case dealerBadgeText = "color.dealerBadge.text"
     case textPrimary = "color.text.primary"
     case textSecondary = "color.text.secondary"
     case textDisabled = "color.text.disabled"
@@ -55,6 +57,10 @@ enum GameColorToken: String, CaseIterable, Equatable, Hashable {
             return "#FFFFFF"
         case .stationOutlineInactive:
             return "#FFFFFF66"
+        case .dealerBadgeBackground:
+            return "#1976D2"
+        case .dealerBadgeText:
+            return "#FFFFFF"
         case .textPrimary:
             return "#FFFFFF"
         case .textSecondary:
@@ -101,6 +107,8 @@ enum GameColorRole: String, CaseIterable, Equatable, Hashable {
     case stationOutline
     case stationOutlineActive
     case stationOutlineInactive
+    case dealerBadgeBackground
+    case dealerBadgeText
     case textPrimary
     case textSecondary
     case textDisabled
@@ -110,9 +118,9 @@ enum GameColorRole: String, CaseIterable, Equatable, Hashable {
     case dealActionBackground
     case dealActionPressedBackground
     case dealActionText
-    case newDealActionBackground
-    case newDealActionPressedBackground
-    case newDealActionText
+    case newGameActionBackground
+    case newGameActionPressedBackground
+    case newGameActionText
 
     var token: GameColorToken {
         switch self {
@@ -142,6 +150,10 @@ enum GameColorRole: String, CaseIterable, Equatable, Hashable {
             return .stationOutlineActive
         case .stationOutlineInactive:
             return .stationOutlineInactive
+        case .dealerBadgeBackground:
+            return .dealerBadgeBackground
+        case .dealerBadgeText:
+            return .dealerBadgeText
         case .textPrimary:
             return .textPrimary
         case .textSecondary:
@@ -160,11 +172,11 @@ enum GameColorRole: String, CaseIterable, Equatable, Hashable {
             return .buttonDealBackgroundPressed
         case .dealActionText:
             return .buttonDealText
-        case .newDealActionBackground:
+        case .newGameActionBackground:
             return .buttonNewGameBackground
-        case .newDealActionPressedBackground:
+        case .newGameActionPressedBackground:
             return .buttonNewGameBackgroundPressed
-        case .newDealActionText:
+        case .newGameActionText:
             return .buttonNewGameText
         }
     }
@@ -220,6 +232,59 @@ enum GameEffectToken: String, CaseIterable, Equatable, Hashable {
     }
 }
 
+enum GameAnimationToken: String, CaseIterable, Equatable, Hashable {
+    case dealStackFlightDuration = "animation.deal.stack.flight.duration"
+    case dealStationExpansionDuration = "animation.deal.station.expand.duration"
+    case dealStepPauseDuration = "animation.deal.step.pause.duration"
+
+    var seconds: Double {
+        switch self {
+        case .dealStackFlightDuration:
+            return 0.36
+        case .dealStationExpansionDuration:
+            return 0.16
+        case .dealStepPauseDuration:
+            return 0.06
+        }
+    }
+
+    var nanoseconds: UInt64 {
+        UInt64(seconds * 1_000_000_000)
+    }
+}
+
+enum GameLayoutToken: String, CaseIterable, Equatable, Hashable {
+    case undealtDeckAnchorX = "layout.undealtDeck.anchor.x"
+    case undealtDeckAnchorY = "layout.undealtDeck.anchor.y"
+    case undealtDeckCenterOffsetX = "layout.undealtDeck.centerOffset.x"
+    case undealtDeckCenterOffsetY = "layout.undealtDeck.centerOffset.y"
+    case undealtDeckStackRotation = "layout.undealtDeck.stack.rotation"
+    case undealtDeckStackOffsetX = "layout.undealtDeck.stack.offset.x"
+    case undealtDeckStackOffsetY = "layout.undealtDeck.stack.offset.y"
+    case undealtDeckEdgeBufferMinimum = "layout.undealtDeck.edgeBuffer.min"
+
+    var numericValue: Double {
+        switch self {
+        case .undealtDeckAnchorX:
+            return 0.5
+        case .undealtDeckAnchorY:
+            return 0.5
+        case .undealtDeckCenterOffsetX:
+            return 0
+        case .undealtDeckCenterOffsetY:
+            return 0
+        case .undealtDeckStackRotation:
+            return 0
+        case .undealtDeckStackOffsetX:
+            return 0
+        case .undealtDeckStackOffsetY:
+            return 0
+        case .undealtDeckEdgeBufferMinimum:
+            return 12
+        }
+    }
+}
+
 enum CardSizeCategory: String, CaseIterable, Equatable, Hashable {
     case sharedBaseCard
 }
@@ -231,7 +296,6 @@ struct CardSizeConfiguration: Equatable {
     let cornerRadius: Double
     let rankFontPointSize: Double
     let hiddenStackOffset: Double
-    let deckStackOffset: Double
 
     static let sharedBase = CardSizeConfiguration(
         category: .sharedBaseCard,
@@ -239,8 +303,7 @@ struct CardSizeConfiguration: Equatable {
         baseCardHeight: 50.4,
         cornerRadius: 6,
         rankFontPointSize: 12,
-        hiddenStackOffset: 2.5,
-        deckStackOffset: 0
+        hiddenStackOffset: 2.5
     )
 
     var aspectRatio: Double {
@@ -253,14 +316,6 @@ struct CardSizeConfiguration: Equatable {
         }
 
         return baseCardWidth + hiddenStackOffset * Double(count - 1)
-    }
-
-    func deckStackWidth(for count: Int) -> Double {
-        guard count > 0 else {
-            return 0
-        }
-
-        return baseCardWidth + deckStackOffset * Double(count - 1)
     }
 }
 
@@ -280,8 +335,6 @@ struct ButtonTokenSet: Equatable {
         pressedBackground: .buttonNewGameBackgroundPressed,
         text: .buttonNewGameText
     )
-
-    static let newDeal = newGame
 
     var accessibilityValue: String {
         "background=\(background.rawValue);pressed=\(pressedBackground.rawValue);text=\(text.rawValue)"
@@ -314,6 +367,10 @@ struct TableTitlePresentation: Equatable {
 
     var fontPointSize: Double {
         fontSizeToken.numericValue ?? 26
+    }
+
+    var fontName: String {
+        fontToken.stringValue
     }
 
     var accessibilityValue: String {
@@ -420,10 +477,188 @@ struct HiddenHandPresentation: Equatable {
     }
 }
 
-struct CentralDeckStackPresentation: Equatable {
+struct DealAnimationPresentation: Equatable {
+    static let cardsPerStack = 13
+    static let totalCards = 52
+
+    let dealerSeat: Seat
+    let sizeConfiguration: CardSizeConfiguration
+
+    init(
+        dealerSeat: Seat,
+        sizeConfiguration: CardSizeConfiguration = .sharedBase
+    ) {
+        self.dealerSeat = dealerSeat
+        self.sizeConfiguration = sizeConfiguration
+    }
+
+    var targetOrder: [Seat] {
+        var order: [Seat] = []
+        var seat = dealerSeat.nextCounterclockwiseDealer
+
+        while order.count < Seat.dealerRotationOrder.count {
+            order.append(seat)
+            seat = seat.nextCounterclockwiseDealer
+        }
+
+        return order
+    }
+
+    var targetOrderAccessibilityValue: String {
+        targetOrder.map(\.rawValue).joined(separator: ",")
+    }
+
+    func targetSeat(forStep stepIndex: Int) -> Seat? {
+        guard targetOrder.indices.contains(stepIndex) else {
+            return nil
+        }
+
+        return targetOrder[stepIndex]
+    }
+
+    func deliveredSeats(afterCompletedSteps completedStepCount: Int) -> [Seat] {
+        Array(targetOrder.prefix(max(0, min(completedStepCount, targetOrder.count))))
+    }
+
+    func centralCardCount(deliveredSeatCount: Int, movingStackVisible: Bool) -> Int {
+        let reservedMovingCards = movingStackVisible ? Self.cardsPerStack : 0
+        let deliveredCards = max(0, deliveredSeatCount) * Self.cardsPerStack
+        return max(0, Self.totalCards - deliveredCards - reservedMovingCards)
+    }
+
+    func movingStackPresentation(forStep stepIndex: Int) -> DealAnimationStackPresentation? {
+        guard let targetSeat = targetSeat(forStep: stepIndex) else {
+            return nil
+        }
+
+        return DealAnimationStackPresentation(
+            targetSeat: targetSeat,
+            targetOrder: targetOrder,
+            sizeConfiguration: sizeConfiguration
+        )
+    }
+
+    var accessibilityValue: String {
+        [
+            "dealerSeat=\(dealerSeat.rawValue)",
+            "start=dealerRight",
+            "direction=counterclockwise",
+            "cardsPerStack=\(Self.cardsPerStack)",
+            "totalCards=\(Self.totalCards)",
+            "targetOrder=\(targetOrderAccessibilityValue)",
+            "flightDuration=\(GameAnimationToken.dealStackFlightDuration.rawValue)",
+            "stationExpansionDuration=\(GameAnimationToken.dealStationExpansionDuration.rawValue)",
+            "stepPauseDuration=\(GameAnimationToken.dealStepPauseDuration.rawValue)"
+        ].joined(separator: ";")
+    }
+}
+
+struct DealAnimationOffset: Equatable {
+    let x: Double
+    let y: Double
+}
+
+struct DealAnimationPathPresentation: Equatable {
+    let tableDiameter: Double
+    let compactStationSide: Double
+    let southStationHeight: Double
+    let horizontalSpacing: Double
+    let verticalSpacing: Double
+
+    var deckCenterOffsetFromSceneCenter: DealAnimationOffset {
+        let middleRowHeight = max(tableDiameter, compactStationSide)
+        let sceneHeight = compactStationSide + verticalSpacing + middleRowHeight + verticalSpacing + southStationHeight
+        let deckCenterY = compactStationSide + verticalSpacing + middleRowHeight / 2
+
+        return DealAnimationOffset(x: 0, y: deckCenterY - sceneHeight / 2)
+    }
+
+    func offset(to seat: Seat, stackAtTarget: Bool) -> DealAnimationOffset {
+        let origin = deckCenterOffsetFromSceneCenter
+
+        guard stackAtTarget else {
+            return origin
+        }
+
+        let targetOffset = stationOffsetFromDeckCenter(to: seat)
+
+        return DealAnimationOffset(
+            x: origin.x + targetOffset.x,
+            y: origin.y + targetOffset.y
+        )
+    }
+
+    private func stationOffsetFromDeckCenter(to seat: Seat) -> DealAnimationOffset {
+        let horizontalOffset = tableDiameter / 2 + horizontalSpacing + compactStationSide / 2
+        let verticalOffset = tableDiameter / 2 + verticalSpacing + compactStationSide / 2
+
+        switch seat {
+        case .north:
+            return DealAnimationOffset(x: 0, y: -verticalOffset)
+        case .west:
+            return DealAnimationOffset(x: -horizontalOffset, y: 0)
+        case .south:
+            return DealAnimationOffset(x: 0, y: verticalOffset)
+        case .east:
+            return DealAnimationOffset(x: horizontalOffset, y: 0)
+        }
+    }
+}
+
+struct DealAnimationStackPresentation: Equatable {
+    let targetSeat: Seat
+    let targetOrder: [Seat]
+    let hiddenCards: [HiddenCardBackPresentation]
+    let sizeConfiguration: CardSizeConfiguration
+
+    init(
+        targetSeat: Seat,
+        targetOrder: [Seat],
+        sizeConfiguration: CardSizeConfiguration = .sharedBase
+    ) {
+        self.targetSeat = targetSeat
+        self.targetOrder = targetOrder
+        self.sizeConfiguration = sizeConfiguration
+        self.hiddenCards = (0..<DealAnimationPresentation.cardsPerStack).map { index in
+            HiddenCardBackPresentation(index: index, sizeConfiguration: sizeConfiguration)
+        }
+    }
+
+    var hiddenCardCount: Int {
+        hiddenCards.count
+    }
+
+    var stackWidth: Double {
+        sizeConfiguration.baseCardWidth
+    }
+
+    var stackHeight: Double {
+        sizeConfiguration.baseCardHeight
+    }
+
+    var accessibilityValue: String {
+        [
+            "count=\(hiddenCardCount)",
+            "asset=card_back",
+            "hidden=true",
+            "from=center",
+            "origin=centerDeck",
+            "destination=playerStation",
+            "renderLayer=tableSceneOverlay",
+            "target=\(targetSeat.rawValue)",
+            "start=dealerRight",
+            "direction=counterclockwise",
+            "targetOrder=\(targetOrder.map(\.rawValue).joined(separator: ","))",
+            "size=\(sizeConfiguration.category.rawValue)"
+        ].joined(separator: ";")
+    }
+}
+
+struct UndealtDeckStackPresentation: Equatable {
     let hiddenCards: [HiddenCardBackPresentation]
     let sizeConfiguration: CardSizeConfiguration
     let isVisible: Bool
+    let layout: CenteredDeckLayoutPresentation
 
     init(
         phase: GamePhase,
@@ -432,6 +667,7 @@ struct CentralDeckStackPresentation: Equatable {
     ) {
         self.isVisible = phase == .notStarted
         self.sizeConfiguration = sizeConfiguration
+        self.layout = CenteredDeckLayoutPresentation(sizeConfiguration: sizeConfiguration)
         self.hiddenCards = isVisible
             ? (0..<hiddenCardCount).map { index in
                 HiddenCardBackPresentation(index: index, sizeConfiguration: sizeConfiguration)
@@ -443,20 +679,208 @@ struct CentralDeckStackPresentation: Equatable {
         hiddenCards.count
     }
 
-    var stackOffset: Double {
-        sizeConfiguration.deckStackOffset
-    }
-
     var stackWidth: Double {
-        sizeConfiguration.deckStackWidth(for: hiddenCardCount)
+        guard hiddenCardCount > 0 else {
+            return 0
+        }
+
+        return sizeConfiguration.baseCardWidth + abs(layout.stackOffsetX) * Double(hiddenCardCount - 1)
     }
 
-    var verticalOffset: Double {
-        sizeConfiguration.baseCardHeight * (11.0 / 12.0)
+    var stackHeight: Double {
+        guard hiddenCardCount > 0 else {
+            return 0
+        }
+
+        return sizeConfiguration.baseCardHeight + abs(layout.stackOffsetY) * Double(hiddenCardCount - 1)
     }
 
     var accessibilityValue: String {
-        "count=\(hiddenCardCount);asset=card_back;hidden=true;layout=stacked;placement=belowTitle;stackOffset=\(stackOffset);verticalOffset=\(verticalOffset);rotation=0;size=\(sizeConfiguration.category.rawValue)"
+        [
+            "count=\(hiddenCardCount)",
+            "asset=card_back",
+            "hidden=true",
+            "layout=squaredStack",
+            "placement=\(layout.placementLabel)",
+            "anchor=\(layout.anchorLabel)",
+            "anchorX=\(layout.anchorXToken.rawValue)",
+            "anchorXValue=\(layout.anchorX)",
+            "anchorY=\(layout.anchorYToken.rawValue)",
+            "anchorYValue=\(layout.anchorY)",
+            "centerOffsetX=\(layout.centerOffsetXToken.rawValue)",
+            "centerOffsetXValue=\(layout.centerOffsetX)",
+            "centerOffsetY=\(layout.centerOffsetYToken.rawValue)",
+            "centerOffsetYValue=\(layout.centerOffsetY)",
+            "stackRotation=\(layout.stackRotationToken.rawValue)",
+            "stackRotationValue=\(layout.stackRotation)",
+            "stackOffsetX=\(layout.stackOffsetXToken.rawValue)",
+            "stackOffsetXValue=\(layout.stackOffsetX)",
+            "stackOffsetY=\(layout.stackOffsetYToken.rawValue)",
+            "stackOffsetYValue=\(layout.stackOffsetY)",
+            "edgeBuffer=\(layout.edgeBufferToken.rawValue)",
+            "edgeBufferValue=\(layout.edgeBuffer)",
+            "titleOverlapAllowed=\(layout.titleOverlapAllowed)",
+            "size=\(sizeConfiguration.category.rawValue)"
+        ].joined(separator: ";")
+    }
+
+    func visualTransform(for hiddenCard: HiddenCardBackPresentation) -> UndealtDeckCardTransform {
+        layout.visualTransform(forCardAt: hiddenCard.index, cardCount: hiddenCardCount)
+    }
+}
+
+struct CenteredDeckLayoutPresentation: Equatable {
+    let sizeConfiguration: CardSizeConfiguration
+
+    let anchorXToken = GameLayoutToken.undealtDeckAnchorX
+    let anchorYToken = GameLayoutToken.undealtDeckAnchorY
+    let centerOffsetXToken = GameLayoutToken.undealtDeckCenterOffsetX
+    let centerOffsetYToken = GameLayoutToken.undealtDeckCenterOffsetY
+    let stackRotationToken = GameLayoutToken.undealtDeckStackRotation
+    let stackOffsetXToken = GameLayoutToken.undealtDeckStackOffsetX
+    let stackOffsetYToken = GameLayoutToken.undealtDeckStackOffsetY
+    let edgeBufferToken = GameLayoutToken.undealtDeckEdgeBufferMinimum
+
+    var anchorX: Double {
+        anchorXToken.numericValue
+    }
+
+    var anchorY: Double {
+        anchorYToken.numericValue
+    }
+
+    var centerOffsetX: Double {
+        centerOffsetXToken.numericValue
+    }
+
+    var centerOffsetY: Double {
+        centerOffsetYToken.numericValue
+    }
+
+    var stackRotation: Double {
+        stackRotationToken.numericValue
+    }
+
+    var stackOffsetX: Double {
+        stackOffsetXToken.numericValue
+    }
+
+    var stackOffsetY: Double {
+        stackOffsetYToken.numericValue
+    }
+
+    var edgeBuffer: Double {
+        edgeBufferToken.numericValue
+    }
+
+    var titleOverlapAllowed: Bool {
+        true
+    }
+
+    var placementLabel: String {
+        "veryCenter"
+    }
+
+    var anchorLabel: String {
+        "center"
+    }
+
+    func offset(forTableDiameter _: Double) -> (x: Double, y: Double) {
+        (x: centerOffsetX, y: centerOffsetY)
+    }
+
+    func visualTransform(forCardAt index: Int, cardCount _: Int) -> UndealtDeckCardTransform {
+        return UndealtDeckCardTransform(
+            offsetX: stackOffsetX * Double(index),
+            offsetY: stackOffsetY * Double(index),
+            rotationDegrees: stackRotation
+        )
+    }
+}
+
+struct UndealtDeckCardTransform: Equatable {
+    let offsetX: Double
+    let offsetY: Double
+    let rotationDegrees: Double
+}
+
+struct DealerStationPresentation: Equatable {
+    let seat: Seat
+    let phase: GamePhase
+    let dealerSeat: Seat
+
+    var showsDealerBadge: Bool {
+        seat == dealerSeat
+    }
+
+    var outlineColorRole: GameColorRole {
+        .stationOutline
+    }
+
+    var outlineToken: GameColorToken {
+        outlineColorRole.token
+    }
+
+    var badgeBackgroundRole: GameColorRole {
+        .dealerBadgeBackground
+    }
+
+    var badgeBackgroundToken: GameColorToken {
+        badgeBackgroundRole.token
+    }
+
+    var badgeTextRole: GameColorRole {
+        .dealerBadgeText
+    }
+
+    var badgeTextToken: GameColorToken {
+        badgeTextRole.token
+    }
+
+    var accessibilityValue: String {
+        [
+            "dealerSeat=\(dealerSeat.rawValue)",
+            "dealerBadgeVisible=\(showsDealerBadge)",
+            "badgeShape=circle",
+            "badgePlacement=upper-left",
+            "badgeText=D",
+            "badgeBackground=\(badgeBackgroundToken.rawValue)",
+            "badgeTextColor=\(badgeTextToken.rawValue)",
+            "outline=\(outlineToken.rawValue)",
+            "defaultOutline=\(GameColorRole.stationOutline.token.rawValue)"
+        ].joined(separator: ";")
+    }
+}
+
+enum StationPlacement: String, Equatable {
+    case aboveTable
+    case leftOfTable
+    case belowTable
+    case rightOfTable
+}
+
+struct TableLayoutPresentation: Equatable {
+    let screenWidth: Double
+
+    var tableDiameter: Double {
+        screenWidth * 0.5
+    }
+
+    func stationPlacement(for seat: Seat) -> StationPlacement {
+        switch seat {
+        case .north:
+            return .aboveTable
+        case .west:
+            return .leftOfTable
+        case .south:
+            return .belowTable
+        case .east:
+            return .rightOfTable
+        }
+    }
+
+    func undealtDeckLayout() -> CenteredDeckLayoutPresentation {
+        CenteredDeckLayoutPresentation(sizeConfiguration: .sharedBase)
     }
 }
 
