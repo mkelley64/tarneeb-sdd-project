@@ -6,7 +6,7 @@ final class TarneebTests: XCTestCase {
         XCTAssertEqual(Bundle.main.bundleIdentifier, "com.mkelley.Tarneeb")
     }
 
-    func testDesignTokenSourceCoversRequiredMVP004TokenKeys() {
+    func testDesignTokenSourceCoversRequiredMVP005TokenKeys() {
         let requiredTokenKeys = [
             "color.table.background.primary",
             "color.table.background.secondary",
@@ -27,11 +27,38 @@ final class TarneebTests: XCTestCase {
             "color.text.secondary",
             "color.text.disabled",
             "color.text.warning",
+            "color.bidArea.background",
+            "color.bidArea.border",
+            "color.bidArea.label",
+            "color.bidArea.table.divider",
+            "color.bidArea.value.text",
+            "color.bidArea.value.pending.text",
+            "color.bidArea.value.highest.text",
+            "color.bidArea.seat.text",
+            "color.postBiddingSummary.background",
+            "color.postBiddingSummary.border",
+            "color.postBiddingSummary.label.text",
+            "color.postBiddingSummary.team.text",
+            "color.postBiddingSummary.bid.text",
+            "color.postBiddingSummary.tarneeb.text",
+            "color.bidSelector.background",
+            "color.bidSelector.border",
+            "color.bidSelector.text",
+            "color.bidSelector.focusRing",
+            "color.bidSuitSelector.background",
+            "color.bidSuitSelector.border",
+            "color.bidSuitSelector.text",
+            "color.bidSuitSelector.selected.background",
+            "color.bidSuitSelector.selected.text",
+            "color.bidSuitSelector.focusRing",
             "color.tableTitle.text",
             "effect.tableTitle.shadow.color",
             "color.button.deal.background",
             "color.button.deal.background.pressed",
             "color.button.deal.text",
+            "color.button.bid.background",
+            "color.button.bid.background.pressed",
+            "color.button.bid.text",
             "color.button.newGame.background",
             "color.button.newGame.background.pressed",
             "color.button.newGame.text",
@@ -65,11 +92,38 @@ final class TarneebTests: XCTestCase {
             .textSecondary: .textSecondary,
             .textDisabled: .textDisabled,
             .textWarning: .textWarning,
+            .bidAreaBackground: .bidAreaBackground,
+            .bidAreaBorder: .bidAreaBorder,
+            .bidAreaLabel: .bidAreaLabel,
+            .bidAreaTableDivider: .bidAreaTableDivider,
+            .bidAreaValueText: .bidAreaValueText,
+            .bidAreaPendingValueText: .bidAreaPendingValueText,
+            .bidAreaHighestValueText: .bidAreaHighestValueText,
+            .bidAreaSeatText: .bidAreaSeatText,
+            .postBiddingSummaryBackground: .postBiddingSummaryBackground,
+            .postBiddingSummaryBorder: .postBiddingSummaryBorder,
+            .postBiddingSummaryLabelText: .postBiddingSummaryLabelText,
+            .postBiddingSummaryTeamText: .postBiddingSummaryTeamText,
+            .postBiddingSummaryBidText: .postBiddingSummaryBidText,
+            .postBiddingSummaryTarneebText: .postBiddingSummaryTarneebText,
+            .bidSelectorBackground: .bidSelectorBackground,
+            .bidSelectorBorder: .bidSelectorBorder,
+            .bidSelectorText: .bidSelectorText,
+            .bidSelectorFocusRing: .bidSelectorFocusRing,
+            .bidSuitSelectorBackground: .bidSuitSelectorBackground,
+            .bidSuitSelectorBorder: .bidSuitSelectorBorder,
+            .bidSuitSelectorText: .bidSuitSelectorText,
+            .bidSuitSelectorSelectedBackground: .bidSuitSelectorSelectedBackground,
+            .bidSuitSelectorSelectedText: .bidSuitSelectorSelectedText,
+            .bidSuitSelectorFocusRing: .bidSuitSelectorFocusRing,
             .tableTitleText: .tableTitleText,
             .tableTitleShadow: .tableTitleShadow,
             .dealActionBackground: .buttonDealBackground,
             .dealActionPressedBackground: .buttonDealBackgroundPressed,
             .dealActionText: .buttonDealText,
+            .bidActionBackground: .buttonBidBackground,
+            .bidActionPressedBackground: .buttonBidBackgroundPressed,
+            .bidActionText: .buttonBidText,
             .newGameActionBackground: .buttonNewGameBackground,
             .newGameActionPressedBackground: .buttonNewGameBackgroundPressed,
             .newGameActionText: .buttonNewGameText
@@ -91,6 +145,8 @@ final class TarneebTests: XCTestCase {
         XCTAssertEqual(GameEffectToken.tableTitleTextOpacity.value, 0.92)
         XCTAssertEqual(GameEffectToken.tableTitleShadowOpacity.value, 0.25)
         XCTAssertEqual(GameEffectToken.tableTitleShadowBlurRadius.value, 4)
+        XCTAssertEqual(GameEffectToken.bidButtonDisabledOpacity.value, 0.55)
+        XCTAssertEqual(GameEffectToken.bidSuitSelectorDisabledOpacity.value, 0.55)
     }
 
     func testUndealtDeckLayoutTokensAreAvailable() {
@@ -116,11 +172,92 @@ final class TarneebTests: XCTestCase {
         XCTAssertEqual(GameLayoutToken.undealtDeckEdgeBufferMinimum.numericValue, 12)
     }
 
+    func testBidAreaAndSelectorTokensAreAvailable() {
+        let requiredLayoutTokenKeys = [
+            "layout.bidArea.padding",
+            "layout.bidArea.table.rowGap",
+            "layout.bidArea.cornerRadius",
+            "layout.bidSelector.height",
+            "layout.bidSelector.minimumWidth",
+            "layout.bidSuitSelector.height",
+            "layout.bidSuitSelector.minimumWidth",
+            "layout.bidSuitSelector.optionMinimumWidth",
+            "layout.bidSuitSelector.optionGap",
+            "layout.bidButton.height",
+            "layout.bidButton.minimumWidth",
+            "layout.postBiddingSummary.padding",
+            "layout.postBiddingSummary.rowGap",
+            "layout.postBiddingSummary.cornerRadius"
+        ]
+        let bidAreaTokens = BidAreaTokenSet()
+        let selectorTokens = BidSelectorTokenSet()
+        let suitSelectorTokens = BidSuitSelectorTokenSet()
+        let summaryTokens = PostBiddingSummaryTokenSet()
+
+        XCTAssertEqual(Set(GameBidLayoutToken.allCases.map(\.rawValue)), Set(requiredLayoutTokenKeys))
+        XCTAssertEqual(GameBidLayoutToken.bidAreaPadding.numericValue, 12)
+        XCTAssertEqual(GameBidLayoutToken.bidTableRowGap.numericValue, 6)
+        XCTAssertEqual(GameBidLayoutToken.bidAreaCornerRadius.numericValue, 10)
+        XCTAssertEqual(GameBidLayoutToken.bidSelectorHeight.numericValue, 36)
+        XCTAssertEqual(GameBidLayoutToken.bidSelectorMinimumWidth.numericValue, 82)
+        XCTAssertEqual(GameBidLayoutToken.bidSuitSelectorHeight.numericValue, 36)
+        XCTAssertEqual(GameBidLayoutToken.bidSuitSelectorMinimumWidth.numericValue, 132)
+        XCTAssertEqual(GameBidLayoutToken.bidSuitSelectorOptionMinimumWidth.numericValue, 36)
+        XCTAssertEqual(GameBidLayoutToken.bidSuitSelectorOptionGap.numericValue, 4)
+        XCTAssertEqual(GameBidLayoutToken.bidButtonHeight.numericValue, 36)
+        XCTAssertEqual(GameBidLayoutToken.bidButtonMinimumWidth.numericValue, 56)
+        XCTAssertEqual(GameBidLayoutToken.postBiddingSummaryPadding.numericValue, 12)
+        XCTAssertEqual(GameBidLayoutToken.postBiddingSummaryRowGap.numericValue, 6)
+        XCTAssertEqual(GameBidLayoutToken.postBiddingSummaryCornerRadius.numericValue, 10)
+        XCTAssertEqual(bidAreaTokens.background, .bidAreaBackground)
+        XCTAssertEqual(bidAreaTokens.border, .bidAreaBorder)
+        XCTAssertEqual(bidAreaTokens.label, .bidAreaLabel)
+        XCTAssertEqual(bidAreaTokens.divider, .bidAreaTableDivider)
+        XCTAssertEqual(bidAreaTokens.valueText, .bidAreaValueText)
+        XCTAssertEqual(bidAreaTokens.pendingValueText, .bidAreaPendingValueText)
+        XCTAssertEqual(bidAreaTokens.highestValueText, .bidAreaHighestValueText)
+        XCTAssertEqual(bidAreaTokens.highestValueText.hexValue, GameColorToken.buttonNewGameBackground.hexValue)
+        XCTAssertEqual(bidAreaTokens.seatText, .bidAreaSeatText)
+        XCTAssertEqual(selectorTokens.background, .bidSelectorBackground)
+        XCTAssertEqual(selectorTokens.border, .bidSelectorBorder)
+        XCTAssertEqual(selectorTokens.text, .bidSelectorText)
+        XCTAssertEqual(selectorTokens.focusRing, .bidSelectorFocusRing)
+        XCTAssertEqual(suitSelectorTokens.background, .bidSuitSelectorBackground)
+        XCTAssertEqual(suitSelectorTokens.border, .bidSuitSelectorBorder)
+        XCTAssertEqual(suitSelectorTokens.text, .bidSuitSelectorText)
+        XCTAssertEqual(suitSelectorTokens.selectedBackground, .bidSuitSelectorSelectedBackground)
+        XCTAssertEqual(suitSelectorTokens.selectedText, .bidSuitSelectorSelectedText)
+        XCTAssertEqual(suitSelectorTokens.focusRing, .bidSuitSelectorFocusRing)
+        XCTAssertEqual(suitSelectorTokens.disabledOpacity, .bidSuitSelectorDisabledOpacity)
+        XCTAssertEqual(summaryTokens.background, .postBiddingSummaryBackground)
+        XCTAssertEqual(summaryTokens.border, .postBiddingSummaryBorder)
+        XCTAssertEqual(summaryTokens.labelText, .postBiddingSummaryLabelText)
+        XCTAssertEqual(summaryTokens.teamText, .postBiddingSummaryTeamText)
+        XCTAssertEqual(summaryTokens.bidText, .postBiddingSummaryBidText)
+        XCTAssertEqual(summaryTokens.tarneebText, .postBiddingSummaryTarneebText)
+        XCTAssertEqual(summaryTokens.bidText.hexValue, GameColorToken.buttonNewGameBackground.hexValue)
+        XCTAssertTrue(bidAreaTokens.accessibilityValue.contains("background=color.bidArea.background"))
+        XCTAssertTrue(selectorTokens.accessibilityValue.contains("background=color.bidSelector.background"))
+        XCTAssertTrue(suitSelectorTokens.accessibilityValue.contains("background=color.bidSuitSelector.background"))
+        XCTAssertTrue(summaryTokens.accessibilityValue.contains("background=color.postBiddingSummary.background"))
+        XCTAssertFalse(bidAreaTokens.accessibilityValue.contains("#"))
+        XCTAssertFalse(selectorTokens.accessibilityValue.contains("#"))
+        XCTAssertFalse(suitSelectorTokens.accessibilityValue.contains("#"))
+        XCTAssertFalse(summaryTokens.accessibilityValue.contains("#"))
+    }
+
     func testDealAnimationTokensAreAvailable() {
         let requiredAnimationTokenKeys = [
             "animation.deal.stack.flight.duration",
             "animation.deal.station.expand.duration",
-            "animation.deal.step.pause.duration"
+            "animation.deal.step.pause.duration",
+            "animation.deal.southReveal.total.duration",
+            "animation.deal.southReveal.flip.duration",
+            "animation.deal.southReveal.flip.stagger",
+            "animation.bid.simulatedTurn.delay",
+            "animation.bid.value.fadeOut.duration",
+            "animation.bid.value.fadeIn.duration",
+            "animation.bid.area.fadeOut.duration"
         ]
 
         XCTAssertEqual(Set(GameAnimationToken.allCases.map(\.rawValue)), Set(requiredAnimationTokenKeys))
@@ -130,9 +267,30 @@ final class TarneebTests: XCTestCase {
         XCTAssertGreaterThan(GameAnimationToken.dealStackFlightDuration.nanoseconds, 0)
         XCTAssertGreaterThan(GameAnimationToken.dealStationExpansionDuration.nanoseconds, 0)
         XCTAssertGreaterThan(GameAnimationToken.dealStepPauseDuration.nanoseconds, 0)
+        XCTAssertGreaterThan(GameAnimationToken.dealSouthRevealTotalDuration.nanoseconds, 0)
+        XCTAssertGreaterThan(GameAnimationToken.dealSouthRevealFlipDuration.nanoseconds, 0)
+        XCTAssertGreaterThan(GameAnimationToken.dealSouthRevealFlipStagger.nanoseconds, 0)
+        XCTAssertGreaterThan(GameAnimationToken.bidSimulatedTurnDelay.nanoseconds, 0)
+        XCTAssertGreaterThan(GameAnimationToken.bidValueFadeOutDuration.nanoseconds, 0)
+        XCTAssertGreaterThan(GameAnimationToken.bidValueFadeInDuration.nanoseconds, 0)
+        XCTAssertGreaterThan(GameAnimationToken.bidAreaFadeOutDuration.nanoseconds, 0)
         XCTAssertEqual(GameAnimationToken.dealStackFlightDuration.seconds, 0.36)
         XCTAssertEqual(GameAnimationToken.dealStationExpansionDuration.seconds, 0.16)
         XCTAssertEqual(GameAnimationToken.dealStepPauseDuration.seconds, 0.06)
+        XCTAssertEqual(GameAnimationToken.dealSouthRevealTotalDuration.seconds, 1.5)
+        XCTAssertEqual(GameAnimationToken.dealSouthRevealFlipDuration.seconds, 0.18)
+        XCTAssertEqual(GameAnimationToken.dealSouthRevealFlipStagger.seconds, 0.11)
+        XCTAssertEqual(GameAnimationToken.bidSimulatedTurnDelay.seconds, 1.0)
+        XCTAssertEqual(GameAnimationToken.bidValueFadeOutDuration.seconds, 0.5)
+        XCTAssertEqual(GameAnimationToken.bidValueFadeInDuration.seconds, 0.5)
+        XCTAssertEqual(GameAnimationToken.bidAreaFadeOutDuration.seconds, 1.0)
+        XCTAssertEqual(GameAnimationToken.bidValueFadeOutDuration.seconds + GameAnimationToken.bidValueFadeInDuration.seconds, 1.0)
+        XCTAssertEqual(
+            GameAnimationToken.dealSouthRevealFlipStagger.seconds * 12
+                + GameAnimationToken.dealSouthRevealFlipDuration.seconds,
+            GameAnimationToken.dealSouthRevealTotalDuration.seconds,
+            accuracy: 0.001
+        )
     }
 
     func testDealerBadgeTokensMatchDealButtonAndWhiteText() {
@@ -195,6 +353,15 @@ final class TarneebTests: XCTestCase {
         XCTAssertTrue(ButtonTokenSet.newGame.accessibilityValue.contains("text=color.button.newGame.text"))
     }
 
+    func testBidButtonTokenSetUsesBidTokens() {
+        XCTAssertEqual(ButtonTokenSet.bid.background, .buttonBidBackground)
+        XCTAssertEqual(ButtonTokenSet.bid.pressedBackground, .buttonBidBackgroundPressed)
+        XCTAssertEqual(ButtonTokenSet.bid.text, .buttonBidText)
+        XCTAssertTrue(ButtonTokenSet.bid.accessibilityValue.contains("background=color.button.bid.background"))
+        XCTAssertTrue(ButtonTokenSet.bid.accessibilityValue.contains("pressed=color.button.bid.background.pressed"))
+        XCTAssertTrue(ButtonTokenSet.bid.accessibilityValue.contains("text=color.button.bid.text"))
+    }
+
     func testConcreteVisualValuesAreConfinedToDesignTokenSource() throws {
         let projectRoot = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
@@ -214,18 +381,22 @@ final class TarneebTests: XCTestCase {
             "#[0-9A-Fa-f]{6,8}",
             "\\b(?:Color|UIColor|NSColor)\\.(?:red|black|white|blue|green|orange|yellow|gray|grey|secondary|primary)\\b",
             "Avenir Next Condensed Heavy",
-            "SF Arabic Rounded Bold",
+            "SF Arabic Rounded Bold"
+        ]
+        let uiVisualNumberPatterns = [
             "\\b0\\.92\\b",
             "\\b0\\.25\\b",
             "\\b0\\.35\\b"
         ]
         let forbiddenRegexes = try forbiddenPatterns.map { try NSRegularExpression(pattern: $0) }
+        let uiVisualNumberRegexes = try uiVisualNumberPatterns.map { try NSRegularExpression(pattern: $0) }
 
         for file in sourceFiles where file.standardizedFileURL.path != tokenSourcePath {
             let source = try String(contentsOf: file)
             let range = NSRange(source.startIndex..<source.endIndex, in: source)
+            let regexes = forbiddenRegexes + (file.lastPathComponent == "ContentView.swift" ? uiVisualNumberRegexes : [])
 
-            for regex in forbiddenRegexes {
+            for regex in regexes {
                 XCTAssertNil(
                     regex.firstMatch(in: source, range: range),
                     "\(file.lastPathComponent) contains a concrete visual value outside DesignTokens.swift"
@@ -313,6 +484,64 @@ final class TarneebTests: XCTestCase {
         XCTAssertEqual(playersBySeat[.west]?.team, .teamB)
     }
 
+    func testBidValuesAllowPassAndSevenThroughThirteenOnly() {
+        let expectedValues = ["Pass", "7", "8", "9", "10", "11", "12", "13"]
+
+        XCTAssertEqual(BidValue.allCases.map(\.rawValue), expectedValues)
+        XCTAssertEqual(BidValue.allCases.map(\.displayLabel), expectedValues)
+        XCTAssertEqual(BidValue.allCases.map(\.numericValue), [nil, 7, 8, 9, 10, 11, 12, 13])
+        XCTAssertEqual(BidValue.legalValues(afterHighest: nil), BidValue.allCases)
+        XCTAssertEqual(BidValue.legalValues(afterHighest: .ten), [.pass, .eleven, .twelve, .thirteen])
+        XCTAssertEqual(BidValue.legalValues(afterHighest: .twelve), [.pass, .thirteen])
+        XCTAssertEqual(BidValue.displayValue("pass"), .pass)
+        XCTAssertEqual(BidValue.displayValue("13"), .thirteen)
+        XCTAssertNil(BidValue(rawValue: "6"))
+        XCTAssertNil(BidValue(rawValue: "14"))
+        XCTAssertNil(BidValue(rawValue: "Bid"))
+    }
+
+    func testRandomBidGeneratorUsesAllowedValuesAndFallsBackToPass() {
+        for (index, expectedBid) in BidValue.allCases.enumerated() {
+            let generator = RandomBidGenerator { range in
+                XCTAssertEqual(range, 0..<BidValue.allCases.count)
+                return index
+            }
+
+            XCTAssertEqual(generator.bid(for: .east), expectedBid)
+        }
+
+        let outOfRangeGenerator = RandomBidGenerator { _ in 99 }
+        XCTAssertEqual(outOfRangeGenerator.bid(for: .west), .pass)
+    }
+
+    func testInjectedBidGeneratorCanForceDeterministicSimulatedBids() {
+        let forcedBids: [Seat: BidValue] = [
+            .east: .seven,
+            .north: .ten,
+            .west: .thirteen
+        ]
+        let generator = BidGenerator { seat in
+            forcedBids[seat] ?? .pass
+        }
+
+        XCTAssertEqual(generator.bid(for: .east), .seven)
+        XCTAssertEqual(generator.bid(for: .north), .ten)
+        XCTAssertEqual(generator.bid(for: .west), .thirteen)
+        XCTAssertEqual(generator.bid(for: .south), .pass)
+    }
+
+    func testEnvironmentBidGeneratorUsesConfiguredSeatValuesWhenProvided() {
+        let generator = EnvironmentBidGenerator(
+            environment: ["TARNEEB_SIMULATED_BIDS": "east:7,north:Pass,west:13"],
+            fallback: BidGenerator { _ in .eight }
+        )
+
+        XCTAssertEqual(generator.bid(for: .east), .seven)
+        XCTAssertEqual(generator.bid(for: .north), .pass)
+        XCTAssertEqual(generator.bid(for: .west), .thirteen)
+        XCTAssertEqual(generator.bid(for: .south), .eight)
+    }
+
     func testGameStateOnlyUsesMVPPhasesAndInitialStateHasEmptySeats() {
         let state = GameState.initial(dealerSeat: .east)
 
@@ -322,6 +551,7 @@ final class TarneebTests: XCTestCase {
         XCTAssertTrue(state.players.allSatisfy(\.hand.isEmpty))
         XCTAssertEqual(state.dealerSeat, .east)
         XCTAssertNil(state.deck)
+        XCTAssertTrue(state.bids.isEmpty)
     }
 
     func testRandomDealerSelectorCanSelectAnySeatThroughInjectedRandomIndex() {
@@ -391,6 +621,32 @@ final class TarneebTests: XCTestCase {
         XCTAssertEqual(try player(in: state, seat: .west).hand, Array(reversedDeck[39..<52]))
     }
 
+    func testDealLogsEachPlayerHandThroughReplaceableLogger() throws {
+        final class CapturingHandLogger: HandLogging {
+            var capturedPlayers: [[Player]] = []
+
+            func logHands(_ players: [Player]) {
+                capturedPlayers.append(players)
+            }
+        }
+
+        let logger = CapturingHandLogger()
+        let state = try XCTUnwrap(DealService(
+            shuffler: CardShuffler { $0 },
+            handLogger: logger
+        ).deal(dealerSeat: .south))
+
+        XCTAssertEqual(logger.capturedPlayers.count, 1)
+        let loggedPlayers = logger.capturedPlayers[0]
+        XCTAssertEqual(Set(loggedPlayers.map(\.seat)), Set(Seat.allCases))
+        for seat in Seat.allCases {
+            let loggedHand = try XCTUnwrap(loggedPlayers.first { $0.seat == seat }?.hand)
+            let stateHand = try player(in: state, seat: seat).hand
+            XCTAssertEqual(loggedHand.count, 13)
+            XCTAssertEqual(loggedHand, stateHand)
+        }
+    }
+
     func testCompletedDealContainsFourThirteenCardHandsAndNoDuplicates() throws {
         let state = try makeCompletedDeal(dealerSeat: .west)
         let dealtCards = state.players.flatMap(\.hand)
@@ -398,10 +654,30 @@ final class TarneebTests: XCTestCase {
         XCTAssertEqual(state.phase, .dealt)
         XCTAssertEqual(state.dealerSeat, .west)
         XCTAssertEqual(state.deck, [])
+        XCTAssertEqual(Set(state.bids.keys), Set(Seat.allCases))
+        XCTAssertTrue(state.bids.values.allSatisfy { $0 == .pending })
+        XCTAssertEqual(state.currentBiddingSeat, .south)
+        XCTAssertNil(state.highestBidSeat)
+        XCTAssertNil(state.highestBidValue)
+        XCTAssertEqual(state.biddingStatus, .inProgress)
         XCTAssertEqual(state.players.map(\.hand.count), [13, 13, 13, 13])
         XCTAssertEqual(dealtCards.count, 52)
         XCTAssertEqual(Set(dealtCards), Set(DeckFactory.makeCanonicalDeck()))
         XCTAssertEqual(Set(dealtCards.map(\.id)).count, 52)
+    }
+
+    func testDealInitializesPendingBiddingRoundForEverySeat() throws {
+        let state = try makeCompletedDeal(dealerSeat: .south)
+
+        XCTAssertEqual(state.bids[.south], .pending)
+        XCTAssertEqual(state.bids[.east], .pending)
+        XCTAssertEqual(state.bids[.north], .pending)
+        XCTAssertEqual(state.bids[.west], .pending)
+        XCTAssertEqual(Set(state.bids.keys), Set(Seat.allCases))
+        XCTAssertEqual(state.currentBiddingSeat, .east)
+        XCTAssertNil(state.highestBidSeat)
+        XCTAssertNil(state.highestBidValue)
+        XCTAssertEqual(state.biddingStatus, .inProgress)
     }
 
     func testDealerSelectionDoesNotAlterChunkAssignmentOrder() throws {
@@ -449,6 +725,1058 @@ final class TarneebTests: XCTestCase {
             Array(cards.dropLast())
         }
         XCTAssertNil(DealService(shuffler: droppingShuffler).deal(dealerSeat: .south))
+    }
+
+    func testGameStateRequiresPostDealBiddingStateForAllSeatsOnlyInDealtState() throws {
+        let completedDeal = try makeCompletedDeal()
+        let validBiddingState = BiddingState.started(dealerSeat: .south)
+
+        XCTAssertNotNil(GameState(
+            phase: .dealt,
+            players: completedDeal.players,
+            dealerSeat: .south,
+            deck: [],
+            biddingState: validBiddingState
+        ))
+        XCTAssertNil(GameState(
+            phase: .dealt,
+            players: completedDeal.players,
+            dealerSeat: .south,
+            deck: [],
+            biddingState: BiddingState(
+                bids: [.south: .pending, .east: .pending, .north: .pending],
+                currentTurnSeat: .east,
+                highestBidSeat: nil,
+                highestBidValue: nil,
+                status: .inProgress
+            )
+        ))
+        XCTAssertNil(GameState(
+            phase: .dealt,
+            players: completedDeal.players,
+            dealerSeat: .south,
+            deck: []
+        ))
+        XCTAssertNil(GameState(
+            phase: .notStarted,
+            players: Player.initialPlayers(),
+            dealerSeat: .south,
+            biddingState: validBiddingState
+        ))
+    }
+
+    func testBiddingStartsAtDealersRightAndShowsPendingValues() {
+        let southDealerState = BiddingState.started(dealerSeat: .south)
+        let westDealerState = BiddingState.started(dealerSeat: .west)
+
+        XCTAssertEqual(southDealerState.currentTurnSeat, .east)
+        XCTAssertEqual(westDealerState.currentTurnSeat, .south)
+        XCTAssertEqual(southDealerState.bids[.south]?.displayLabel, "--")
+        XCTAssertEqual(southDealerState.bids[.east]?.displayLabel, "--")
+        XCTAssertEqual(southDealerState.bids[.north]?.displayLabel, "--")
+        XCTAssertEqual(southDealerState.bids[.west]?.displayLabel, "--")
+        XCTAssertEqual(southDealerState.southLegalValues, BidValue.allCases)
+        XCTAssertFalse(southDealerState.isWaitingForSouth)
+        XCTAssertTrue(westDealerState.isWaitingForSouth)
+    }
+
+    func testBiddingServiceAdvancesSimulatedTurnsUntilSouthTurn() throws {
+        var generatedBids: [BidValue] = [.seven, .eight, .nine]
+        let state = try makeCompletedDeal(dealerSeat: .south)
+        let service = BiddingService(bidGenerator: BidGenerator { _ in generatedBids.removeFirst() })
+        let advancedState = service.advanceSimulatedTurns(in: state)
+
+        XCTAssertEqual(advancedState.bids[.east], .resolved(.seven))
+        XCTAssertEqual(advancedState.bids[.north], .resolved(.eight))
+        XCTAssertEqual(advancedState.bids[.west], .resolved(.nine))
+        XCTAssertEqual(advancedState.bids[.south], .pending)
+        XCTAssertEqual(advancedState.currentBiddingSeat, .south)
+        XCTAssertEqual(advancedState.highestBidSeat, .west)
+        XCTAssertEqual(advancedState.highestBidValue, .nine)
+        XCTAssertEqual(advancedState.biddingStatus, .inProgress)
+    }
+
+    func testBiddingServiceConvertsLowerOrEqualSimulatedSelectionsToPass() throws {
+        var generatedBids: [BidValue] = [.ten, .nine, .ten]
+        let state = try makeCompletedDeal(dealerSeat: .south)
+        let service = BiddingService(bidGenerator: BidGenerator { _ in generatedBids.removeFirst() })
+        let advancedState = service.advanceSimulatedTurns(in: state)
+
+        XCTAssertEqual(advancedState.bids[.east], .resolved(.ten))
+        XCTAssertEqual(advancedState.bids[.north], .resolved(.pass))
+        XCTAssertEqual(advancedState.bids[.west], .resolved(.pass))
+        XCTAssertEqual(advancedState.bids[.south], .pending)
+        XCTAssertEqual(advancedState.highestBidSeat, .east)
+        XCTAssertEqual(advancedState.highestBidValue, .ten)
+        XCTAssertEqual(advancedState.currentBiddingSeat, .south)
+    }
+
+    func testBiddingServiceRejectsOneTrickPartnerRaiseOverride() throws {
+        let dealtState = try makeCompletedDeal(dealerSeat: .north)
+        let partnerHighBiddingState = BiddingState(
+            bids: [
+                .south: .resolved(.pass),
+                .east: .pending,
+                .north: .pending,
+                .west: .resolved(.seven)
+            ],
+            bidRecommendations: [
+                .west: BidRecommendation(bid: .seven, preferredTarneebSuit: .diamonds, confidence: 1)
+            ],
+            currentTurnSeat: .east,
+            highestBidSeat: .west,
+            highestBidValue: .seven,
+            status: .inProgress
+        )
+        let state = dealtState.replacingBiddingState(partnerHighBiddingState)
+        let service = BiddingService(bidGenerator: BidGenerator { seat in
+            XCTAssertEqual(seat, .east)
+            return .eight
+        })
+
+        let resolvedState = service.resolveNextSimulatedBid(in: state)
+
+        XCTAssertEqual(resolvedState.bids[.east], .resolved(.pass))
+        XCTAssertEqual(resolvedState.highestBidSeat, .west)
+        XCTAssertEqual(resolvedState.highestBidValue, .seven)
+        XCTAssertEqual(resolvedState.currentBiddingSeat, .north)
+        XCTAssertNil(resolvedState.biddingState?.bidRecommendations[.east])
+    }
+
+    func testBiddingServiceCompletesWhenEveryNonHighestBidderPasses() throws {
+        var generatedBids: [BidValue] = [.seven, .pass, .pass, .pass, .pass, .pass]
+        let state = try makeCompletedDeal(dealerSeat: .south)
+        let service = BiddingService(bidGenerator: BidGenerator { _ in generatedBids.removeFirst() })
+        let advancedState = service.advanceSimulatedTurns(in: state)
+        let completedState = service.submitSouthBid(.pass, in: advancedState)
+
+        XCTAssertEqual(completedState.biddingStatus, .complete)
+        XCTAssertEqual(completedState.biddingCompletionOutcome, .numericHighBid)
+        XCTAssertNil(completedState.currentBiddingSeat)
+        XCTAssertEqual(completedState.highestBidSeat, .east)
+        XCTAssertEqual(completedState.highestBidValue, .seven)
+        XCTAssertEqual(completedState.bids[.south], .resolved(.pass))
+        XCTAssertEqual(completedState.bids[.north], .resolved(.pass))
+        XCTAssertEqual(completedState.bids[.west], .resolved(.pass))
+    }
+
+    func testBiddingServiceCompletesWithNoHighestBidderWhenAllPlayersPass() throws {
+        var generatedBids: [BidValue] = [.pass, .pass, .pass]
+        let state = try makeCompletedDeal(dealerSeat: .south)
+        let service = BiddingService(bidGenerator: BidGenerator { _ in generatedBids.removeFirst() })
+        let advancedState = service.advanceSimulatedTurns(in: state)
+        let completedState = service.submitSouthBid(.pass, in: advancedState)
+
+        XCTAssertEqual(completedState.biddingStatus, .complete)
+        XCTAssertEqual(completedState.biddingCompletionOutcome, .allPassRedeal)
+        XCTAssertNil(completedState.currentBiddingSeat)
+        XCTAssertNil(completedState.highestBidSeat)
+        XCTAssertNil(completedState.highestBidValue)
+        XCTAssertTrue(completedState.bids.values.allSatisfy { $0 == .resolved(.pass) })
+    }
+
+    func testBiddingServiceCompletesImmediatelyWhenAnyPlayerBidsThirteen() throws {
+        let state = try makeCompletedDeal(dealerSeat: .south)
+        let service = BiddingService(bidGenerator: BidGenerator { _ in .thirteen })
+        let completedState = service.advanceSimulatedTurns(in: state)
+
+        XCTAssertEqual(completedState.biddingStatus, .complete)
+        XCTAssertEqual(completedState.biddingCompletionOutcome, .numericHighBid)
+        XCTAssertNil(completedState.currentBiddingSeat)
+        XCTAssertEqual(completedState.highestBidSeat, .east)
+        XCTAssertEqual(completedState.highestBidValue, .thirteen)
+        XCTAssertEqual(completedState.bids[.east], .resolved(.thirteen))
+        XCTAssertEqual(completedState.bids[.south], .resolved(.pass))
+        XCTAssertEqual(completedState.bids[.north], .resolved(.pass))
+        XCTAssertEqual(completedState.bids[.west], .resolved(.pass))
+    }
+
+    func testSouthBidSubmissionCommitsSelectionWithoutResolvingSimulatedTurns() throws {
+        var generatedBids: [BidValue] = [.pass, .pass, .pass]
+        let state = try makeCompletedDeal(dealerSeat: .west)
+        let service = BiddingService(bidGenerator: BidGenerator { _ in generatedBids.removeFirst() })
+        let submittedState = service.submitSouthBid(.ten, selectedTarneebSuit: .spades, in: state)
+
+        XCTAssertEqual(submittedState.biddingStatus, .inProgress)
+        XCTAssertEqual(submittedState.currentBiddingSeat, .east)
+        XCTAssertEqual(submittedState.highestBidSeat, .south)
+        XCTAssertEqual(submittedState.highestBidValue, .ten)
+        XCTAssertEqual(submittedState.bids[.south], .resolved(.ten))
+        XCTAssertEqual(submittedState.biddingState?.bidRecommendations[.south]?.preferredTarneebSuit, .spades)
+        XCTAssertEqual(submittedState.bids[.east], .pending)
+        XCTAssertEqual(submittedState.bids[.north], .pending)
+        XCTAssertEqual(submittedState.bids[.west], .pending)
+
+        let afterEast = service.resolveNextSimulatedBid(in: submittedState)
+        let afterNorth = service.resolveNextSimulatedBid(in: afterEast)
+        let completedState = service.resolveNextSimulatedBid(in: afterNorth)
+
+        XCTAssertEqual(completedState.biddingStatus, .complete)
+        XCTAssertNil(completedState.currentBiddingSeat)
+        XCTAssertEqual(completedState.highestBidSeat, .south)
+        XCTAssertEqual(completedState.highestBidValue, .ten)
+        XCTAssertEqual(completedState.bids[.east], .resolved(.pass))
+        XCTAssertEqual(completedState.bids[.north], .resolved(.pass))
+        XCTAssertEqual(completedState.bids[.west], .resolved(.pass))
+    }
+
+    func testSouthNumericBidRequiresSelectedTarneebSuit() throws {
+        let state = try makeCompletedDeal(dealerSeat: .west)
+        let service = BiddingService(bidGenerator: BidGenerator { _ in .pass })
+        let unchangedState = service.submitSouthBid(.ten, in: state)
+
+        XCTAssertEqual(unchangedState, state)
+
+        let submittedState = service.submitSouthBid(.ten, selectedTarneebSuit: .hearts, in: state)
+
+        XCTAssertEqual(submittedState.bids[.south], .resolved(.ten))
+        XCTAssertEqual(submittedState.biddingState?.bidRecommendations[.south]?.preferredTarneebSuit, .hearts)
+    }
+
+    func testSouthCannotBidAgainAfterPassingAndLaterPlayerRaises() throws {
+        var generatedBids: [BidValue] = [.seven, .eight, .pass]
+        let state = try makeCompletedDeal(dealerSeat: .west)
+        let service = BiddingService(bidGenerator: BidGenerator { _ in generatedBids.removeFirst() })
+
+        let afterSouthPass = service.submitSouthBid(.pass, in: state)
+        let afterEastBid = service.resolveNextSimulatedBid(in: afterSouthPass)
+        let afterNorthRaise = service.resolveNextSimulatedBid(in: afterEastBid)
+        let afterWestPass = service.resolveNextSimulatedBid(in: afterNorthRaise)
+
+        XCTAssertEqual(afterWestPass.bids[.south], .resolved(.pass))
+        XCTAssertEqual(afterWestPass.bids[.east], .resolved(.seven))
+        XCTAssertEqual(afterWestPass.bids[.north], .resolved(.eight))
+        XCTAssertEqual(afterWestPass.bids[.west], .resolved(.pass))
+        XCTAssertEqual(afterWestPass.highestBidSeat, .north)
+        XCTAssertEqual(afterWestPass.highestBidValue, .eight)
+        XCTAssertEqual(afterWestPass.currentBiddingSeat, .east)
+        XCTAssertFalse(afterWestPass.biddingState?.isWaitingForSouth == true)
+
+        let afterRejectedSouthBid = service.submitSouthBid(.thirteen, selectedTarneebSuit: .hearts, in: afterWestPass)
+        XCTAssertEqual(afterRejectedSouthBid, afterWestPass)
+    }
+
+    func testAutomatedBidRecommenderUsesHandStrengthPreferredSuitAndConfidence() {
+        let hand = [
+            Card(suit: .spades, rank: .ace),
+            Card(suit: .spades, rank: .king),
+            Card(suit: .spades, rank: .queen),
+            Card(suit: .spades, rank: .jack),
+            Card(suit: .spades, rank: .ten),
+            Card(suit: .spades, rank: .nine),
+            Card(suit: .spades, rank: .eight),
+            Card(suit: .hearts, rank: .ace),
+            Card(suit: .clubs, rank: .ace),
+            Card(suit: .diamonds, rank: .ace),
+            Card(suit: .hearts, rank: .two),
+            Card(suit: .clubs, rank: .three),
+            Card(suit: .diamonds, rank: .four)
+        ]
+        let context = BidRecommendationContext(
+            seat: .east,
+            hand: hand,
+            partnerSeat: .west,
+            currentHighestBidValue: nil,
+            currentHighestBidder: nil,
+            priorBidStates: Dictionary(uniqueKeysWithValues: Seat.allCases.map { ($0, .pending) })
+        )
+
+        let recommendation = AutomatedBidRecommender().recommendation(for: context)
+
+        XCTAssertNotEqual(recommendation.bid, .pass)
+        XCTAssertEqual(recommendation.preferredTarneebSuit, .spades)
+        XCTAssertGreaterThan(recommendation.confidence, 0)
+        XCTAssertLessThanOrEqual(recommendation.confidence, 1)
+    }
+
+    func testWeakLongSuitWithoutAcesDoesNotOverbid() {
+        let hand = [
+            Card(suit: .diamonds, rank: .two),
+            Card(suit: .diamonds, rank: .four),
+            Card(suit: .spades, rank: .two),
+            Card(suit: .spades, rank: .three),
+            Card(suit: .hearts, rank: .two),
+            Card(suit: .spades, rank: .eight),
+            Card(suit: .spades, rank: .queen),
+            Card(suit: .diamonds, rank: .king),
+            Card(suit: .diamonds, rank: .ten),
+            Card(suit: .diamonds, rank: .five),
+            Card(suit: .clubs, rank: .seven),
+            Card(suit: .clubs, rank: .three),
+            Card(suit: .diamonds, rank: .jack)
+        ]
+        let context = BidRecommendationContext(
+            seat: .north,
+            hand: hand,
+            partnerSeat: .south,
+            currentHighestBidValue: nil,
+            currentHighestBidder: nil,
+            priorBidStates: Dictionary(uniqueKeysWithValues: Seat.allCases.map { ($0, .pending) })
+        )
+
+        let recommendation = AutomatedBidRecommender().recommendation(for: context)
+
+        XCTAssertLessThanOrEqual(recommendation.bid.numericValue ?? 0, 7)
+        XCTAssertNotEqual(recommendation.bid, .eight)
+        XCTAssertNotEqual(recommendation.bid, .nine)
+    }
+
+    func testFiveCardTrumpWithSideWinnersDoesNotOverbidTen() {
+        let hand = [
+            Card(suit: .hearts, rank: .seven),
+            Card(suit: .diamonds, rank: .six),
+            Card(suit: .diamonds, rank: .eight),
+            Card(suit: .spades, rank: .four),
+            Card(suit: .spades, rank: .ten),
+            Card(suit: .spades, rank: .ace),
+            Card(suit: .spades, rank: .jack),
+            Card(suit: .diamonds, rank: .ten),
+            Card(suit: .hearts, rank: .ace),
+            Card(suit: .hearts, rank: .king),
+            Card(suit: .clubs, rank: .four),
+            Card(suit: .spades, rank: .queen),
+            Card(suit: .hearts, rank: .five)
+        ]
+        let context = BidRecommendationContext(
+            seat: .west,
+            hand: hand,
+            partnerSeat: .east,
+            currentHighestBidValue: nil,
+            currentHighestBidder: nil,
+            priorBidStates: Dictionary(uniqueKeysWithValues: Seat.allCases.map { ($0, .pending) })
+        )
+
+        let recommendation = AutomatedBidRecommender().recommendation(for: context)
+
+        XCTAssertEqual(recommendation.preferredTarneebSuit, .spades)
+        XCTAssertLessThanOrEqual(recommendation.bid.numericValue ?? 0, 9)
+        XCTAssertNotEqual(recommendation.bid, .ten)
+        XCTAssertNotEqual(recommendation.bid, .eleven)
+        XCTAssertNotEqual(recommendation.bid, .twelve)
+        XCTAssertNotEqual(recommendation.bid, .thirteen)
+    }
+
+    func testAceLedFiveCardTrumpWithoutKingOrQueenDoesNotOverbidEight() {
+        let hand = [
+            Card(suit: .spades, rank: .three),
+            Card(suit: .hearts, rank: .six),
+            Card(suit: .diamonds, rank: .nine),
+            Card(suit: .clubs, rank: .two),
+            Card(suit: .hearts, rank: .three),
+            Card(suit: .spades, rank: .two),
+            Card(suit: .diamonds, rank: .jack),
+            Card(suit: .spades, rank: .nine),
+            Card(suit: .clubs, rank: .ace),
+            Card(suit: .diamonds, rank: .two),
+            Card(suit: .diamonds, rank: .five),
+            Card(suit: .spades, rank: .jack),
+            Card(suit: .spades, rank: .ace)
+        ]
+        let context = BidRecommendationContext(
+            seat: .north,
+            hand: hand,
+            partnerSeat: .south,
+            currentHighestBidValue: nil,
+            currentHighestBidder: nil,
+            priorBidStates: Dictionary(uniqueKeysWithValues: Seat.allCases.map { ($0, .pending) })
+        )
+
+        let recommendation = AutomatedBidRecommender().recommendation(for: context)
+
+        XCTAssertEqual(recommendation.preferredTarneebSuit, .spades)
+        XCTAssertLessThanOrEqual(recommendation.bid.numericValue ?? 0, 7)
+        XCTAssertNotEqual(recommendation.bid, .eight)
+        XCTAssertNotEqual(recommendation.bid, .nine)
+    }
+
+    func testSixCardTrumpAceQueenDoesNotOverbidTen() {
+        let hand = [
+            Card(suit: .clubs, rank: .king),
+            Card(suit: .diamonds, rank: .ace),
+            Card(suit: .hearts, rank: .ten),
+            Card(suit: .spades, rank: .ten),
+            Card(suit: .spades, rank: .two),
+            Card(suit: .clubs, rank: .eight),
+            Card(suit: .diamonds, rank: .three),
+            Card(suit: .diamonds, rank: .six),
+            Card(suit: .diamonds, rank: .queen),
+            Card(suit: .diamonds, rank: .two),
+            Card(suit: .diamonds, rank: .four),
+            Card(suit: .spades, rank: .ace),
+            Card(suit: .spades, rank: .four)
+        ]
+        let context = BidRecommendationContext(
+            seat: .north,
+            hand: hand,
+            partnerSeat: .south,
+            currentHighestBidValue: nil,
+            currentHighestBidder: nil,
+            priorBidStates: Dictionary(uniqueKeysWithValues: Seat.allCases.map { ($0, .pending) })
+        )
+
+        let recommendation = AutomatedBidRecommender().recommendation(for: context)
+
+        XCTAssertEqual(recommendation.preferredTarneebSuit, .diamonds)
+        XCTAssertLessThanOrEqual(recommendation.bid.numericValue ?? 0, 9)
+        XCTAssertNotEqual(recommendation.bid, .ten)
+        XCTAssertNotEqual(recommendation.bid, .eleven)
+        XCTAssertNotEqual(recommendation.bid, .twelve)
+        XCTAssertNotEqual(recommendation.bid, .thirteen)
+    }
+
+    func testFiveCardAceKingQueenTenTrumpWithoutOutsideAcesDoesNotOverbidTen() {
+        let hand = [
+            Card(suit: .clubs, rank: .queen),
+            Card(suit: .spades, rank: .ten),
+            Card(suit: .diamonds, rank: .queen),
+            Card(suit: .clubs, rank: .four),
+            Card(suit: .clubs, rank: .five),
+            Card(suit: .spades, rank: .king),
+            Card(suit: .clubs, rank: .jack),
+            Card(suit: .spades, rank: .ace),
+            Card(suit: .diamonds, rank: .five),
+            Card(suit: .diamonds, rank: .king),
+            Card(suit: .spades, rank: .queen),
+            Card(suit: .spades, rank: .seven),
+            Card(suit: .clubs, rank: .seven)
+        ]
+        let context = BidRecommendationContext(
+            seat: .west,
+            hand: hand,
+            partnerSeat: .east,
+            currentHighestBidValue: nil,
+            currentHighestBidder: nil,
+            priorBidStates: Dictionary(uniqueKeysWithValues: Seat.allCases.map { ($0, .pending) })
+        )
+
+        let recommendation = AutomatedBidRecommender().recommendation(for: context)
+
+        XCTAssertEqual(recommendation.preferredTarneebSuit, .spades)
+        XCTAssertLessThanOrEqual(recommendation.bid.numericValue ?? 0, 9)
+        XCTAssertNotEqual(recommendation.bid, .ten)
+        XCTAssertNotEqual(recommendation.bid, .eleven)
+        XCTAssertNotEqual(recommendation.bid, .twelve)
+        XCTAssertNotEqual(recommendation.bid, .thirteen)
+    }
+
+    func testFiveCardAceKingLowTrumpWithOneOutsideAceDoesNotOverbidNine() {
+        let hand = [
+            Card(suit: .diamonds, rank: .three),
+            Card(suit: .clubs, rank: .queen),
+            Card(suit: .spades, rank: .five),
+            Card(suit: .clubs, rank: .five),
+            Card(suit: .hearts, rank: .three),
+            Card(suit: .spades, rank: .seven),
+            Card(suit: .spades, rank: .four),
+            Card(suit: .clubs, rank: .ace),
+            Card(suit: .diamonds, rank: .four),
+            Card(suit: .hearts, rank: .ten),
+            Card(suit: .diamonds, rank: .two),
+            Card(suit: .diamonds, rank: .king),
+            Card(suit: .diamonds, rank: .ace)
+        ]
+
+        let recommendation = automatedRecommendation(for: hand)
+
+        XCTAssertLessThanOrEqual(recommendation.bid.numericValue ?? 0, 8)
+        XCTAssertNotEqual(recommendation.bid, .nine)
+    }
+
+    func testFiveCardAceKingTenTrumpMissingQueenJackDoesNotOverbidNine() {
+        let hand = [
+            Card(suit: .diamonds, rank: .jack),
+            Card(suit: .hearts, rank: .five),
+            Card(suit: .spades, rank: .ace),
+            Card(suit: .hearts, rank: .king),
+            Card(suit: .diamonds, rank: .queen),
+            Card(suit: .spades, rank: .four),
+            Card(suit: .diamonds, rank: .eight),
+            Card(suit: .hearts, rank: .ten),
+            Card(suit: .clubs, rank: .four),
+            Card(suit: .diamonds, rank: .ten),
+            Card(suit: .diamonds, rank: .four),
+            Card(suit: .hearts, rank: .six),
+            Card(suit: .hearts, rank: .ace)
+        ]
+
+        let recommendation = automatedRecommendation(for: hand)
+
+        XCTAssertEqual(recommendation.preferredTarneebSuit, .hearts)
+        XCTAssertLessThanOrEqual(recommendation.bid.numericValue ?? 0, 8)
+        XCTAssertNotEqual(recommendation.bid, .nine)
+    }
+
+    func testFiveCardAceQueenTenTrumpMissingKingJackDoesNotOverbidNine() {
+        let hand = [
+            Card(suit: .spades, rank: .three),
+            Card(suit: .clubs, rank: .queen),
+            Card(suit: .spades, rank: .jack),
+            Card(suit: .clubs, rank: .ten),
+            Card(suit: .clubs, rank: .four),
+            Card(suit: .clubs, rank: .ace),
+            Card(suit: .diamonds, rank: .ace),
+            Card(suit: .hearts, rank: .seven),
+            Card(suit: .spades, rank: .seven),
+            Card(suit: .spades, rank: .nine),
+            Card(suit: .clubs, rank: .eight),
+            Card(suit: .hearts, rank: .two),
+            Card(suit: .spades, rank: .queen)
+        ]
+
+        let recommendation = automatedRecommendation(for: hand)
+
+        XCTAssertEqual(recommendation.preferredTarneebSuit, .clubs)
+        XCTAssertLessThanOrEqual(recommendation.bid.numericValue ?? 0, 8)
+        XCTAssertNotEqual(recommendation.bid, .nine)
+    }
+
+    func testSixCardAceJackTrumpWithoutKingQueenTenDoesNotOverbidTen() {
+        let hand = [
+            Card(suit: .diamonds, rank: .three),
+            Card(suit: .spades, rank: .ten),
+            Card(suit: .hearts, rank: .three),
+            Card(suit: .diamonds, rank: .ace),
+            Card(suit: .diamonds, rank: .four),
+            Card(suit: .diamonds, rank: .jack),
+            Card(suit: .hearts, rank: .four),
+            Card(suit: .spades, rank: .ace),
+            Card(suit: .hearts, rank: .six),
+            Card(suit: .diamonds, rank: .eight),
+            Card(suit: .diamonds, rank: .nine),
+            Card(suit: .spades, rank: .king),
+            Card(suit: .spades, rank: .seven)
+        ]
+
+        let recommendation = automatedRecommendation(for: hand)
+
+        XCTAssertLessThanOrEqual(recommendation.bid.numericValue ?? 0, 9)
+        XCTAssertNotEqual(recommendation.bid, .ten)
+    }
+
+    func testFiveCardKingQueenTenTrumpMissingAceDoesNotOverbidEight() {
+        let hand = [
+            Card(suit: .clubs, rank: .two),
+            Card(suit: .diamonds, rank: .king),
+            Card(suit: .diamonds, rank: .queen),
+            Card(suit: .diamonds, rank: .ten),
+            Card(suit: .spades, rank: .king),
+            Card(suit: .hearts, rank: .eight),
+            Card(suit: .diamonds, rank: .three),
+            Card(suit: .hearts, rank: .four),
+            Card(suit: .diamonds, rank: .seven),
+            Card(suit: .hearts, rank: .six),
+            Card(suit: .clubs, rank: .ten),
+            Card(suit: .clubs, rank: .king),
+            Card(suit: .spades, rank: .ace)
+        ]
+
+        let recommendation = automatedRecommendation(for: hand)
+
+        XCTAssertLessThanOrEqual(recommendation.bid.numericValue ?? 0, 7)
+        XCTAssertNotEqual(recommendation.bid, .eight)
+    }
+
+    func testSixCardAceKingTrumpWithTwoOutsideAcesDoesNotOverbidEleven() {
+        let hand = [
+            Card(suit: .clubs, rank: .queen),
+            Card(suit: .spades, rank: .ace),
+            Card(suit: .spades, rank: .king),
+            Card(suit: .spades, rank: .six),
+            Card(suit: .clubs, rank: .ten),
+            Card(suit: .spades, rank: .two),
+            Card(suit: .diamonds, rank: .ten),
+            Card(suit: .hearts, rank: .ace),
+            Card(suit: .spades, rank: .seven),
+            Card(suit: .hearts, rank: .five),
+            Card(suit: .clubs, rank: .nine),
+            Card(suit: .spades, rank: .four),
+            Card(suit: .clubs, rank: .ace)
+        ]
+
+        let recommendation = automatedRecommendation(for: hand)
+
+        XCTAssertLessThanOrEqual(recommendation.bid.numericValue ?? 0, 10)
+        XCTAssertNotEqual(recommendation.bid, .eleven)
+    }
+
+    func testSixCardAceKingQueenJackTrumpWithoutOutsideAcesDoesNotOverbidEleven() {
+        let hand = [
+            Card(suit: .hearts, rank: .jack),
+            Card(suit: .diamonds, rank: .nine),
+            Card(suit: .hearts, rank: .four),
+            Card(suit: .diamonds, rank: .eight),
+            Card(suit: .clubs, rank: .four),
+            Card(suit: .spades, rank: .king),
+            Card(suit: .hearts, rank: .ace),
+            Card(suit: .hearts, rank: .queen),
+            Card(suit: .diamonds, rank: .three),
+            Card(suit: .hearts, rank: .king),
+            Card(suit: .spades, rank: .five),
+            Card(suit: .spades, rank: .jack),
+            Card(suit: .hearts, rank: .three)
+        ]
+
+        let recommendation = automatedRecommendation(for: hand)
+
+        XCTAssertEqual(recommendation.preferredTarneebSuit, .hearts)
+        XCTAssertLessThanOrEqual(recommendation.bid.numericValue ?? 0, 10)
+        XCTAssertNotEqual(recommendation.bid, .eleven)
+    }
+
+    func testFourCardAceKingTenTrumpDoesNotOverbidTen() {
+        let hand = [
+            Card(suit: .spades, rank: .nine),
+            Card(suit: .clubs, rank: .eight),
+            Card(suit: .hearts, rank: .ten),
+            Card(suit: .hearts, rank: .two),
+            Card(suit: .spades, rank: .eight),
+            Card(suit: .clubs, rank: .jack),
+            Card(suit: .spades, rank: .four),
+            Card(suit: .hearts, rank: .ace),
+            Card(suit: .clubs, rank: .four),
+            Card(suit: .hearts, rank: .king),
+            Card(suit: .clubs, rank: .king),
+            Card(suit: .clubs, rank: .ace),
+            Card(suit: .diamonds, rank: .king)
+        ]
+
+        let recommendation = automatedRecommendation(for: hand)
+
+        XCTAssertLessThanOrEqual(recommendation.bid.numericValue ?? 0, 9)
+        XCTAssertNotEqual(recommendation.bid, .ten)
+    }
+
+    func testFourCardAceKingJackTrumpDoesNotOverbidNine() {
+        let hand = [
+            Card(suit: .clubs, rank: .jack),
+            Card(suit: .clubs, rank: .ace),
+            Card(suit: .diamonds, rank: .five),
+            Card(suit: .diamonds, rank: .jack),
+            Card(suit: .clubs, rank: .six),
+            Card(suit: .spades, rank: .king),
+            Card(suit: .hearts, rank: .king),
+            Card(suit: .hearts, rank: .nine),
+            Card(suit: .spades, rank: .eight),
+            Card(suit: .diamonds, rank: .eight),
+            Card(suit: .spades, rank: .six),
+            Card(suit: .hearts, rank: .jack),
+            Card(suit: .hearts, rank: .ace)
+        ]
+
+        let recommendation = automatedRecommendation(for: hand)
+
+        XCTAssertLessThanOrEqual(recommendation.bid.numericValue ?? 0, 8)
+        XCTAssertNotEqual(recommendation.bid, .nine)
+    }
+
+    func testFourCardAceKingLowTrumpWithSideQueensDoesNotOverbidNine() {
+        let hand = [
+            Card(suit: .diamonds, rank: .six),
+            Card(suit: .hearts, rank: .queen),
+            Card(suit: .spades, rank: .nine),
+            Card(suit: .spades, rank: .eight),
+            Card(suit: .hearts, rank: .ten),
+            Card(suit: .spades, rank: .six),
+            Card(suit: .spades, rank: .ace),
+            Card(suit: .diamonds, rank: .five),
+            Card(suit: .spades, rank: .king),
+            Card(suit: .clubs, rank: .queen),
+            Card(suit: .hearts, rank: .seven),
+            Card(suit: .clubs, rank: .eight),
+            Card(suit: .clubs, rank: .ace)
+        ]
+
+        let recommendation = automatedRecommendation(for: hand)
+
+        XCTAssertLessThanOrEqual(recommendation.bid.numericValue ?? 0, 8)
+        XCTAssertNotEqual(recommendation.bid, .nine)
+    }
+
+    func testFourCardAceQueenJackTrumpDoesNotOverbidNine() {
+        let hand = [
+            Card(suit: .clubs, rank: .ace),
+            Card(suit: .diamonds, rank: .five),
+            Card(suit: .spades, rank: .king),
+            Card(suit: .clubs, rank: .five),
+            Card(suit: .hearts, rank: .four),
+            Card(suit: .clubs, rank: .queen),
+            Card(suit: .hearts, rank: .two),
+            Card(suit: .hearts, rank: .jack),
+            Card(suit: .hearts, rank: .ace),
+            Card(suit: .spades, rank: .eight),
+            Card(suit: .clubs, rank: .seven),
+            Card(suit: .spades, rank: .two),
+            Card(suit: .clubs, rank: .jack)
+        ]
+
+        let recommendation = automatedRecommendation(for: hand)
+
+        XCTAssertLessThanOrEqual(recommendation.bid.numericValue ?? 0, 8)
+        XCTAssertNotEqual(recommendation.bid, .nine)
+    }
+
+    func testFourCardAceLowTrumpOneOutsideAceDoesNotOpenSeven() {
+        let hand = [
+            Card(suit: .hearts, rank: .five),
+            Card(suit: .spades, rank: .ten),
+            Card(suit: .spades, rank: .eight),
+            Card(suit: .clubs, rank: .eight),
+            Card(suit: .spades, rank: .six),
+            Card(suit: .diamonds, rank: .six),
+            Card(suit: .diamonds, rank: .eight),
+            Card(suit: .spades, rank: .jack),
+            Card(suit: .hearts, rank: .ace),
+            Card(suit: .clubs, rank: .ace),
+            Card(suit: .spades, rank: .seven),
+            Card(suit: .clubs, rank: .seven),
+            Card(suit: .clubs, rank: .three)
+        ]
+
+        let recommendation = automatedRecommendation(for: hand)
+
+        XCTAssertEqual(recommendation.bid, .pass)
+        XCTAssertNil(recommendation.preferredTarneebSuit)
+    }
+
+    func testFiveCardAceKingQueenTrumpMissingJackTenDoesNotOverbidNine() {
+        let recommendation = automatedRecommendation(
+            for: hand("7♠ 8♠ Q♦ 9♦ A♥ 2♦ 9♣ Q♥ K♥ 7♣ 2♥ 9♥ 5♣")
+        )
+
+        XCTAssertEqual(recommendation.preferredTarneebSuit, .hearts)
+        XCTAssertLessThanOrEqual(recommendation.bid.numericValue ?? 0, 8)
+        XCTAssertNotEqual(recommendation.bid, .nine)
+    }
+
+    func testSixCardAceKingQueenTrumpMissingJackTenDoesNotOverbidTwelve() {
+        let recommendation = automatedRecommendation(
+            for: hand("7♦ Q♦ 3♥ A♠ 5♣ K♣ K♦ 4♦ 6♠ 5♦ 10♣ A♦ A♣")
+        )
+
+        XCTAssertEqual(recommendation.preferredTarneebSuit, .diamonds)
+        XCTAssertLessThanOrEqual(recommendation.bid.numericValue ?? 0, 11)
+        XCTAssertNotEqual(recommendation.bid, .twelve)
+    }
+
+    func testFiveCardKingQueenTrumpMissingAceJackTenDoesNotOverbidEight() {
+        let recommendation = automatedRecommendation(
+            for: hand("10♥ K♠ Q♠ 7♠ K♦ 2♦ 2♠ 7♦ 6♣ 3♣ 5♦ A♣ Q♦")
+        )
+
+        if recommendation.bid != .pass {
+            XCTAssertEqual(recommendation.preferredTarneebSuit, .diamonds)
+        }
+        XCTAssertLessThanOrEqual(recommendation.bid.numericValue ?? 0, 7)
+        XCTAssertNotEqual(recommendation.bid, .eight)
+    }
+
+    func testFiveCardAceQueenTenTrumpMissingKingJackWithThreeOutsideAcesDoesNotOverbidEleven() {
+        let recommendation = automatedRecommendation(
+            for: hand("5♠ A♠ A♦ 4♦ 2♥ 10♦ A♥ A♣ 9♥ K♣ 7♣ Q♦ 2♦")
+        )
+
+        XCTAssertEqual(recommendation.preferredTarneebSuit, .diamonds)
+        XCTAssertLessThanOrEqual(recommendation.bid.numericValue ?? 0, 10)
+        XCTAssertNotEqual(recommendation.bid, .eleven)
+    }
+
+    func testShortFourCardAceKingTenOrAceQueenTextureDoesNotOverbidNine() {
+        let recommendation = automatedRecommendation(
+            for: hand("3♠ K♥ 3♦ 5♣ 8♥ A♣ 2♠ 9♣ 6♠ 10♥ 8♣ Q♣ A♥")
+        )
+
+        XCTAssertLessThanOrEqual(recommendation.bid.numericValue ?? 0, 8)
+        XCTAssertNotEqual(recommendation.bid, .nine)
+    }
+
+    func testFourCardAceKingJackTenTrumpWithoutOutsideAcesDoesNotOverbidEight() {
+        let recommendation = automatedRecommendation(
+            for: hand("10♣ 8♠ 5♠ 9♠ 3♥ J♣ K♦ A♣ J♥ 6♥ 4♦ J♦ K♣")
+        )
+
+        if recommendation.bid != .pass {
+            XCTAssertEqual(recommendation.preferredTarneebSuit, .clubs)
+        }
+        XCTAssertLessThanOrEqual(recommendation.bid.numericValue ?? 0, 7)
+        XCTAssertNotEqual(recommendation.bid, .eight)
+    }
+
+    func testFourCardAceKingLowTrumpWithoutOutsideAcesDoesNotOverbidEight() {
+        let recommendation = automatedRecommendation(
+            for: hand("7♠ K♣ 9♣ 3♦ 9♠ 2♥ 4♦ 6♥ Q♥ K♥ 10♣ K♦ A♦")
+        )
+
+        if recommendation.bid != .pass {
+            XCTAssertEqual(recommendation.preferredTarneebSuit, .diamonds)
+        }
+        XCTAssertLessThanOrEqual(recommendation.bid.numericValue ?? 0, 7)
+        XCTAssertNotEqual(recommendation.bid, .eight)
+    }
+
+    func testFiveCardAceJackTenTrumpMissingKingQueenDoesNotOpenSeven() {
+        let recommendation = automatedRecommendation(
+            for: hand("A♦ 10♦ 2♣ Q♣ J♦ 9♥ Q♠ 4♥ 7♦ K♥ 9♦ 5♣ K♠")
+        )
+
+        XCTAssertEqual(recommendation.bid, .pass)
+        XCTAssertNil(recommendation.preferredTarneebSuit)
+    }
+
+    func testFiveCardAceLowTrumpWithTwoOutsideAcesDoesNotOverbidEight() {
+        let recommendation = automatedRecommendation(
+            for: hand("A♣ 6♥ 5♥ 8♥ 3♠ 4♦ 3♣ 4♠ A♦ 6♦ A♥ 4♥ K♣")
+        )
+
+        if recommendation.bid != .pass {
+            XCTAssertEqual(recommendation.preferredTarneebSuit, .hearts)
+        }
+        XCTAssertLessThanOrEqual(recommendation.bid.numericValue ?? 0, 7)
+        XCTAssertNotEqual(recommendation.bid, .eight)
+    }
+
+    func testSevenCardAceQueenTenTrumpMissingKingJackDoesNotOverbidEleven() {
+        let recommendation = automatedRecommendation(
+            for: hand("2♦ 5♠ Q♦ A♦ 8♦ 10♦ 6♠ 2♠ 10♥ 2♥ 3♦ 4♦ 9♥")
+        )
+
+        XCTAssertEqual(recommendation.preferredTarneebSuit, .diamonds)
+        XCTAssertLessThanOrEqual(recommendation.bid.numericValue ?? 0, 10)
+        XCTAssertNotEqual(recommendation.bid, .eleven)
+    }
+
+    func testSevenCardAceQueenTrumpMissingKingJackTenDoesNotOverbidEleven() {
+        let recommendation = automatedRecommendation(
+            for: hand("A♠ 7♠ A♣ 4♣ 3♠ 5♠ 9♠ 7♥ 4♥ J♦ Q♠ 4♠ 3♥")
+        )
+
+        XCTAssertEqual(recommendation.preferredTarneebSuit, .spades)
+        XCTAssertLessThanOrEqual(recommendation.bid.numericValue ?? 0, 10)
+        XCTAssertNotEqual(recommendation.bid, .eleven)
+    }
+
+    func testSixCardAceKingQueenTrumpMissingJackTenWithoutOutsideSupportDoesNotOverbidTen() {
+        let recommendation = automatedRecommendation(
+            for: hand("J♠ Q♥ 3♦ 10♠ 3♥ A♦ 6♦ J♣ Q♦ K♦ Q♣ 2♦ 10♥")
+        )
+
+        XCTAssertEqual(recommendation.preferredTarneebSuit, .diamonds)
+        XCTAssertLessThanOrEqual(recommendation.bid.numericValue ?? 0, 9)
+        XCTAssertNotEqual(recommendation.bid, .ten)
+    }
+
+    func testFourCardAceKingJackTrumpWithStrongOutsideHonorsDoesNotOverbidTen() {
+        let recommendation = automatedRecommendation(
+            for: hand("A♥ A♦ K♠ 6♦ Q♥ J♣ Q♦ 4♠ 6♣ K♦ 10♥ A♣ K♣")
+        )
+
+        XCTAssertEqual(recommendation.preferredTarneebSuit, .clubs)
+        XCTAssertLessThanOrEqual(recommendation.bid.numericValue ?? 0, 9)
+        XCTAssertNotEqual(recommendation.bid, .ten)
+    }
+
+    func testFiveCardAceTenTrumpWithoutOutsideAcesDoesNotOpenSeven() {
+        let recommendation = automatedRecommendation(
+            for: hand("9♠ 6♥ 10♠ 8♥ 8♣ J♦ J♣ 7♦ K♣ K♦ 3♠ A♠ 7♠")
+        )
+
+        XCTAssertEqual(recommendation.bid, .pass)
+        XCTAssertNil(recommendation.preferredTarneebSuit)
+    }
+
+    func testFiveCardAceKingQueenJackTrumpMissingTenDoesNotOverbidTen() {
+        let recommendation = automatedRecommendation(
+            for: hand("Q♥ J♥ J♣ Q♦ 4♣ A♥ Q♠ K♥ 8♦ K♣ 2♥ 4♦ 9♣")
+        )
+
+        XCTAssertEqual(recommendation.preferredTarneebSuit, .hearts)
+        XCTAssertLessThanOrEqual(recommendation.bid.numericValue ?? 0, 9)
+        XCTAssertNotEqual(recommendation.bid, .ten)
+    }
+
+    func testFourCardAceQueenLowTrumpWithoutOutsideAcesDoesNotOpenSeven() {
+        let recommendation = automatedRecommendation(
+            for: hand("9♥ 2♥ Q♠ 6♠ 8♦ Q♣ 4♥ 2♣ 8♣ 6♦ 5♥ A♠ 4♠")
+        )
+
+        XCTAssertEqual(recommendation.bid, .pass)
+        XCTAssertNil(recommendation.preferredTarneebSuit)
+    }
+
+    func testFourCardAceJackTenTrumpWithoutOutsideAcesDoesNotOpenSeven() {
+        let recommendation = automatedRecommendation(
+            for: hand("7♥ J♣ K♠ Q♦ 7♠ 9♥ 7♦ 6♣ 10♣ A♣ 3♠ 6♠ 4♥")
+        )
+
+        XCTAssertEqual(recommendation.bid, .pass)
+        XCTAssertNil(recommendation.preferredTarneebSuit)
+    }
+
+    func testShallowTrumpCandidatesWithOutsideAcesDoNotOverbidEight() {
+        let recommendation = automatedRecommendation(
+            for: hand("7♥ J♦ Q♣ K♥ J♠ A♦ 6♠ 8♦ 5♣ 5♦ 8♠ A♠ Q♥")
+        )
+
+        XCTAssertLessThanOrEqual(recommendation.bid.numericValue ?? 0, 7)
+        XCTAssertNotEqual(recommendation.bid, .eight)
+    }
+
+    func testFiveCardAceKingJackTrumpMissingQueenTenDoesNotOverbidNine() {
+        let recommendation = automatedRecommendation(
+            for: hand("J♠ 3♥ 6♠ J♥ 9♠ 8♦ 4♦ K♥ 9♣ 9♦ A♣ A♥ 4♥")
+        )
+
+        XCTAssertEqual(recommendation.preferredTarneebSuit, .hearts)
+        XCTAssertLessThanOrEqual(recommendation.bid.numericValue ?? 0, 8)
+        XCTAssertNotEqual(recommendation.bid, .nine)
+    }
+
+    func testSixCardAceKingQueenTrumpMissingJackTenWithOneOutsideKingDoesNotOverbidEleven() {
+        let recommendation = automatedRecommendation(
+            for: hand("7♠ 10♠ 5♠ 8♦ K♣ A♦ 8♠ 2♦ 9♣ Q♦ K♦ 6♠ 5♦")
+        )
+
+        XCTAssertEqual(recommendation.preferredTarneebSuit, .diamonds)
+        XCTAssertLessThanOrEqual(recommendation.bid.numericValue ?? 0, 10)
+        XCTAssertNotEqual(recommendation.bid, .eleven)
+    }
+
+    func testEightCardAceQueenJackTenTrumpMissingKingDoesNotOverbidTwelve() {
+        let recommendation = automatedRecommendation(
+            for: hand("7♦ 4♥ 7♥ 9♦ 5♥ Q♦ 2♥ J♦ 6♦ A♦ 2♦ 10♦ 5♠")
+        )
+
+        XCTAssertEqual(recommendation.preferredTarneebSuit, .diamonds)
+        XCTAssertLessThanOrEqual(recommendation.bid.numericValue ?? 0, 11)
+        XCTAssertNotEqual(recommendation.bid, .twelve)
+    }
+
+    func testAutomatedBidRecommenderPassesWhenPartnerIsHighestUnlessMaterialRaise() {
+        let hand = [
+            Card(suit: .hearts, rank: .ace),
+            Card(suit: .hearts, rank: .king),
+            Card(suit: .clubs, rank: .two),
+            Card(suit: .clubs, rank: .three),
+            Card(suit: .clubs, rank: .four),
+            Card(suit: .diamonds, rank: .two),
+            Card(suit: .diamonds, rank: .three),
+            Card(suit: .diamonds, rank: .four),
+            Card(suit: .spades, rank: .two),
+            Card(suit: .spades, rank: .three),
+            Card(suit: .spades, rank: .four),
+            Card(suit: .spades, rank: .five),
+            Card(suit: .spades, rank: .six)
+        ]
+        let context = BidRecommendationContext(
+            seat: .east,
+            hand: hand,
+            partnerSeat: .west,
+            currentHighestBidValue: .seven,
+            currentHighestBidder: .west,
+            priorBidStates: Dictionary(uniqueKeysWithValues: Seat.allCases.map { ($0, .pending) })
+        )
+
+        XCTAssertEqual(AutomatedBidRecommender().recommendation(for: context).bid, .pass)
+    }
+
+    func testAutomatedBidRecommenderRejectsPartnerRaiseWithoutStrongTrumpControl() {
+        let hand = [
+            Card(suit: .spades, rank: .king),
+            Card(suit: .spades, rank: .jack),
+            Card(suit: .spades, rank: .ten),
+            Card(suit: .spades, rank: .nine),
+            Card(suit: .spades, rank: .eight),
+            Card(suit: .spades, rank: .seven),
+            Card(suit: .spades, rank: .six),
+            Card(suit: .hearts, rank: .ace),
+            Card(suit: .clubs, rank: .ace),
+            Card(suit: .diamonds, rank: .ace),
+            Card(suit: .hearts, rank: .king),
+            Card(suit: .clubs, rank: .king),
+            Card(suit: .diamonds, rank: .two)
+        ]
+        let context = BidRecommendationContext(
+            seat: .east,
+            hand: hand,
+            partnerSeat: .west,
+            currentHighestBidValue: .seven,
+            currentHighestBidder: .west,
+            priorBidStates: Dictionary(uniqueKeysWithValues: Seat.allCases.map { ($0, .pending) })
+        )
+
+        let recommendation = AutomatedBidRecommender().recommendation(for: context)
+
+        XCTAssertEqual(recommendation.bid, .pass)
+        XCTAssertNil(recommendation.preferredTarneebSuit)
+    }
+
+    func testAutomatedBidRecommenderRaisesPartnerWithStrongTrumpControl() {
+        let hand = [
+            Card(suit: .hearts, rank: .ace),
+            Card(suit: .hearts, rank: .king),
+            Card(suit: .hearts, rank: .queen),
+            Card(suit: .hearts, rank: .jack),
+            Card(suit: .hearts, rank: .ten),
+            Card(suit: .hearts, rank: .nine),
+            Card(suit: .clubs, rank: .ace),
+            Card(suit: .diamonds, rank: .ace),
+            Card(suit: .spades, rank: .king),
+            Card(suit: .clubs, rank: .two),
+            Card(suit: .diamonds, rank: .three),
+            Card(suit: .spades, rank: .four),
+            Card(suit: .clubs, rank: .five)
+        ]
+        let context = BidRecommendationContext(
+            seat: .east,
+            hand: hand,
+            partnerSeat: .west,
+            currentHighestBidValue: .seven,
+            currentHighestBidder: .west,
+            priorBidStates: Dictionary(uniqueKeysWithValues: Seat.allCases.map { ($0, .pending) })
+        )
+
+        let recommendation = AutomatedBidRecommender().recommendation(for: context)
+
+        XCTAssertNotEqual(recommendation.bid, .pass)
+        XCTAssertGreaterThanOrEqual(recommendation.bid.numericValue ?? 0, 9)
+        XCTAssertEqual(recommendation.preferredTarneebSuit, .hearts)
+    }
+
+    func testPostBiddingSummaryUsesHighBidderTeamBidAndPreferredSuit() throws {
+        let state = try makeCompletedDeal(dealerSeat: .west)
+        let service = BiddingService(bidGenerator: BidGenerator { _ in .pass })
+        let afterSouthBid = service.submitSouthBid(.twelve, selectedTarneebSuit: .clubs, in: state)
+        let afterEastPass = service.resolveNextSimulatedBid(in: afterSouthBid)
+        let afterNorthPass = service.resolveNextSimulatedBid(in: afterEastPass)
+        let completedState = service.resolveNextSimulatedBid(in: afterNorthPass)
+        let summary = try XCTUnwrap(completedState.postBiddingSummary)
+
+        XCTAssertEqual(summary.teamLabel, "North-South")
+        XCTAssertEqual(summary.bidValue, .twelve)
+        XCTAssertEqual(summary.highBidderSeat, .south)
+        XCTAssertEqual(summary.tarneebSuit, .clubs)
+        XCTAssertEqual(summary.tarneebSymbol, "♣")
+    }
+
+    func testPostBiddingSummaryUsesEastWestForEastOrWestHighBidder() throws {
+        let state = try makeCompletedDeal(dealerSeat: .south)
+        let service = BiddingService(bidGenerator: BidGenerator { _ in .thirteen })
+        let completedState = service.resolveNextSimulatedBid(in: state)
+        let summary = try XCTUnwrap(completedState.postBiddingSummary)
+
+        XCTAssertEqual(summary.teamLabel, "East-West")
+        XCTAssertEqual(summary.bidValue, .thirteen)
+        XCTAssertEqual(summary.highBidderSeat, .east)
+    }
+
+    func testAllPassBiddingDoesNotShowHighBidSummary() throws {
+        let state = try makeCompletedDeal(dealerSeat: .south)
+        let service = BiddingService(bidGenerator: BidGenerator { _ in .pass })
+        let advancedState = service.advanceSimulatedTurns(in: state)
+        let completedState = service.submitSouthBid(.pass, in: advancedState)
+
+        XCTAssertEqual(completedState.biddingStatus, .complete)
+        XCTAssertEqual(completedState.biddingCompletionOutcome, .allPassRedeal)
+        XCTAssertNil(completedState.postBiddingSummary)
     }
 
     func testSouthHandPresentationSortsBySuitThenRankWithoutChangingOwnership() {
@@ -645,6 +1973,9 @@ final class TarneebTests: XCTestCase {
         XCTAssertTrue(southDealerAnimation.accessibilityValue.contains("direction=counterclockwise"))
         XCTAssertTrue(southDealerAnimation.accessibilityValue.contains("targetOrder=east,north,west,south"))
         XCTAssertTrue(southDealerAnimation.accessibilityValue.contains("flightDuration=animation.deal.stack.flight.duration"))
+        XCTAssertTrue(southDealerAnimation.accessibilityValue.contains("southRevealTotalDuration=animation.deal.southReveal.total.duration"))
+        XCTAssertTrue(southDealerAnimation.accessibilityValue.contains("southRevealFlipDuration=animation.deal.southReveal.flip.duration"))
+        XCTAssertTrue(southDealerAnimation.accessibilityValue.contains("southRevealFlipStagger=animation.deal.southReveal.flip.stagger"))
 
         XCTAssertEqual(movingStack.targetSeat, .east)
         XCTAssertEqual(movingStack.hiddenCardCount, 13)
@@ -727,6 +2058,228 @@ final class TarneebTests: XCTestCase {
         XCTAssertTrue(dealtStation.showsDealerBadge)
         XCTAssertEqual(dealtStation.outlineColorRole, .stationOutline)
         XCTAssertEqual(dealtStation.outlineToken, .stationOutline)
+    }
+
+    func testBidAreaPresentationMapsBiddingState() throws {
+        let biddingState = BiddingState(
+            bids: [
+                .south: .pending,
+                .east: .resolved(.seven),
+                .north: .resolved(.pass),
+                .west: .resolved(.ten)
+            ],
+            currentTurnSeat: .south,
+            highestBidSeat: .west,
+            highestBidValue: .ten,
+            status: .inProgress
+        )
+        let presentation = try XCTUnwrap(BidAreaPresentation(
+            phase: .dealt,
+            biddingState: biddingState,
+            southDraftBid: .eleven,
+            southDraftTarneebSuit: .spades
+        ))
+
+        XCTAssertNil(BidAreaPresentation(phase: .notStarted, biddingState: biddingState))
+        XCTAssertNil(BidAreaPresentation(phase: .dealt, biddingState: nil))
+        XCTAssertEqual(presentation.label, "Bidding")
+        XCTAssertEqual(presentation.entries.map(\.seat), Seat.dealOrder)
+        XCTAssertEqual(presentation.entries.map(\.seatLabel), ["South", "East", "North", "West"])
+        XCTAssertEqual(presentation.entries.map(\.valueLabel), ["11", "7", "Pass", "10"])
+        XCTAssertEqual(presentation.entries.map(\.isSelectable), [true, false, false, false])
+        XCTAssertEqual(presentation.entries.map(\.isCurrentHighestBid), [false, false, false, true])
+        XCTAssertEqual(
+            presentation.entries.map(\.valueColorToken),
+            [.bidAreaValueText, .bidAreaValueText, .bidAreaValueText, .bidAreaHighestValueText]
+        )
+        XCTAssertEqual(presentation.allowedValues, [.pass, .eleven, .twelve, .thirteen])
+        XCTAssertEqual(presentation.allowedValuesLabel, "Pass,11,12,13")
+        XCTAssertEqual(presentation.southSuitOptions, Suit.allCases)
+        XCTAssertEqual(presentation.southSuitOptionsLabel, "spades,clubs,hearts,diamonds")
+        XCTAssertEqual(presentation.southDraftTarneebSuit, .spades)
+        XCTAssertTrue(presentation.southSuitSelectorVisible)
+        XCTAssertTrue(presentation.southSuitSelectorEnabled)
+        XCTAssertEqual(presentation.status, .inProgress)
+        XCTAssertNil(presentation.completionOutcome)
+        XCTAssertEqual(presentation.presentationState, .visible)
+        XCTAssertEqual(presentation.currentTurnSeat, .south)
+        XCTAssertEqual(presentation.highestBidSeat, .west)
+        XCTAssertEqual(presentation.highestBidValue, .ten)
+        XCTAssertTrue(presentation.southBidButtonVisible)
+        XCTAssertTrue(presentation.southBidButtonEnabled)
+        XCTAssertEqual(presentation.areaTokens.background, .bidAreaBackground)
+        XCTAssertEqual(presentation.selectorTokens.background, .bidSelectorBackground)
+        XCTAssertEqual(presentation.suitSelectorTokens.background, .bidSuitSelectorBackground)
+        XCTAssertTrue(presentation.accessibilityValue.contains("label=Bidding"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("rows=south,east,north,west"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("values=south:11,east:7,north:Pass,west:10"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("valueTextRoles=south:color.bidArea.value.text,east:color.bidArea.value.text,north:color.bidArea.value.text,west:color.bidArea.value.highest.text"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("allowed=Pass,11,12,13"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("southSuitOptions=spades,clubs,hearts,diamonds"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("southDraftTarneebSuit=spades"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("completionOutcome=none"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("currentTurn=south"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("highestSeat=west"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("highestBid=10"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("southTarneebSuitSelectorVisible=true"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("southTarneebSuitSelectorEnabled=true"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("southBidButtonVisible=true"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("southBidButtonEnabled=true"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("areaTokens=background=color.bidArea.background"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("selectorTokens=background=color.bidSelector.background"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("suitSelectorTokens=background=color.bidSuitSelector.background"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("bidButtonTokens=background=color.button.bid.background"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("simulatedBidDelay=animation.bid.simulatedTurn.delay"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("simulatedBidDelaySeconds=1.0"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("fadeOut=animation.bid.value.fadeOut.duration"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("fadeTotalSeconds=1.0"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("areaFadeOut=animation.bid.area.fadeOut.duration"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("areaFadeOutSeconds=1.0"))
+        XCTAssertFalse(presentation.accessibilityValue.contains("#"))
+    }
+
+    func testBidAreaPresentationKeepsSouthBidButtonVisibleDisabledUntilTerminalState() throws {
+        let simulatedTurnState = BiddingState(
+            bids: [
+                .south: .pending,
+                .east: .pending,
+                .north: .pending,
+                .west: .pending
+            ],
+            currentTurnSeat: .east,
+            highestBidSeat: nil,
+            highestBidValue: nil,
+            status: .inProgress
+        )
+        let simulatedTurnPresentation = try XCTUnwrap(BidAreaPresentation(
+            phase: .dealt,
+            biddingState: simulatedTurnState
+        ))
+
+        XCTAssertEqual(simulatedTurnPresentation.entries.map(\.valueLabel), ["--", "--", "--", "--"])
+        XCTAssertEqual(simulatedTurnPresentation.entries.map(\.isSelectable), [false, false, false, false])
+        XCTAssertTrue(simulatedTurnPresentation.southBidButtonVisible)
+        XCTAssertFalse(simulatedTurnPresentation.southBidButtonEnabled)
+        XCTAssertFalse(simulatedTurnPresentation.southSuitSelectorVisible)
+        XCTAssertFalse(simulatedTurnPresentation.southSuitSelectorEnabled)
+        XCTAssertTrue(simulatedTurnPresentation.accessibilityValue.contains("southBidButtonVisible=true"))
+        XCTAssertTrue(simulatedTurnPresentation.accessibilityValue.contains("southBidButtonEnabled=false"))
+
+        let activeSouthTurnState = BiddingState(
+            bids: [
+                .south: .pending,
+                .east: .pending,
+                .north: .pending,
+                .west: .pending
+            ],
+            currentTurnSeat: .south,
+            highestBidSeat: nil,
+            highestBidValue: nil,
+            status: .inProgress
+        )
+        let activeSouthNumericWithoutSuitPresentation = try XCTUnwrap(BidAreaPresentation(
+            phase: .dealt,
+            biddingState: activeSouthTurnState,
+            southDraftBid: .seven
+        ))
+
+        XCTAssertTrue(activeSouthNumericWithoutSuitPresentation.southSuitSelectorVisible)
+        XCTAssertTrue(activeSouthNumericWithoutSuitPresentation.southSuitSelectorEnabled)
+        XCTAssertNil(activeSouthNumericWithoutSuitPresentation.southDraftTarneebSuit)
+        XCTAssertTrue(activeSouthNumericWithoutSuitPresentation.southBidButtonVisible)
+        XCTAssertFalse(activeSouthNumericWithoutSuitPresentation.southBidButtonEnabled)
+        XCTAssertTrue(activeSouthNumericWithoutSuitPresentation.accessibilityValue.contains("southDraftTarneebSuit=none"))
+        XCTAssertTrue(activeSouthNumericWithoutSuitPresentation.accessibilityValue.contains("southTarneebSuitSelectorEnabled=true"))
+
+        let activeSouthPassPresentation = try XCTUnwrap(BidAreaPresentation(
+            phase: .dealt,
+            biddingState: activeSouthTurnState,
+            southDraftBid: .pass
+        ))
+
+        XCTAssertTrue(activeSouthPassPresentation.southSuitSelectorVisible)
+        XCTAssertFalse(activeSouthPassPresentation.southSuitSelectorEnabled)
+        XCTAssertTrue(activeSouthPassPresentation.southBidButtonEnabled)
+
+        let passedSouthTurnState = BiddingState(
+            bids: [
+                .south: .resolved(.pass),
+                .east: .resolved(.seven),
+                .north: .pending,
+                .west: .pending
+            ],
+            currentTurnSeat: .south,
+            highestBidSeat: .east,
+            highestBidValue: .seven,
+            status: .inProgress
+        )
+        let passedSouthTurnPresentation = try XCTUnwrap(BidAreaPresentation(
+            phase: .dealt,
+            biddingState: passedSouthTurnState
+        ))
+
+        XCTAssertEqual(passedSouthTurnPresentation.entries.map(\.valueLabel), ["Pass", "7", "--", "--"])
+        XCTAssertEqual(passedSouthTurnPresentation.entries.map(\.isSelectable), [false, false, false, false])
+        XCTAssertTrue(passedSouthTurnPresentation.southBidButtonVisible)
+        XCTAssertFalse(passedSouthTurnPresentation.southBidButtonEnabled)
+        XCTAssertFalse(passedSouthTurnPresentation.southSuitSelectorVisible)
+        XCTAssertTrue(passedSouthTurnPresentation.accessibilityValue.contains("currentTurn=south"))
+        XCTAssertTrue(passedSouthTurnPresentation.accessibilityValue.contains("southBidButtonEnabled=false"))
+
+        let terminalState = BiddingState(
+            bids: [
+                .south: .resolved(.pass),
+                .east: .resolved(.thirteen),
+                .north: .resolved(.pass),
+                .west: .resolved(.pass)
+            ],
+            currentTurnSeat: nil,
+            highestBidSeat: .east,
+            highestBidValue: .thirteen,
+            status: .complete
+        )
+        let terminalPresentation = try XCTUnwrap(BidAreaPresentation(
+            phase: .dealt,
+            biddingState: terminalState,
+            presentationState: .fadingOut
+        ))
+
+        XCTAssertFalse(terminalPresentation.southBidButtonVisible)
+        XCTAssertFalse(terminalPresentation.southBidButtonEnabled)
+        XCTAssertEqual(terminalPresentation.status, .complete)
+        XCTAssertEqual(terminalPresentation.completionOutcome, .numericHighBid)
+        XCTAssertEqual(terminalPresentation.presentationState, .fadingOut)
+        XCTAssertTrue(terminalPresentation.accessibilityValue.contains("status=complete"))
+        XCTAssertTrue(terminalPresentation.accessibilityValue.contains("completionOutcome=numericHighBid"))
+        XCTAssertTrue(terminalPresentation.accessibilityValue.contains("presentationState=fadingOut"))
+        XCTAssertTrue(terminalPresentation.accessibilityValue.contains("southBidButtonVisible=false"))
+    }
+
+    func testPostBiddingSummaryPresentationMapsSummaryTokensAndValues() throws {
+        let summary = PostBiddingSummary(
+            highBidderSeat: .west,
+            bidValue: .ten,
+            tarneebSuit: .clubs
+        )
+        let presentation = try XCTUnwrap(PostBiddingSummaryPresentation(
+            phase: .dealt,
+            biddingStatus: .complete,
+            summary: summary,
+            isBiddingAreaFadingOut: false
+        ))
+
+        XCTAssertEqual(presentation.teamLabel, "East-West")
+        XCTAssertEqual(presentation.bidValueLabel, "10")
+        XCTAssertEqual(presentation.tarneebLabel, "Tarneeb")
+        XCTAssertEqual(presentation.tarneebSymbol, "♣")
+        XCTAssertEqual(presentation.tokens.background, .postBiddingSummaryBackground)
+        XCTAssertTrue(presentation.accessibilityValue.contains("team=East-West"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("bid=10"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("tarneebSymbol=♣"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("background=color.postBiddingSummary.background"))
+        XCTAssertNil(PostBiddingSummaryPresentation(phase: .notStarted, biddingStatus: nil, summary: summary, isBiddingAreaFadingOut: false))
+        XCTAssertNil(PostBiddingSummaryPresentation(phase: .dealt, biddingStatus: .complete, summary: summary, isBiddingAreaFadingOut: true))
+        XCTAssertNil(PostBiddingSummaryPresentation(phase: .dealt, biddingStatus: .complete, summary: nil, isBiddingAreaFadingOut: false))
     }
 
     func testTableLayoutPresentationExposesDiameterStationPlacementsAndCenteredDeckAnchor() {
@@ -831,12 +2384,14 @@ final class TarneebTests: XCTestCase {
         XCTAssertEqual(presentation.gameState.players.count, 4)
         XCTAssertEqual(Set(presentation.gameState.players.map(\.seat)), Set(Seat.allCases))
         XCTAssertEqual(presentation.gameState.players.flatMap(\.hand).count, 0)
+        XCTAssertTrue(presentation.gameState.bids.isEmpty)
         XCTAssertEqual(undealtDeckStack.hiddenCardCount, 52)
         XCTAssertEqual(undealtDeckStack.layout.placementLabel, "veryCenter")
         XCTAssertTrue(undealtDeckStack.layout.titleOverlapAllowed)
         XCTAssertTrue(dealerStation.showsDealerBadge)
         XCTAssertEqual(dealerStation.outlineToken, .stationOutline)
         XCTAssertEqual(tableTitle.text, "طرنيب")
+        XCTAssertNil(BidAreaPresentation(phase: presentation.gameState.phase, biddingState: presentation.gameState.biddingState))
         XCTAssertEqual(presentation.availableActions, [.newGame, .deal])
         XCTAssertEqual(PresentationAction.newGame.visibleLabel, "New Game")
         XCTAssertEqual(PresentationAction.deal.visibleLabel, "Deal")
@@ -859,6 +2414,8 @@ final class TarneebTests: XCTestCase {
         XCTAssertEqual(presentation.gameState.players.flatMap(\.hand).count, 52)
         XCTAssertEqual(Set(presentation.gameState.players.flatMap(\.hand).map(\.id)).count, 52)
         XCTAssertEqual(presentation.gameState.deck, [])
+        XCTAssertEqual(Set(presentation.gameState.bids.keys), Set(Seat.allCases))
+        XCTAssertNotNil(BidAreaPresentation(phase: presentation.gameState.phase, biddingState: presentation.gameState.biddingState))
         XCTAssertEqual(presentation.availableActions, [.newGame, .deal])
         XCTAssertEqual(UndealtDeckStackPresentation(phase: presentation.gameState.phase).hiddenCardCount, 0)
     }
@@ -901,6 +2458,7 @@ final class TarneebTests: XCTestCase {
         XCTAssertEqual(presentation.gameState.phase, .dealt)
         XCTAssertEqual(presentation.gameState.dealerSeat, .east)
         XCTAssertEqual(presentation.gameState.players.map(\.hand.count), [13, 13, 13, 13])
+        XCTAssertEqual(Set(presentation.gameState.bids.keys), Set(Seat.allCases))
         XCTAssertNotEqual(firstSouthHand, secondSouthHand)
         XCTAssertEqual(UndealtDeckStackPresentation(phase: presentation.gameState.phase).hiddenCardCount, 0)
         XCTAssertEqual(presentation.availableActions, [.newGame, .deal])
@@ -928,6 +2486,7 @@ final class TarneebTests: XCTestCase {
         XCTAssertEqual(observedState.phase, .notStarted)
         XCTAssertEqual(observedState.dealerSeat, .south)
         XCTAssertTrue(observedState.players.allSatisfy(\.hand.isEmpty))
+        XCTAssertTrue(observedState.bids.isEmpty)
         XCTAssertEqual(presentation.gameState.phase, .dealt)
         XCTAssertEqual(presentation.gameState.dealerSeat, .south)
     }
@@ -950,6 +2509,8 @@ final class TarneebTests: XCTestCase {
         XCTAssertEqual(presentation.gameState.players.count, 4)
         XCTAssertTrue(presentation.gameState.players.allSatisfy(\.hand.isEmpty))
         XCTAssertNil(presentation.gameState.deck)
+        XCTAssertTrue(presentation.gameState.bids.isEmpty)
+        XCTAssertNil(BidAreaPresentation(phase: presentation.gameState.phase, biddingState: presentation.gameState.biddingState))
         XCTAssertEqual(
             UndealtDeckStackPresentation(phase: presentation.gameState.phase).hiddenCardCount,
             52
@@ -969,7 +2530,150 @@ final class TarneebTests: XCTestCase {
         XCTAssertEqual(service.callCount, 0)
         XCTAssertEqual(presentation.gameState.phase, .notStarted)
         XCTAssertTrue(presentation.gameState.players.allSatisfy(\.hand.isEmpty))
+        XCTAssertTrue(presentation.gameState.bids.isEmpty)
         XCTAssertEqual(presentation.availableActions, [.newGame, .deal])
+    }
+
+    func testPresentationStateSubmitsSouthBidOnlyOnSouthTurn() throws {
+        let service = QueuedDealService(results: [try makeCompletedDeal(dealerSeat: .west)])
+        let presentation = TarneebPresentationState(
+            dealService: service,
+            dealerSelector: QueuedDealerSelector(seats: [.west, .north]),
+            biddingService: BiddingService(bidGenerator: BidGenerator { _ in .pass })
+        )
+
+        presentation.submitSouthBid(.thirteen)
+        XCTAssertTrue(presentation.gameState.bids.isEmpty)
+
+        presentation.deal()
+
+        XCTAssertEqual(presentation.gameState.currentBiddingSeat, .south)
+        XCTAssertEqual(presentation.gameState.bids[.south], .pending)
+
+        presentation.submitSouthBid(.twelve, selectedTarneebSuit: .hearts)
+
+        XCTAssertEqual(presentation.gameState.bids[.south], .resolved(.twelve))
+        XCTAssertEqual(presentation.gameState.biddingState?.bidRecommendations[.south]?.preferredTarneebSuit, .hearts)
+        XCTAssertEqual(presentation.gameState.bids[.east], .pending)
+        XCTAssertEqual(presentation.gameState.bids[.north], .pending)
+        XCTAssertEqual(presentation.gameState.bids[.west], .pending)
+        XCTAssertEqual(presentation.gameState.highestBidSeat, .south)
+        XCTAssertEqual(presentation.gameState.highestBidValue, .twelve)
+        XCTAssertEqual(presentation.gameState.currentBiddingSeat, .east)
+        XCTAssertEqual(presentation.gameState.biddingStatus, .inProgress)
+
+        presentation.resolveNextSimulatedBid()
+        presentation.resolveNextSimulatedBid()
+        presentation.resolveNextSimulatedBid()
+
+        XCTAssertEqual(presentation.gameState.bids[.east], .resolved(.pass))
+        XCTAssertEqual(presentation.gameState.bids[.north], .resolved(.pass))
+        XCTAssertEqual(presentation.gameState.bids[.west], .resolved(.pass))
+        XCTAssertEqual(presentation.gameState.biddingStatus, .complete)
+        XCTAssertEqual(presentation.gameState.phase, .dealt)
+    }
+
+    func testReplacementDealRefreshesBiddingRoundAndResetsSouthBid() throws {
+        var bidSequence: [BidValue] = [.seven, .eight, .nine]
+        let shuffler = RecordingShuffler(outputs: [
+            DeckFactory.makeCanonicalDeck(),
+            Array(DeckFactory.makeCanonicalDeck().reversed())
+        ])
+        let presentation = TarneebPresentationState(
+            dealService: DealService(shuffler: shuffler),
+            dealerSelector: QueuedDealerSelector(seats: [.south]),
+            biddingService: BiddingService(bidGenerator: BidGenerator { _ in bidSequence.removeFirst() })
+        )
+
+        presentation.deal()
+        XCTAssertEqual(presentation.gameState.bids.values.filter { $0 == .pending }.count, 4)
+
+        presentation.resolveNextSimulatedBid()
+        presentation.resolveNextSimulatedBid()
+        presentation.resolveNextSimulatedBid()
+        let firstBids = presentation.gameState.bids
+
+        presentation.submitSouthBid(.thirteen, selectedTarneebSuit: .spades)
+        XCTAssertEqual(presentation.gameState.bids[.south], .resolved(.thirteen))
+
+        presentation.deal()
+        let secondBids = presentation.gameState.bids
+
+        XCTAssertEqual(firstBids[.east], .resolved(.seven))
+        XCTAssertEqual(firstBids[.north], .resolved(.eight))
+        XCTAssertEqual(firstBids[.west], .resolved(.nine))
+        XCTAssertEqual(firstBids[.south], .pending)
+        XCTAssertEqual(secondBids[.south], .pending)
+        XCTAssertEqual(secondBids[.east], .pending)
+        XCTAssertEqual(secondBids[.north], .pending)
+        XCTAssertEqual(secondBids[.west], .pending)
+        XCTAssertNotEqual(firstBids.filter { $0.key != .south }, secondBids.filter { $0.key != .south })
+        XCTAssertEqual(presentation.gameState.currentBiddingSeat, .north)
+        XCTAssertEqual(presentation.gameState.dealerSeat, .east)
+        XCTAssertEqual(shuffler.receivedDecks.count, 2)
+    }
+
+    func testAllPassCompletionAutomaticallyRedealsWithDealerOnRight() throws {
+        let canonicalDeck = DeckFactory.makeCanonicalDeck()
+        let reversedDeck = Array(canonicalDeck.reversed())
+        let shuffler = RecordingShuffler(outputs: [canonicalDeck, reversedDeck])
+        let presentation = TarneebPresentationState(
+            dealService: DealService(shuffler: shuffler),
+            dealerSelector: QueuedDealerSelector(seats: [.south]),
+            biddingService: BiddingService(bidGenerator: BidGenerator { _ in .pass })
+        )
+
+        presentation.deal()
+        let firstSouthHand = try player(in: presentation.gameState, seat: .south).hand
+        presentation.resolveNextSimulatedBid()
+        presentation.resolveNextSimulatedBid()
+        presentation.resolveNextSimulatedBid()
+        presentation.submitSouthBid(.pass)
+
+        XCTAssertEqual(presentation.gameState.biddingStatus, .complete)
+        XCTAssertEqual(presentation.gameState.biddingCompletionOutcome, .allPassRedeal)
+        XCTAssertNil(presentation.gameState.postBiddingSummary)
+        XCTAssertEqual(presentation.gameState.dealerSeat, .south)
+
+        presentation.automaticRedealAfterAllPass()
+
+        XCTAssertEqual(presentation.gameState.phase, .dealt)
+        XCTAssertEqual(presentation.gameState.dealerSeat, .east)
+        XCTAssertEqual(presentation.gameState.currentBiddingSeat, .north)
+        XCTAssertEqual(presentation.gameState.biddingStatus, .inProgress)
+        XCTAssertNil(presentation.gameState.biddingCompletionOutcome)
+        XCTAssertNil(presentation.gameState.postBiddingSummary)
+        XCTAssertEqual(presentation.gameState.bids[.south], .pending)
+        XCTAssertEqual(presentation.gameState.bids[.east], .pending)
+        XCTAssertEqual(presentation.gameState.bids[.north], .pending)
+        XCTAssertEqual(presentation.gameState.bids[.west], .pending)
+        XCTAssertEqual(shuffler.receivedDecks.count, 2)
+        XCTAssertNotEqual(try player(in: presentation.gameState, seat: .south).hand, firstSouthHand)
+    }
+
+    func testAutomaticRedealDoesNothingWhenBiddingCompletedWithHighBid() throws {
+        let canonicalDeck = DeckFactory.makeCanonicalDeck()
+        let reversedDeck = Array(canonicalDeck.reversed())
+        let shuffler = RecordingShuffler(outputs: [canonicalDeck, reversedDeck])
+        let presentation = TarneebPresentationState(
+            dealService: DealService(shuffler: shuffler),
+            dealerSelector: QueuedDealerSelector(seats: [.south]),
+            biddingService: BiddingService(bidGenerator: BidGenerator { _ in .pass })
+        )
+
+        presentation.deal()
+        presentation.resolveNextSimulatedBid()
+        presentation.resolveNextSimulatedBid()
+        presentation.resolveNextSimulatedBid()
+        presentation.submitSouthBid(.thirteen, selectedTarneebSuit: .spades)
+        let completedState = presentation.gameState
+
+        XCTAssertEqual(completedState.biddingCompletionOutcome, .numericHighBid)
+
+        presentation.automaticRedealAfterAllPass()
+
+        XCTAssertEqual(presentation.gameState, completedState)
+        XCTAssertEqual(shuffler.receivedDecks.count, 1)
     }
 
     func testReplacementDealUsesFreshCompleteDeckAndShufflesBeforeAssigningCards() throws {
@@ -1051,11 +2755,21 @@ final class TarneebTests: XCTestCase {
 
     private func makeCompletedDeal(
         shuffler: CardShuffling = CardShuffler { $0 },
+        bidGenerator: BidGenerating = BidGenerator { _ in .pass },
+        southDefaultBid: BidValue = .pass,
         dealerSeat: Seat = .south,
         file: StaticString = #filePath,
         line: UInt = #line
     ) throws -> GameState {
-        try XCTUnwrap(DealService(shuffler: shuffler).deal(dealerSeat: dealerSeat), file: file, line: line)
+        try XCTUnwrap(
+            DealService(
+                shuffler: shuffler,
+                bidGenerator: bidGenerator,
+                southDefaultBid: southDefaultBid
+            ).deal(dealerSeat: dealerSeat),
+            file: file,
+            line: line
+        )
     }
 
     private func player(
@@ -1065,6 +2779,68 @@ final class TarneebTests: XCTestCase {
         line: UInt = #line
     ) throws -> Player {
         try XCTUnwrap(state.players.first { $0.seat == seat }, file: file, line: line)
+    }
+
+    private func automatedRecommendation(
+        for hand: [Card],
+        seat: Seat = .north,
+        partnerSeat: Seat = .south,
+        currentHighestBidValue: BidValue? = nil,
+        currentHighestBidder: Seat? = nil
+    ) -> BidRecommendation {
+        let context = BidRecommendationContext(
+            seat: seat,
+            hand: hand,
+            partnerSeat: partnerSeat,
+            currentHighestBidValue: currentHighestBidValue,
+            currentHighestBidder: currentHighestBidder,
+            priorBidStates: Dictionary(uniqueKeysWithValues: Seat.allCases.map { ($0, .pending) })
+        )
+
+        return AutomatedBidRecommender().recommendation(for: context)
+    }
+
+    private func hand(
+        _ rawHand: String,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) -> [Card] {
+        let cards = rawHand.split(separator: " ").map { card(from: $0, file: file, line: line) }
+
+        XCTAssertEqual(cards.count, 13, file: file, line: line)
+        return cards
+    }
+
+    private func card(
+        from token: Substring,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) -> Card {
+        let tokenString = String(token)
+
+        guard let suitSymbol = tokenString.last,
+              let suit = suit(for: suitSymbol),
+              let rank = Rank(rawValue: String(tokenString.dropLast())) else {
+            XCTFail("Invalid card token: \(tokenString)", file: file, line: line)
+            return Card(suit: .spades, rank: .two)
+        }
+
+        return Card(suit: suit, rank: rank)
+    }
+
+    private func suit(for symbol: Character) -> Suit? {
+        switch symbol {
+        case "♠":
+            return .spades
+        case "♣":
+            return .clubs
+        case "♥":
+            return .hearts
+        case "♦":
+            return .diamonds
+        default:
+            return nil
+        }
     }
 }
 

@@ -9,9 +9,9 @@ final class TarneebLaunchUITests: XCTestCase {
         XCUIDevice.shared.orientation = .portrait
     }
 
-    func testMVP004SmallestSupportedSimulatorIsDocumented() throws {
-        XCTContext.runActivity(named: "MVP 004 smallest supported simulator: \(Self.mvp004SmallestSupportedSimulator)") { _ in
-            XCTAssertEqual(Self.mvp004SmallestSupportedSimulator, "iPhone SE (3rd generation)")
+    func testMVP005SmallestSupportedSimulatorIsDocumented() throws {
+        XCTContext.runActivity(named: "MVP 005 smallest supported simulator: \(Self.mvp005SmallestSupportedSimulator)") { _ in
+            XCTAssertEqual(Self.mvp005SmallestSupportedSimulator, "iPhone SE (3rd generation)")
         }
     }
 
@@ -42,6 +42,11 @@ final class TarneebLaunchUITests: XCTestCase {
 
         XCTAssertEqual(screen.visibleCards.count, 0)
         XCTAssertEqual(screen.hiddenCardBacks.count, 0)
+        XCTAssertFalse(screen.bidArea.exists)
+        XCTAssertFalse(screen.bidTable.exists)
+        XCTAssertFalse(screen.southBidSelector.exists)
+        XCTAssertFalse(screen.southTarneebSuitSelector.exists)
+        XCTAssertFalse(screen.southBidButton.exists)
         XCTAssertFalse(screen.dealCompleteMessage.exists)
         XCTAssertFalse(screen.oldDealCardsButton.exists)
         XCTAssertFalse(screen.oldNewDealButton.exists)
@@ -63,7 +68,7 @@ final class TarneebLaunchUITests: XCTestCase {
         }
     }
 
-    func testInitialScreenExposesMVP004TokenAndLayoutHooks() throws {
+    func testInitialScreenExposesMVP005TokenAndLayoutHooks() throws {
         let app = launchApp()
         let screen = TarneebScreen(app: app)
 
@@ -164,6 +169,13 @@ final class TarneebLaunchUITests: XCTestCase {
         XCTAssertEqual(screen.eastHiddenCardBacks.count, 13)
         XCTAssertEqual(screen.hiddenCardBacks.count, 39)
         XCTAssertTrue(screen.dealCompleteMessage.exists)
+        XCTAssertTrue(screen.bidArea.exists)
+        XCTAssertTrue(screen.bidLabel.exists)
+        XCTAssertTrue(screen.bidTable.exists)
+        XCTAssertTrue(screen.southBidButton.exists)
+        XCTAssertTrue(screen.southBidSelector.exists || screen.southBidValue.exists)
+        assertSouthBidButtonAppearsBelowBidValue(on: screen)
+        assertBidAreaShowsLegalValues(on: screen)
         XCTAssertTrue(screen.dealButton.exists)
         XCTAssertEqual(screen.dealButton.label, "Deal")
         XCTAssertTrue(screen.newGameButton.exists)
@@ -175,6 +187,7 @@ final class TarneebLaunchUITests: XCTestCase {
 
         assertStationsSurroundTable(on: screen)
         assertSouthStationExpandedBelowTable(on: screen)
+        assertBidAreaAppearsUnderSouthStation(on: screen)
         assertCompletionAppearsAboveBottomDeal(on: screen)
         assertBottomDealButtonIsAtBottom(on: screen, in: app)
     }
@@ -186,7 +199,7 @@ final class TarneebLaunchUITests: XCTestCase {
         XCTAssertTrue(screen.title.waitForExistence(timeout: 5))
         screen.dealButton.tap()
 
-        XCTAssertTrue(screen.dealCompleteMessage.waitForExistence(timeout: 5))
+        XCTAssertTrue(screen.dealCompleteMessage.waitForExistence(timeout: 8))
         try assertTokenValue(screen.cardTable, contains: "lastDealAnimation=completed")
         try assertTokenValue(screen.cardTable, contains: "start=dealerRight")
         try assertTokenValue(screen.cardTable, contains: "direction=counterclockwise")
@@ -200,19 +213,126 @@ final class TarneebLaunchUITests: XCTestCase {
         XCTAssertEqual(screen.hiddenCardBacks.count, 39)
     }
 
-    func testDealtScreenExposesTokenAndCardSizeHooks() throws {
+    func testSouthCardsStayUnrevealedWhileInterimFannedBacksAreVisible() throws {
+        let app = launchApp(initialDealer: "west")
+        let screen = TarneebScreen(app: app)
+
+        XCTAssertTrue(screen.title.waitForExistence(timeout: 5))
+        screen.dealButton.tap()
+
+        let fannedValue = try waitForTokenValue(screen.cardTable, contains: "southRevealState=fannedBacks", timeout: 3)
+        XCTAssertTrue(fannedValue.contains("dealAnimation=running"))
+        XCTAssertTrue(fannedValue.contains("southRevealRevealedCount=0"))
+        XCTAssertTrue(fannedValue.contains("southInterimFannedBacksVisible=true"))
+        XCTAssertTrue(fannedValue.contains("dealCompletionAvailable=false"))
+        XCTAssertTrue(screen.southHiddenHand.exists)
+        XCTAssertEqual(screen.southHiddenCardBacks.count, 13)
+        XCTAssertFalse(screen.dealCompleteMessage.exists)
+        XCTAssertFalse(screen.bidArea.exists)
+    }
+
+    func testSouthRevealShowsBacksThenFlipsBeforeCompletion() throws {
         let app = launchApp()
+        let screen = TarneebScreen(app: app)
+
+        XCTAssertTrue(screen.title.waitForExistence(timeout: 5))
+        screen.dealButton.tap()
+
+        let revealValue = try waitForAnyTokenValue(
+            screen.cardTable,
+            containsAny: ["southRevealState=backsVisible", "southRevealState=flipping"],
+            timeout: 5
+        )
+        XCTAssertFalse(revealValue.contains("dealCompletionAvailable=true"))
+        XCTAssertTrue(screen.southRevealHand.exists)
+        try assertTokenValue(screen.southRevealHand, contains: "backCount=13")
+        try assertTokenValue(screen.southRevealHand, contains: "direction=leftToRight")
+        XCTAssertFalse(screen.dealCompleteMessage.exists)
+        XCTAssertFalse(screen.bidArea.exists)
+
+        XCTAssertTrue(screen.dealCompleteMessage.waitForExistence(timeout: 8))
+        XCTAssertFalse(screen.southRevealHand.exists)
+        XCTAssertTrue(screen.southVisibleHand.exists)
+        XCTAssertEqual(screen.visibleCards.count, 13)
+        XCTAssertTrue(screen.bidArea.exists)
+    }
+
+    func testSouthInterimFannedBackStackStaysVisibleUntilFinalReveal() throws {
+        let app = launchApp(initialDealer: "west")
+        let screen = TarneebScreen(app: app)
+
+        XCTAssertTrue(screen.title.waitForExistence(timeout: 5))
+        screen.dealButton.tap()
+
+        let fannedValue = try waitForTokenValue(screen.cardTable, contains: "southRevealState=fannedBacks", timeout: 3)
+        XCTAssertTrue(fannedValue.contains("southInterimFannedBacksVisible=true"))
+        XCTAssertTrue(screen.southHiddenHand.exists)
+        XCTAssertEqual(screen.southHiddenCardBacks.count, 13)
+        try assertTokenValue(screen.southHiddenHand, contains: "count=13")
+        try assertTokenValue(screen.southSeatArea, contains: "shape=roundedSquare")
+        XCTAssertFalse(screen.southRevealHand.exists)
+        XCTAssertFalse(screen.visibleCardLabels.contains { $0.contains("♠") || $0.contains("♣") || $0.contains("♥") || $0.contains("♦") })
+
+        let revealValue = try waitForAnyTokenValue(
+            screen.cardTable,
+            containsAny: ["southRevealState=backsVisible", "southRevealState=flipping"],
+            timeout: 5
+        )
+        XCTAssertTrue(revealValue.contains("southRevealTotalDuration=animation.deal.southReveal.total.duration"))
+        try assertTokenValue(screen.southSeatArea, contains: "shape=expandedRoundedStation")
+        try assertTokenValue(screen.southRevealHand, contains: "totalDuration=animation.deal.southReveal.total.duration")
+        try assertTokenValue(screen.southRevealHand, contains: "totalSeconds=1.5")
+    }
+
+    func testDealtScreenExposesTokenAndCardSizeHooks() throws {
+        let app = launchApp(initialDealer: "west")
         let screen = TarneebScreen(app: app)
 
         deal(on: screen)
 
         try assertTokenValue(screen.dealCompleteMessage, contains: "text=color.text.primary")
+        try assertTokenValue(screen.dealCompleteMessage, contains: "status=Deal complete")
         try assertTokenValue(screen.dealButton, contains: "background=color.button.deal.background")
         try assertTokenValue(screen.dealButton, contains: "pressed=color.button.deal.background.pressed")
         try assertTokenValue(screen.dealButton, contains: "text=color.button.deal.text")
         try assertTokenValue(screen.newGameButton, contains: "background=color.button.newGame.background")
         try assertTokenValue(screen.newGameButton, contains: "pressed=color.button.newGame.background.pressed")
         try assertTokenValue(screen.newGameButton, contains: "text=color.button.newGame.text")
+        try assertTokenValue(screen.bidArea, contains: "label=Bidding")
+        try assertTokenValue(screen.bidArea, contains: "rows=south,east,north,west")
+        try assertTokenValue(screen.bidArea, contains: "allowed=Pass,7,8,9,10,11,12,13")
+        try assertTokenValue(screen.bidArea, contains: "currentTurn=south")
+        try assertTokenValue(screen.bidArea, contains: "highestSeat=none")
+        try assertTokenValue(screen.bidArea, contains: "highestBid=none")
+        try assertTokenValue(screen.bidArea, contains: "southSuitOptions=spades,clubs,hearts,diamonds")
+        try assertTokenValue(screen.bidArea, contains: "southDraftTarneebSuit=none")
+        try assertTokenValue(screen.bidArea, contains: "southTarneebSuitSelectorVisible=true")
+        try assertTokenValue(screen.bidArea, contains: "southTarneebSuitSelectorEnabled=false")
+        try assertTokenValue(screen.bidArea, contains: "southBidButtonVisible=true")
+        try assertTokenValue(screen.bidArea, contains: "southBidButtonEnabled=true")
+        try assertTokenValue(screen.bidArea, contains: "areaTokens=background=color.bidArea.background")
+        try assertTokenValue(screen.bidArea, contains: "highestValueText=color.bidArea.value.highest.text")
+        try assertTokenValue(screen.bidArea, contains: "selectorTokens=background=color.bidSelector.background")
+        try assertTokenValue(screen.bidArea, contains: "suitSelectorTokens=background=color.bidSuitSelector.background")
+        try assertTokenValue(screen.bidArea, contains: "bidButtonTokens=background=color.button.bid.background")
+        try assertTokenValue(screen.bidArea, contains: "simulatedBidDelay=animation.bid.simulatedTurn.delay")
+        try assertTokenValue(screen.bidArea, contains: "simulatedBidDelaySeconds=1.0")
+        try assertTokenValue(screen.bidArea, contains: "fadeOut=animation.bid.value.fadeOut.duration")
+        try assertTokenValue(screen.bidArea, contains: "fadeTotalSeconds=1.0")
+        try assertTokenValue(screen.bidLabel, contains: "text=color.bidArea.label")
+        try assertTokenValue(screen.bidTable, contains: "rows=south,east,north,west")
+        try assertTokenValue(screen.southBidSelector, contains: "selected=Pass")
+        try assertTokenValue(screen.southBidSelector, contains: "allowed=Pass,7,8,9,10,11,12,13")
+        try assertTokenValue(screen.southBidSelector, contains: "background=color.bidSelector.background")
+        XCTAssertTrue(screen.southTarneebSuitSelector.exists)
+        XCTAssertFalse(screen.southTarneebSuitOption("spades").isEnabled)
+        try assertTokenValue(screen.southTarneebSuitSelector, contains: "selected=none")
+        try assertTokenValue(screen.southTarneebSuitSelector, contains: "enabled=false")
+        try assertTokenValue(screen.southTarneebSuitSelector, contains: "options=spades,clubs,hearts,diamonds")
+        try assertTokenValue(screen.southTarneebSuitSelector, contains: "background=color.bidSuitSelector.background")
+        try assertTokenValue(screen.southBidButton, contains: "background=color.button.bid.background")
+        try assertTokenValue(screen.southBidButton, contains: "enabled=true")
+        try assertTokenValue(screen.southBidButton, contains: "selected=Pass")
 
         for label in screen.seatLabels {
             try assertTokenValue(label, contains: "text=color.text.primary")
@@ -222,8 +342,8 @@ final class TarneebLaunchUITests: XCTestCase {
             try assertTokenValue(station, contains: "label=color.text.primary")
             try assertTokenValue(station, contains: "outline=color.station.outline")
         }
-        try assertTokenValue(screen.southSeatArea, contains: "dealerBadgeVisible=true")
-        for station in [screen.westSeatArea, screen.northSeatArea, screen.eastSeatArea] {
+        try assertTokenValue(screen.westSeatArea, contains: "dealerBadgeVisible=true")
+        for station in [screen.southSeatArea, screen.northSeatArea, screen.eastSeatArea] {
             try assertTokenValue(station, contains: "dealerBadgeVisible=false")
         }
 
@@ -285,6 +405,127 @@ final class TarneebLaunchUITests: XCTestCase {
         }
     }
 
+    func testBidAreaAppearsAfterDealWithLegalValuesForAllPlayers() throws {
+        let app = launchApp()
+        let screen = TarneebScreen(app: app)
+
+        XCTAssertTrue(screen.title.waitForExistence(timeout: 5))
+        XCTAssertFalse(screen.bidArea.exists)
+
+        deal(on: screen)
+
+        XCTAssertTrue(screen.bidArea.exists)
+        XCTAssertTrue(screen.bidTable.exists)
+        XCTAssertEqual(screen.bidLabel.label, "Bidding")
+        assertBidAreaAppearsUnderSouthStation(on: screen)
+        assertBidAreaShowsLegalValues(on: screen)
+        XCTAssertTrue(screen.southBidButton.exists)
+        XCTAssertFalse(screen.southTarneebSuitSelector.exists)
+        XCTAssertTrue(screen.southBidSelector.exists || screen.southBidValue.exists)
+        assertSouthBidButtonAppearsBelowBidValue(on: screen)
+        XCTAssertFalse(app.buttons.matching(identifier: "tarneeb-bid-value-east").firstMatch.exists)
+        XCTAssertFalse(app.buttons.matching(identifier: "tarneeb-bid-value-north").firstMatch.exists)
+        XCTAssertFalse(app.buttons.matching(identifier: "tarneeb-bid-value-west").firstMatch.exists)
+        XCTAssertFalse(app.staticTexts["Winning Bid"].exists)
+    }
+
+    func testSouthBidDropdownShowsAllowedValuesAndUpdatesSelection() throws {
+        let app = launchApp(initialDealer: "west", simulatedBids: "east:Pass,north:Pass,west:Pass")
+        let screen = TarneebScreen(app: app)
+
+        deal(on: screen)
+
+        try assertTokenValue(screen.southBidSelector, contains: "selected=Pass")
+        assertSouthBidButtonAppearsBelowBidValue(on: screen)
+        screen.southBidSelector.tap()
+
+        for optionLabel in ["Pass", "7", "8", "9", "10", "11", "12", "13"] {
+            XCTAssertTrue(app.buttons[optionLabel].waitForExistence(timeout: 2), "Missing bid option \(optionLabel)")
+        }
+
+        app.buttons["10"].tap()
+
+        XCTAssertTrue(screen.southBidSelector.waitForExistence(timeout: 2))
+        try assertTokenValue(screen.southBidSelector, contains: "selected=10")
+        try assertTokenValue(screen.bidArea, contains: "south:10")
+        XCTAssertTrue(screen.southTarneebSuitSelector.exists)
+        XCTAssertTrue(screen.southTarneebSuitOption("spades").isEnabled)
+        XCTAssertFalse(screen.southBidButton.isEnabled)
+        try assertTokenValue(screen.bidArea, contains: "southDraftTarneebSuit=none")
+        try assertTokenValue(screen.bidArea, contains: "southTarneebSuitSelectorEnabled=true")
+        screen.southTarneebSuitOption("spades").tap()
+        XCTAssertTrue(screen.southBidButton.isEnabled)
+        try assertTokenValue(screen.southTarneebSuitSelector, contains: "selected=spades")
+        try assertTokenValue(screen.bidArea, contains: "southDraftTarneebSuit=spades")
+        assertBidAreaShowsLegalValues(on: screen)
+
+        screen.southBidButton.tap()
+
+        XCTAssertTrue(screen.southBidValue.waitForExistence(timeout: 2))
+        XCTAssertTrue(screen.southBidButton.exists)
+        XCTAssertFalse(screen.southBidButton.isEnabled)
+        XCTAssertFalse(screen.southBidSelector.exists)
+        XCTAssertFalse(screen.southTarneebSuitSelector.exists)
+        assertSouthBidButtonAppearsBelowBidValue(on: screen)
+        try assertTokenValue(screen.southBidValue, contains: "value=10")
+        try assertTokenValue(screen.southBidValue, contains: "currentHighest=true")
+        try assertTokenValue(screen.southBidValue, contains: "valueText=color.bidArea.value.highest.text")
+        try assertTokenValue(screen.bidArea, contains: "status=inProgress")
+        try assertTokenValue(screen.bidArea, contains: "highestSeat=south")
+        try assertTokenValue(screen.bidArea, contains: "valueTextRoles=south:color.bidArea.value.highest.text")
+
+        XCTAssertTrue(screen.biddingCompleteMessage.waitForExistence(timeout: 8))
+        XCTAssertFalse(screen.southBidButton.exists)
+        try assertTokenValue(screen.bidArea, contains: "status=complete")
+        try assertTokenValue(screen.dealCompleteMessage, contains: "status=Bidding complete")
+    }
+
+    func testSouthPassRemainsReadonlyAfterLaterPlayerRaises() throws {
+        let app = launchApp(initialDealer: "west", simulatedBids: "east:7,north:8,west:Pass")
+        let screen = TarneebScreen(app: app)
+
+        deal(on: screen)
+
+        XCTAssertTrue(screen.southBidSelector.exists)
+        try assertTokenValue(screen.southBidSelector, contains: "selected=Pass")
+        XCTAssertTrue(screen.southTarneebSuitSelector.exists)
+        XCTAssertFalse(screen.southTarneebSuitOption("spades").isEnabled)
+
+        screen.southBidButton.tap()
+
+        XCTAssertTrue(screen.southBidValue.waitForExistence(timeout: 2))
+        XCTAssertFalse(screen.southBidSelector.exists)
+        XCTAssertFalse(screen.southTarneebSuitSelector.exists)
+        try assertTokenValue(screen.southBidValue, contains: "value=Pass")
+
+        try waitForTokenValue(screen.tableScene, contains: "bidAreaVisible=false", timeout: 8)
+        XCTAssertTrue(screen.biddingCompleteMessage.exists)
+        XCTAssertFalse(screen.southBidSelector.exists)
+        XCTAssertFalse(screen.southTarneebSuitSelector.exists)
+        XCTAssertFalse(screen.southBidButton.exists)
+    }
+
+    func testAllPassBiddingAutomaticallyRedealsAndRotatesDealer() throws {
+        let app = launchApp(initialDealer: "west", simulatedBids: "east:Pass,north:Pass,west:Pass")
+        let screen = TarneebScreen(app: app)
+
+        deal(on: screen)
+
+        try assertTokenValue(screen.bidArea, contains: "currentTurn=south")
+        try assertTokenValue(screen.bidArea, contains: "values=south:Pass,east:--,north:--,west:--")
+
+        screen.southBidButton.tap()
+
+        try waitForTokenValue(screen.bidArea, contains: "completionOutcome=allPassRedeal", timeout: 6)
+        try waitForTokenValue(screen.tableScene, contains: "bidAreaVisible=false", timeout: 4)
+        try waitForTokenValue(screen.tableScene, contains: "dealer=south", timeout: 10)
+        try waitForTokenValue(screen.bidArea, contains: "completionOutcome=none", timeout: 10)
+        try assertTokenValue(screen.bidArea, contains: "status=inProgress")
+        try assertTokenValue(screen.southSeatArea, contains: "dealerSeat=south")
+        XCTAssertTrue(screen.southDealerBadge.exists)
+        XCTAssertFalse(screen.postBiddingSummary.exists)
+    }
+
     func testDealButtonReplacesCompletedDealWithAnotherCompletedDeal() throws {
         let app = launchApp()
         let screen = TarneebScreen(app: app)
@@ -295,11 +536,13 @@ final class TarneebLaunchUITests: XCTestCase {
 
         screen.dealButton.tap()
 
-        XCTAssertTrue(screen.dealCompleteMessage.waitForExistence(timeout: 5))
+        XCTAssertTrue(screen.dealCompleteMessage.waitForExistence(timeout: 8))
         XCTAssertTrue(screen.dealButton.exists)
         XCTAssertEqual(screen.dealButton.label, "Deal")
         XCTAssertEqual(screen.visibleCards.count, 13)
         XCTAssertEqual(screen.hiddenCardBacks.count, 39)
+        XCTAssertTrue(screen.bidArea.exists)
+        assertBidAreaShowsLegalValues(on: screen)
         XCTAssertFalse(screen.undealtDeckStack.exists)
         try assertTokenValue(screen.southSeatArea, contains: "dealerSeat=east")
         XCTAssertEqual(screen.dealerStationAreas.count, 1)
@@ -322,6 +565,10 @@ final class TarneebLaunchUITests: XCTestCase {
         XCTAssertEqual(screen.deckStackCards.count, 52)
         XCTAssertEqual(screen.visibleCards.count, 0)
         XCTAssertEqual(screen.hiddenCardBacks.count, 0)
+        XCTAssertFalse(screen.bidArea.exists)
+        XCTAssertFalse(screen.bidTable.exists)
+        XCTAssertFalse(screen.southBidSelector.exists)
+        XCTAssertFalse(screen.southBidButton.exists)
         XCTAssertFalse(screen.dealCompleteMessage.exists)
         XCTAssertTrue(screen.dealButton.exists)
         XCTAssertTrue(screen.newGameButton.exists)
@@ -344,17 +591,19 @@ final class TarneebLaunchUITests: XCTestCase {
         XCTAssertTrue(screen.title.waitForExistence(timeout: 5))
         screen.dealButton.tap()
 
-        XCTAssertTrue(screen.dealCompleteMessage.waitForExistence(timeout: 5))
+        XCTAssertTrue(screen.dealCompleteMessage.waitForExistence(timeout: 8))
         XCTAssertTrue(screen.dealButton.isHittable)
         XCTAssertTrue(screen.newGameButton.isHittable)
 
         screen.dealButton.tap()
 
-        XCTAssertTrue(screen.dealCompleteMessage.waitForExistence(timeout: 5))
+        XCTAssertTrue(screen.dealCompleteMessage.waitForExistence(timeout: 8))
         XCTAssertTrue(screen.dealButton.isHittable)
         XCTAssertTrue(screen.newGameButton.isHittable)
         XCTAssertEqual(screen.visibleCards.count, 13)
         XCTAssertEqual(screen.hiddenCardBacks.count, 39)
+        XCTAssertTrue(screen.bidArea.exists)
+        assertBidAreaShowsLegalValues(on: screen)
     }
 
     func testPrimaryLayoutElementsRemainUsableAndNonOverlapping() throws {
@@ -368,7 +617,8 @@ final class TarneebLaunchUITests: XCTestCase {
         }
 
         assertNoSubstantialOverlap(screen.dealCompleteMessage, screen.dealButton)
-        assertNoSubstantialOverlap(screen.dealButton, screen.southSeatArea)
+        assertBidAreaAppearsUnderSouthStation(on: screen)
+        assertCompletionAppearsAboveBottomDeal(on: screen)
         assertNoSubstantialOverlap(screen.northSeatArea, screen.cardTable)
         assertNoSubstantialOverlap(screen.southSeatArea, screen.cardTable)
         assertNoSubstantialOverlap(screen.westSeatArea, screen.eastSeatArea)
@@ -407,9 +657,13 @@ final class TarneebLaunchUITests: XCTestCase {
         }
     }
 
-    private func launchApp(initialDealer: String = "south") -> XCUIApplication {
+    private func launchApp(
+        initialDealer: String = "south",
+        simulatedBids: String = "east:7,north:8,west:9"
+    ) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchEnvironment["TARNEEB_INITIAL_DEALER"] = initialDealer
+        app.launchEnvironment["TARNEEB_SIMULATED_BIDS"] = simulatedBids
         app.launch()
         return app
     }
@@ -417,7 +671,7 @@ final class TarneebLaunchUITests: XCTestCase {
     private func deal(on screen: TarneebScreen) {
         XCTAssertTrue(screen.title.waitForExistence(timeout: 5))
         screen.dealButton.tap()
-        XCTAssertTrue(screen.dealCompleteMessage.waitForExistence(timeout: 5))
+        XCTAssertTrue(screen.dealCompleteMessage.waitForExistence(timeout: 8))
     }
 
     private func assertTableDiameter(
@@ -512,6 +766,108 @@ final class TarneebLaunchUITests: XCTestCase {
         XCTAssertLessThan(screen.dealCompleteMessage.frame.midY, screen.dealButton.frame.midY, file: file, line: line)
     }
 
+    private func assertBidAreaAppearsUnderSouthStation(
+        on screen: TarneebScreen,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        XCTAssertGreaterThanOrEqual(screen.bidArea.frame.minY, screen.southSeatArea.frame.maxY - 2, file: file, line: line)
+        XCTAssertEqual(Double(screen.bidArea.frame.midX), Double(screen.southSeatArea.frame.midX), accuracy: 12, file: file, line: line)
+        XCTAssertLessThanOrEqual(screen.bidArea.frame.width, screen.southSeatArea.frame.width + 24, file: file, line: line)
+    }
+
+    private func assertSouthBidButtonAppearsBelowBidValue(
+        on screen: TarneebScreen,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        XCTAssertTrue(screen.southBidButton.exists, file: file, line: line)
+
+        let southBidControl: XCUIElement
+        if screen.southBidSelector.exists {
+            southBidControl = screen.southBidSelector
+        } else if screen.southBidValue.exists {
+            southBidControl = screen.southBidValue
+        } else {
+            southBidControl = screen.southBidRow
+        }
+
+        XCTAssertTrue(southBidControl.exists, file: file, line: line)
+        XCTAssertGreaterThanOrEqual(
+            screen.southBidButton.frame.minY,
+            southBidControl.frame.maxY - 2,
+            file: file,
+            line: line
+        )
+        XCTAssertLessThanOrEqual(screen.southBidButton.frame.minX, southBidControl.frame.maxX, file: file, line: line)
+        XCTAssertGreaterThanOrEqual(screen.southBidButton.frame.maxX, southBidControl.frame.minX, file: file, line: line)
+        XCTAssertLessThanOrEqual(screen.southBidButton.frame.maxY, screen.bidArea.frame.maxY + 2, file: file, line: line)
+    }
+
+    private func assertBidAreaShowsLegalValues(
+        on screen: TarneebScreen,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        XCTAssertTrue(screen.bidArea.exists, file: file, line: line)
+        XCTAssertTrue(screen.bidTable.exists, file: file, line: line)
+        XCTAssertTrue(screen.southBidRow.exists, file: file, line: line)
+        XCTAssertTrue(screen.eastBidRow.exists, file: file, line: line)
+        XCTAssertTrue(screen.northBidRow.exists, file: file, line: line)
+        XCTAssertTrue(screen.westBidRow.exists, file: file, line: line)
+        XCTAssertTrue(screen.eastBidValue.exists, file: file, line: line)
+        XCTAssertTrue(screen.northBidValue.exists, file: file, line: line)
+        XCTAssertTrue(screen.westBidValue.exists, file: file, line: line)
+
+        guard let bidAreaValue = screen.bidArea.value as? String else {
+            XCTFail("Bid area did not expose bid metadata", file: file, line: line)
+            return
+        }
+
+        guard let allowedFragment = bidAreaValue
+            .split(separator: ";")
+            .first(where: { $0.hasPrefix("allowed=") }) else {
+            XCTFail("Bid area metadata did not expose allowed values", file: file, line: line)
+            return
+        }
+
+        let allowedValues = allowedFragment
+            .dropFirst("allowed=".count)
+            .split(separator: ",")
+            .map(String.init)
+
+        XCTAssertFalse(allowedValues.isEmpty, file: file, line: line)
+        for allowedValue in allowedValues {
+            XCTAssertTrue(Self.allowedBidLabels.contains(allowedValue), file: file, line: line)
+        }
+
+        guard let valuesFragment = bidAreaValue
+            .split(separator: ";")
+            .first(where: { $0.hasPrefix("values=") }) else {
+            XCTFail("Bid area metadata did not expose values", file: file, line: line)
+            return
+        }
+
+        let pairs = valuesFragment
+            .dropFirst("values=".count)
+            .split(separator: ",")
+            .map(String.init)
+
+        XCTAssertEqual(pairs.count, 4, file: file, line: line)
+
+        for seat in ["south", "east", "north", "west"] {
+            XCTAssertTrue(pairs.contains { $0.hasPrefix("\(seat):") }, file: file, line: line)
+        }
+
+        for pair in pairs {
+            let components = pair.split(separator: ":")
+            XCTAssertEqual(components.count, 2, file: file, line: line)
+            if components.count == 2 {
+                XCTAssertTrue(Self.visibleBidLabels.contains(String(components[1])), file: file, line: line)
+            }
+        }
+    }
+
     private func assertBottomDealButtonIsAtBottom(
         on screen: TarneebScreen,
         in app: XCUIApplication,
@@ -566,6 +922,54 @@ final class TarneebLaunchUITests: XCTestCase {
     ) throws {
         let value = try XCTUnwrap(element.value as? String, file: file, line: line)
         XCTAssertTrue(value.contains(expectedValue), "\(value) does not contain \(expectedValue)", file: file, line: line)
+    }
+
+    @discardableResult
+    private func waitForTokenValue(
+        _ element: XCUIElement,
+        contains expectedValue: String,
+        timeout: TimeInterval,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) throws -> String {
+        XCTAssertTrue(element.waitForExistence(timeout: timeout), file: file, line: line)
+
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if let value = element.value as? String, value.contains(expectedValue) {
+                return value
+            }
+
+            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        }
+
+        let value = try XCTUnwrap(element.value as? String, file: file, line: line)
+        XCTFail("\(value) did not contain \(expectedValue)", file: file, line: line)
+        return value
+    }
+
+    private func waitForAnyTokenValue(
+        _ element: XCUIElement,
+        containsAny expectedValues: [String],
+        timeout: TimeInterval,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) throws -> String {
+        XCTAssertTrue(element.waitForExistence(timeout: timeout), file: file, line: line)
+
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if let value = element.value as? String,
+               expectedValues.contains(where: { value.contains($0) }) {
+                return value
+            }
+
+            RunLoop.current.run(until: Date().addingTimeInterval(0.05))
+        }
+
+        let value = try XCTUnwrap(element.value as? String, file: file, line: line)
+        XCTFail("\(value) did not contain any of \(expectedValues)", file: file, line: line)
+        return value
     }
 
     private func assertHiddenCardDoesNotRevealCardData(
@@ -635,7 +1039,10 @@ final class TarneebLaunchUITests: XCTestCase {
         "A": 12
     ]
 
-    private static let mvp004SmallestSupportedSimulator = "iPhone SE (3rd generation)"
+    private static let allowedBidLabels = ["Pass", "7", "8", "9", "10", "11", "12", "13"]
+    private static let visibleBidLabels = ["--"] + allowedBidLabels
+
+    private static let mvp005SmallestSupportedSimulator = "iPhone SE (3rd generation)"
 }
 
 private struct TarneebScreen {
@@ -749,6 +1156,66 @@ private struct TarneebScreen {
         element(identifier: "tarneeb-dealer-badge-east")
     }
 
+    var bidArea: XCUIElement {
+        element(identifier: "tarneeb-bid-area")
+    }
+
+    var bidLabel: XCUIElement {
+        element(identifier: "tarneeb-bid-label")
+    }
+
+    var bidTable: XCUIElement {
+        element(identifier: "tarneeb-bid-table")
+    }
+
+    var southBidRow: XCUIElement {
+        element(identifier: "tarneeb-bid-row-south")
+    }
+
+    var eastBidRow: XCUIElement {
+        element(identifier: "tarneeb-bid-row-east")
+    }
+
+    var northBidRow: XCUIElement {
+        element(identifier: "tarneeb-bid-row-north")
+    }
+
+    var westBidRow: XCUIElement {
+        element(identifier: "tarneeb-bid-row-west")
+    }
+
+    var southBidSelector: XCUIElement {
+        element(identifier: "tarneeb-bid-selector-south")
+    }
+
+    var southTarneebSuitSelector: XCUIElement {
+        element(identifier: "tarneeb-bid-suit-selector-south")
+    }
+
+    func southTarneebSuitOption(_ suit: String) -> XCUIElement {
+        app.buttons.matching(identifier: "tarneeb-bid-suit-option-\(suit)").firstMatch
+    }
+
+    var southBidButton: XCUIElement {
+        app.buttons.matching(identifier: "tarneeb-bid-button-south").firstMatch
+    }
+
+    var southBidValue: XCUIElement {
+        element(identifier: "tarneeb-bid-value-south")
+    }
+
+    var eastBidValue: XCUIElement {
+        element(identifier: "tarneeb-bid-value-east")
+    }
+
+    var northBidValue: XCUIElement {
+        element(identifier: "tarneeb-bid-value-north")
+    }
+
+    var westBidValue: XCUIElement {
+        element(identifier: "tarneeb-bid-value-west")
+    }
+
     var stationAreas: [XCUIElement] {
         [northSeatArea, westSeatArea, southSeatArea, eastSeatArea]
     }
@@ -781,7 +1248,11 @@ private struct TarneebScreen {
             northSeat,
             westSeat,
             southSeat,
-            eastSeat
+            eastSeat,
+            bidArea,
+            bidTable,
+            southBidValue,
+            southBidButton
         ]
     }
 
@@ -795,6 +1266,14 @@ private struct TarneebScreen {
 
     var southVisibleHand: XCUIElement {
         element(identifier: "tarneeb-visible-hand-south")
+    }
+
+    var southHiddenHand: XCUIElement {
+        element(identifier: "tarneeb-hidden-hand-south")
+    }
+
+    var southRevealHand: XCUIElement {
+        element(identifier: "tarneeb-south-reveal-hand")
     }
 
     var westHiddenHand: XCUIElement {
@@ -825,22 +1304,33 @@ private struct TarneebScreen {
         app.images.matching(identifier: "tarneeb-hidden-card-back-east")
     }
 
+    var southHiddenCardBacks: XCUIElementQuery {
+        app.images.matching(identifier: "tarneeb-hidden-card-back-south")
+    }
+
     var dealCompleteMessage: XCUIElement {
         element(identifier: "tarneeb-deal-complete-message")
     }
 
-    var prohibitedBiddingElements: [XCUIElement] {
+    var biddingCompleteMessage: XCUIElement {
+        app.staticTexts["Bidding complete"]
+    }
+
+    var postBiddingSummary: XCUIElement {
+        element(identifier: "tarneeb-post-bidding-summary")
+    }
+
+    var prohibitedBiddingResolutionElements: [XCUIElement] {
         [
-            app.buttons["Bid"],
-            app.buttons["Bidding"],
-            app.staticTexts["Bid"],
-            app.staticTexts["Bidding"]
+            app.buttons["Winning Bid"],
+            app.buttons["Resolve Bid"],
+            app.staticTexts["Winning Bid"],
+            app.staticTexts["Resolve Bid"]
         ]
     }
 
     var prohibitedGameplayControls: [XCUIElement] {
         [
-            app.buttons["Pass"],
             app.buttons["Play Card"],
             app.buttons["Score"],
             app.buttons["Game Over"],
@@ -851,7 +1341,7 @@ private struct TarneebScreen {
     }
 
     var prohibitedOutOfScopeElements: [XCUIElement] {
-        prohibitedBiddingElements + prohibitedGameplayControls + [
+        prohibitedBiddingResolutionElements + prohibitedGameplayControls + [
             app.buttons["Play Trick"],
             app.buttons["Resolve Trick"],
             app.buttons["Multiplayer"],

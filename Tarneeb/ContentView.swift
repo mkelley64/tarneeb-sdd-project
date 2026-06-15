@@ -6,6 +6,11 @@ struct ContentView: View {
     @State private var pendingDealtState: GameState?
     @State private var dealAnimation: DealAnimationPlayback?
     @State private var lastDealAnimationPresentation: DealAnimationPresentation?
+    @State private var simulatedBiddingTask: Task<Void, Never>?
+    @State private var biddingAreaFadeTask: Task<Void, Never>?
+    @State private var isBiddingAreaFadingOut = false
+    @State private var southDraftBid: BidValue = .pass
+    @State private var southDraftTarneebSuit: Suit?
 
     private let cardSizeConfiguration = CardSizeConfiguration.sharedBase
     private let tableTitle = TableTitlePresentation()
@@ -32,12 +37,32 @@ struct ContentView: View {
             .background(GameColorRole.tableSurface.token.swiftUIColor)
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("tarneeb-table-surface")
-            .accessibilityValue("background=\(GameColorRole.tableSurface.token.rawValue)")
+            .accessibilityValue(Text(verbatim: "background=\(GameColorRole.tableSurface.token.rawValue)"))
         }
     }
 
     private func tableScene(screenWidth: CGFloat) -> some View {
         let metrics = TableLayoutMetrics(screenWidth: screenWidth)
+        let shouldShowBidArea = gameState.biddingStatus == .inProgress || isBiddingAreaFadingOut
+        let bidPresentation = shouldShowBidArea
+            ? BidAreaPresentation(
+                phase: gameState.phase,
+                biddingState: gameState.biddingState,
+                southDraftBid: southDraftBid,
+                southDraftTarneebSuit: southDraftTarneebSuit,
+                presentationState: isBiddingAreaFadingOut ? .fadingOut : .visible
+            )
+            : nil
+        let postBiddingSummaryPresentation = PostBiddingSummaryPresentation(
+            phase: gameState.phase,
+            biddingStatus: gameState.biddingStatus,
+            summary: gameState.postBiddingSummary,
+            isBiddingAreaFadingOut: isBiddingAreaFadingOut
+        )
+        let bidEntriesAccessibilityValue = bidPresentation?.entries
+            .map { "\($0.seat.rawValue):\($0.valueLabel)" }
+            .joined(separator: ",") ?? "none"
+        let tableSceneAccessibilityValue = "table=\(GameColorRole.tableSurface.token.rawValue);label=\(GameColorRole.textPrimary.token.rawValue);station=\(GameColorRole.stationOutline.token.rawValue);dealer=\(gameState.dealerSeat.rawValue);diameter=\(Int(metrics.tableDiameter.rounded()));bidAreaVisible=\(String(bidPresentation != nil));bidAreaFading=\(String(isBiddingAreaFadingOut));postBiddingSummaryVisible=\(String(postBiddingSummaryPresentation != nil));bids=\(bidEntriesAccessibilityValue);summary=\(postBiddingSummaryPresentation?.teamLabel ?? "none");\(dealAnimationAccessibilityValue)"
 
         return ZStack {
             VStack(spacing: metrics.verticalSpacing) {
@@ -51,7 +76,20 @@ struct ContentView: View {
                     playerStation(for: displayPlayer(for: .east), metrics: metrics)
                 }
 
-                playerStation(for: displayPlayer(for: .south), metrics: metrics)
+                VStack(spacing: metrics.bidAreaVerticalSpacing) {
+                    playerStation(for: displayPlayer(for: .south), metrics: metrics)
+
+                    if let bidPresentation {
+                        bidAreaView(bidPresentation, metrics: metrics)
+                            .opacity(isBiddingAreaFadingOut ? 0 : 1)
+                            .animation(
+                                .easeInOut(duration: bidPresentation.areaFadeOutToken.seconds),
+                                value: isBiddingAreaFadingOut
+                            )
+                    } else if let postBiddingSummaryPresentation {
+                        postBiddingSummaryView(postBiddingSummaryPresentation, metrics: metrics)
+                    }
+                }
             }
 
             if let movingStackPresentation = dealAnimation?.movingStackPresentation {
@@ -62,9 +100,7 @@ struct ContentView: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("tarneeb-table-scene")
-        .accessibilityValue(
-            "table=\(GameColorRole.tableSurface.token.rawValue);label=\(GameColorRole.textPrimary.token.rawValue);station=\(GameColorRole.stationOutline.token.rawValue);dealer=\(gameState.dealerSeat.rawValue);diameter=\(Int(metrics.tableDiameter.rounded()));\(dealAnimationAccessibilityValue)"
-        )
+        .accessibilityValue(Text(verbatim: tableSceneAccessibilityValue))
     }
 
     private func circularCardTable(metrics: TableLayoutMetrics) -> some View {
@@ -147,7 +183,7 @@ struct ContentView: View {
                     .offset(x: CGFloat(transform.offsetX), y: CGFloat(transform.offsetY))
                     .accessibilityLabel("Deck card back")
                     .accessibilityIdentifier("tarneeb-undealt-deck-stack-card")
-                    .accessibilityValue("asset=card_back;hidden=true;size=\(hiddenCard.sizeConfiguration.category.rawValue)")
+                    .accessibilityValue(Text(verbatim: "asset=card_back;hidden=true;size=\(hiddenCard.sizeConfiguration.category.rawValue)"))
             }
         }
         .frame(width: presentation.stackWidth, height: presentation.stackHeight)
@@ -168,7 +204,7 @@ struct ContentView: View {
                     )
                     .accessibilityLabel("Deal animation card back")
                     .accessibilityIdentifier("tarneeb-deal-animation-stack-card")
-                    .accessibilityValue("asset=card_back;hidden=true;size=\(hiddenCard.sizeConfiguration.category.rawValue)")
+                    .accessibilityValue(Text(verbatim: "asset=card_back;hidden=true;size=\(hiddenCard.sizeConfiguration.category.rawValue)"))
             }
         }
         .frame(width: presentation.stackWidth, height: presentation.stackHeight)
@@ -191,7 +227,7 @@ struct ContentView: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
                 .accessibilityIdentifier("tarneeb-seat-\(player.seat.rawValue)")
-                .accessibilityValue("text=\(GameColorRole.textPrimary.token.rawValue)")
+                .accessibilityValue(Text(verbatim: "text=\(GameColorRole.textPrimary.token.rawValue)"))
 
             if showsDealtHand(for: player.seat) {
                 if player.seat == .south {
@@ -203,7 +239,7 @@ struct ContentView: View {
         }
         .padding(4)
 
-        if player.seat == .south && showsDealtHand(for: player.seat) {
+        if expandsSouthStation(for: player.seat) {
             stationContent
                 .frame(maxWidth: metrics.southStationMaxWidth)
                 .frame(minHeight: metrics.southStationMinHeight)
@@ -222,7 +258,7 @@ struct ContentView: View {
                 .accessibilityValue(stationAccessibilityValue(for: player, metrics: metrics, dealerPresentation: dealerPresentation))
                 .animation(
                     .easeInOut(duration: GameAnimationToken.dealStationExpansionDuration.seconds),
-                    value: showsDealtHand(for: player.seat)
+                    value: expandsSouthStation(for: player.seat)
                 )
         } else {
             stationContent
@@ -265,6 +301,21 @@ struct ContentView: View {
     }
 
     private func visibleHand(for player: Player) -> some View {
+        if player.seat == .south, let dealAnimation {
+            switch dealAnimation.southRevealState {
+            case .hidden:
+                break
+            case .fannedBacks:
+                return AnyView(hiddenHand(for: player))
+            case .backsVisible, .flipping, .revealed:
+                return AnyView(southRevealHand(for: player, dealAnimation: dealAnimation))
+            }
+        }
+
+        return AnyView(exposedHand(for: player))
+    }
+
+    private func exposedHand(for player: Player) -> some View {
         LazyVGrid(
             columns: [
                 GridItem(.adaptive(minimum: cardSizeConfiguration.baseCardWidth), spacing: 4)
@@ -272,25 +323,70 @@ struct ContentView: View {
             spacing: 4
         ) {
             ForEach(SouthHandPresentation.cardPresentations(from: player.hand, sizeConfiguration: cardSizeConfiguration), id: \.cardID) { presentation in
-                Text(presentation.displayLabel)
-                    .font(.system(size: cardSizeConfiguration.rankFontPointSize, weight: .semibold))
-                    .frame(width: cardSizeConfiguration.baseCardWidth, height: cardSizeConfiguration.baseCardHeight)
-                    .foregroundStyle(presentation.suitColorToken.swiftUIColor)
-                    .background(
-                        RoundedRectangle(cornerRadius: cardSizeConfiguration.cornerRadius)
-                            .fill(GameColorRole.cardFace.token.swiftUIColor)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: cardSizeConfiguration.cornerRadius)
-                                    .stroke(GameColorRole.cardBorder.token.swiftUIColor, lineWidth: 1)
-                            )
-                    )
-                    .shadow(color: GameColorRole.cardShadow.token.swiftUIColor, radius: 1, y: 1)
-                    .accessibilityLabel(presentation.accessibilityLabel)
-                    .accessibilityIdentifier("tarneeb-visible-card")
-                    .accessibilityValue(presentation.accessibilityValue)
+                cardFaceView(presentation)
             }
         }
         .accessibilityIdentifier("tarneeb-visible-hand-\(player.seat.rawValue)")
+    }
+
+    private func southRevealHand(for player: Player, dealAnimation: DealAnimationPlayback) -> some View {
+        let cardPresentations = SouthHandPresentation.cardPresentations(
+            from: player.hand,
+            sizeConfiguration: cardSizeConfiguration
+        )
+
+        return LazyVGrid(
+            columns: [
+                GridItem(.adaptive(minimum: cardSizeConfiguration.baseCardWidth), spacing: 4)
+            ],
+            spacing: 4
+        ) {
+            ForEach(Array(cardPresentations.enumerated()), id: \.element.cardID) { index, presentation in
+                if index < dealAnimation.southRevealedCardCount {
+                    cardFaceView(presentation)
+                        .transition(.opacity.combined(with: .scale(scale: 0.94)))
+                } else {
+                    southRevealCardBack(index: index)
+                        .transition(.opacity)
+                }
+            }
+        }
+        .accessibilityIdentifier("tarneeb-south-reveal-hand")
+        .accessibilityValue(
+            Text(verbatim: "state=\(dealAnimation.southRevealState.rawValue);backCount=\(DealAnimationPresentation.cardsPerStack);revealedCount=\(dealAnimation.southRevealedCardCount);direction=leftToRight;totalDuration=\(GameAnimationToken.dealSouthRevealTotalDuration.rawValue);totalSeconds=\(GameAnimationToken.dealSouthRevealTotalDuration.seconds)")
+        )
+    }
+
+    private func cardFaceView(_ presentation: CardPresentation) -> some View {
+        Text(presentation.displayLabel)
+            .font(.system(size: cardSizeConfiguration.rankFontPointSize, weight: .semibold))
+            .frame(width: cardSizeConfiguration.baseCardWidth, height: cardSizeConfiguration.baseCardHeight)
+            .foregroundStyle(presentation.suitColorToken.swiftUIColor)
+            .background(
+                RoundedRectangle(cornerRadius: cardSizeConfiguration.cornerRadius)
+                    .fill(GameColorRole.cardFace.token.swiftUIColor)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: cardSizeConfiguration.cornerRadius)
+                            .stroke(GameColorRole.cardBorder.token.swiftUIColor, lineWidth: 1)
+                    )
+            )
+            .shadow(color: GameColorRole.cardShadow.token.swiftUIColor, radius: 1, y: 1)
+            .accessibilityLabel(presentation.accessibilityLabel)
+            .accessibilityIdentifier("tarneeb-visible-card")
+            .accessibilityValue(presentation.accessibilityValue)
+    }
+
+    private func southRevealCardBack(index: Int) -> some View {
+        Image("card_back")
+            .resizable()
+            .scaledToFit()
+            .frame(
+                width: cardSizeConfiguration.baseCardWidth,
+                height: cardSizeConfiguration.baseCardHeight
+            )
+            .accessibilityLabel("South reveal card back")
+            .accessibilityIdentifier("tarneeb-south-reveal-card-back")
+            .accessibilityValue(Text(verbatim: "index=\(index);asset=card_back;hidden=true;size=\(cardSizeConfiguration.category.rawValue)"))
     }
 
     private func hiddenHand(for player: Player) -> some View {
@@ -318,17 +414,264 @@ struct ContentView: View {
         .frame(width: presentation.stackWidth, height: presentation.sizeConfiguration.baseCardHeight, alignment: .leading)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("tarneeb-hidden-hand-\(player.seat.rawValue)")
-        .accessibilityValue("count=\(presentation.hiddenCardCount);asset=card_back;hidden=true;size=\(presentation.sizeConfiguration.category.rawValue)")
+        .accessibilityValue(Text(verbatim: "count=\(presentation.hiddenCardCount);asset=card_back;hidden=true;size=\(presentation.sizeConfiguration.category.rawValue)"))
+    }
+
+    private func bidAreaView(_ presentation: BidAreaPresentation, metrics: TableLayoutMetrics) -> some View {
+        VStack(alignment: .leading, spacing: CGFloat(presentation.areaTokens.rowGap.numericValue)) {
+            Text(presentation.label)
+                .font(.headline)
+                .foregroundStyle(presentation.areaTokens.label.swiftUIColor)
+                .accessibilityIdentifier("tarneeb-bid-label")
+                .accessibilityValue(Text(verbatim: "text=\(presentation.areaTokens.label.rawValue)"))
+
+            HStack(alignment: .top, spacing: CGFloat(presentation.areaTokens.rowGap.numericValue)) {
+                ForEach(presentation.entries) { entry in
+                    bidRow(entry, presentation: presentation)
+                }
+            }
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("tarneeb-bid-table")
+            .accessibilityValue(presentation.accessibilityValue)
+
+            if presentation.southBidButtonVisible {
+                southBidButtonRow(presentation: presentation)
+            }
+        }
+        .padding(CGFloat(presentation.areaTokens.padding.numericValue))
+        .frame(maxWidth: metrics.bidAreaMaxWidth, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: CGFloat(presentation.areaTokens.cornerRadius.numericValue))
+                .fill(presentation.areaTokens.background.swiftUIColor)
+                .overlay(
+                    RoundedRectangle(cornerRadius: CGFloat(presentation.areaTokens.cornerRadius.numericValue))
+                        .stroke(presentation.areaTokens.border.swiftUIColor, lineWidth: 1)
+                )
+        )
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("tarneeb-bid-area")
+        .accessibilityValue(presentation.accessibilityValue)
+    }
+
+    private func postBiddingSummaryView(_ presentation: PostBiddingSummaryPresentation, metrics: TableLayoutMetrics) -> some View {
+        VStack(alignment: .leading, spacing: CGFloat(presentation.tokens.rowGap.numericValue)) {
+            HStack {
+                Text("Team")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(presentation.tokens.labelText.swiftUIColor)
+                Spacer()
+                Text(presentation.teamLabel)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(presentation.tokens.teamText.swiftUIColor)
+            }
+
+            HStack {
+                Text("Bid")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(presentation.tokens.labelText.swiftUIColor)
+                Spacer()
+                Text(presentation.bidValueLabel)
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(presentation.tokens.bidText.swiftUIColor)
+            }
+
+            HStack {
+                Text(presentation.tarneebLabel)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(presentation.tokens.labelText.swiftUIColor)
+                Spacer()
+                Text(presentation.tarneebSymbol)
+                    .font(.title3.weight(.bold))
+                    .foregroundStyle(presentation.tokens.tarneebText.swiftUIColor)
+            }
+        }
+        .padding(CGFloat(presentation.tokens.padding.numericValue))
+        .frame(maxWidth: metrics.bidAreaMaxWidth, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: CGFloat(presentation.tokens.cornerRadius.numericValue))
+                .fill(presentation.tokens.background.swiftUIColor)
+                .overlay(
+                    RoundedRectangle(cornerRadius: CGFloat(presentation.tokens.cornerRadius.numericValue))
+                        .stroke(presentation.tokens.border.swiftUIColor, lineWidth: 1)
+                )
+        )
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("tarneeb-post-bidding-summary")
+        .accessibilityValue(presentation.accessibilityValue)
+    }
+
+    private func bidRow(_ entry: BidEntryPresentation, presentation: BidAreaPresentation) -> some View {
+        VStack(spacing: CGFloat(presentation.areaTokens.rowGap.numericValue)) {
+            Text(entry.seatLabel)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(presentation.areaTokens.seatText.swiftUIColor)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+
+            if entry.isSelectable {
+                VStack(spacing: CGFloat(presentation.suitSelectorTokens.optionGap.numericValue)) {
+                    bidSelector(entry: entry, presentation: presentation)
+
+                    if presentation.southSuitSelectorVisible {
+                        southTarneebSuitSelector(presentation: presentation)
+                    }
+                }
+            } else {
+                Text(entry.valueLabel)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(entry.valueColorToken.swiftUIColor)
+                    .frame(
+                        minHeight: CGFloat(presentation.selectorTokens.height.numericValue),
+                        alignment: .center
+                    )
+                    .id("\(entry.seat.rawValue)-\(entry.valueLabel)")
+                    .transition(.opacity)
+                    .animation(
+                        .easeInOut(duration: presentation.fadeOutToken.seconds + presentation.fadeInToken.seconds),
+                        value: entry.valueLabel
+                    )
+                    .animation(
+                        .easeInOut(duration: presentation.fadeOutToken.seconds + presentation.fadeInToken.seconds),
+                        value: entry.valueColorToken.rawValue
+                    )
+                    .accessibilityIdentifier("tarneeb-bid-value-\(entry.seat.rawValue)")
+                    .accessibilityValue(entry.accessibilityValue)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 2)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("tarneeb-bid-row-\(entry.seat.rawValue)")
+        .accessibilityValue(entry.accessibilityValue)
+    }
+
+    private func southBidButtonRow(presentation: BidAreaPresentation) -> some View {
+        southBidButton(presentation: presentation)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, CGFloat(presentation.selectorTokens.height.numericValue))
+    }
+
+    private func southBidButton(presentation: BidAreaPresentation) -> some View {
+        let buttonAccessibilityValue = "visible=true;enabled=\(String(presentation.southBidButtonEnabled));selected=\(southDraftBid.displayLabel);selectedSuit=\(southDraftTarneebSuit?.rawValue ?? "none");allowed=\(presentation.allowedValuesLabel);currentTurn=\(presentation.currentTurnSeat?.rawValue ?? "none");\(presentation.bidButtonTokens.accessibilityValue);height=\(presentation.bidButtonHeightToken.rawValue);minimumWidth=\(presentation.bidButtonMinimumWidthToken.rawValue)"
+
+        return Button("Bid", action: submitSouthBid)
+            .buttonStyle(CompactTokenButtonStyle(tokens: presentation.bidButtonTokens))
+            .disabled(!presentation.southBidButtonEnabled)
+            .frame(
+                minWidth: CGFloat(presentation.bidButtonMinimumWidthToken.numericValue),
+                minHeight: CGFloat(presentation.bidButtonHeightToken.numericValue)
+            )
+            .accessibilityIdentifier("tarneeb-bid-button-south")
+            .accessibilityValue(Text(verbatim: buttonAccessibilityValue))
+    }
+
+    private func bidSelector(entry: BidEntryPresentation, presentation: BidAreaPresentation) -> some View {
+        Menu {
+            ForEach(presentation.allowedValues, id: \.self) { bidValue in
+                Button(bidValue.displayLabel) {
+                    selectSouthDraftBid(bidValue)
+                }
+                .accessibilityIdentifier("tarneeb-bid-option-\(bidOptionIdentifier(for: bidValue))")
+            }
+        } label: {
+            HStack(spacing: 6) {
+                Text(entry.valueLabel)
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                    .id("south-selector-\(entry.valueLabel)")
+                    .transition(.opacity)
+                    .animation(
+                        .easeInOut(duration: presentation.fadeOutToken.seconds + presentation.fadeInToken.seconds),
+                        value: entry.valueLabel
+                    )
+
+                Image(systemName: "chevron.down")
+                    .font(.caption.weight(.bold))
+                    .accessibilityHidden(true)
+            }
+            .foregroundStyle(presentation.selectorTokens.text.swiftUIColor)
+            .frame(
+                minWidth: CGFloat(presentation.selectorTokens.minimumWidth.numericValue),
+                minHeight: CGFloat(presentation.selectorTokens.height.numericValue)
+            )
+            .background(
+                RoundedRectangle(cornerRadius: CGFloat(presentation.areaTokens.cornerRadius.numericValue))
+                    .fill(presentation.selectorTokens.background.swiftUIColor)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: CGFloat(presentation.areaTokens.cornerRadius.numericValue))
+                            .stroke(presentation.selectorTokens.border.swiftUIColor, lineWidth: 1)
+                    )
+            )
+        }
+        .accessibilityIdentifier("tarneeb-bid-selector-south")
+        .accessibilityValue(
+            Text(verbatim: "selected=\(entry.valueLabel);allowed=\(presentation.allowedValuesLabel);\(entry.accessibilityValue);\(presentation.selectorTokens.accessibilityValue)")
+        )
+    }
+
+    private func southTarneebSuitSelector(presentation: BidAreaPresentation) -> some View {
+        let selectedSuitLabel = southDraftTarneebSuit?.rawValue ?? "none"
+        let accessibilityValue = "visible=true;enabled=\(presentation.southSuitSelectorEnabled);selected=\(selectedSuitLabel);options=\(presentation.southSuitOptionsLabel);\(presentation.suitSelectorTokens.accessibilityValue)"
+
+        return HStack(spacing: CGFloat(presentation.suitSelectorTokens.optionGap.numericValue)) {
+            ForEach(presentation.southSuitOptions, id: \.self) { suit in
+                southTarneebSuitOptionButton(suit, presentation: presentation)
+            }
+        }
+        .frame(
+            minWidth: CGFloat(presentation.suitSelectorTokens.minimumWidth.numericValue),
+            minHeight: CGFloat(presentation.suitSelectorTokens.height.numericValue),
+            alignment: .center
+        )
+        .padding(.horizontal, CGFloat(presentation.suitSelectorTokens.optionGap.numericValue))
+        .background(
+            RoundedRectangle(cornerRadius: CGFloat(presentation.areaTokens.cornerRadius.numericValue))
+                .fill(presentation.suitSelectorTokens.background.swiftUIColor)
+                .overlay(
+                    RoundedRectangle(cornerRadius: CGFloat(presentation.areaTokens.cornerRadius.numericValue))
+                        .stroke(presentation.suitSelectorTokens.border.swiftUIColor, lineWidth: 1)
+                )
+        )
+        .opacity(presentation.southSuitSelectorEnabled ? 1 : presentation.suitSelectorTokens.disabledOpacity.value)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("tarneeb-bid-suit-selector-south")
+        .accessibilityValue(Text(verbatim: accessibilityValue))
+    }
+
+    private func southTarneebSuitOptionButton(_ suit: Suit, presentation: BidAreaPresentation) -> some View {
+        let isSelected = southDraftTarneebSuit == suit
+        let optionWidth = CGFloat(presentation.suitSelectorTokens.optionMinimumWidth.numericValue)
+        let optionHeight = CGFloat(presentation.suitSelectorTokens.height.numericValue)
+        let accessibilityValue = "selected=\(isSelected);enabled=\(presentation.southSuitSelectorEnabled);symbol=\(suit.displaySymbol)"
+
+        return Button {
+            selectSouthDraftTarneebSuit(suit)
+        } label: {
+            Text(suit.displaySymbol)
+                .font(.caption.weight(.bold))
+                .frame(minWidth: optionWidth, minHeight: optionHeight)
+        }
+        .buttonStyle(
+            BidSuitOptionButtonStyle(
+                tokens: presentation.suitSelectorTokens,
+                isSelected: isSelected
+            )
+        )
+        .disabled(!presentation.southSuitSelectorEnabled)
+        .accessibilityIdentifier("tarneeb-bid-suit-option-\(suit.rawValue)")
+        .accessibilityLabel(Text(verbatim: suit.rawValue.capitalized))
+        .accessibilityValue(Text(verbatim: accessibilityValue))
     }
 
     private var bottomDealControl: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 4) {
             if gameState.phase == .dealt {
-                Text("Deal complete")
-                    .font(.headline)
+                Text(statusLabelText)
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(GameColorRole.textPrimary.token.swiftUIColor)
                     .accessibilityIdentifier("tarneeb-deal-complete-message")
-                    .accessibilityValue("text=\(GameColorRole.textPrimary.token.rawValue)")
+                    .accessibilityValue(Text(verbatim: "text=\(GameColorRole.textPrimary.token.rawValue);status=\(statusLabelText)"))
             }
 
             HStack(spacing: 10) {
@@ -336,23 +679,23 @@ struct ContentView: View {
                     .buttonStyle(TokenButtonStyle(tokens: .newGame))
                     .disabled(isDealAnimationRunning)
                     .accessibilityIdentifier("tarneeb-new-game-button")
-                    .accessibilityValue("\(ButtonTokenSet.newGame.accessibilityValue);dealAnimationRunning=\(dealAnimationRunningValue)")
+                    .accessibilityValue(Text(verbatim: "\(ButtonTokenSet.newGame.accessibilityValue);dealAnimationRunning=\(dealAnimationRunningValue)"))
 
                 Button(PresentationAction.deal.visibleLabel, action: deal)
                     .buttonStyle(TokenButtonStyle(tokens: .deal))
                     .disabled(isDealAnimationRunning)
                     .accessibilityIdentifier("tarneeb-deal-button")
-                    .accessibilityValue("\(ButtonTokenSet.deal.accessibilityValue);dealAnimationRunning=\(dealAnimationRunningValue)")
+                    .accessibilityValue(Text(verbatim: "\(ButtonTokenSet.deal.accessibilityValue);dealAnimationRunning=\(dealAnimationRunningValue)"))
             }
         }
         .frame(maxWidth: .infinity)
         .padding(.horizontal, 18)
-        .padding(.top, 8)
-        .padding(.bottom, 10)
+        .padding(.top, 4)
+        .padding(.bottom, 6)
         .background(GameColorRole.tableSurface.token.swiftUIColor)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("tarneeb-bottom-deal-control")
-        .accessibilityValue("buttons=New Game,Deal;newGameTokens=\(ButtonTokenSet.newGame.accessibilityValue);dealTokens=\(ButtonTokenSet.deal.accessibilityValue)")
+        .accessibilityValue(Text(verbatim: "buttons=New Game,Deal;newGameTokens=\(ButtonTokenSet.newGame.accessibilityValue);dealTokens=\(ButtonTokenSet.deal.accessibilityValue)"))
     }
 
     private func deal() {
@@ -360,9 +703,67 @@ struct ContentView: View {
             return
         }
 
+        cancelSimulatedBiddingTask()
+        cancelBiddingAreaFadeTask()
+        isBiddingAreaFadingOut = false
         presentationState.deal()
         let dealtState = presentationState.gameState
+        southDraftBid = normalizedSouthDraftBid(for: dealtState)
+        southDraftTarneebSuit = normalizedSouthDraftTarneebSuit(for: dealtState)
 
+        stageDealAnimationIfNeeded(for: dealtState)
+    }
+
+    private func newGame() {
+        guard !isDealAnimationRunning else {
+            return
+        }
+
+        cancelSimulatedBiddingTask()
+        cancelBiddingAreaFadeTask()
+        isBiddingAreaFadingOut = false
+        presentationState.newGame()
+        pendingDealtState = nil
+        lastDealAnimationPresentation = nil
+        southDraftBid = .pass
+        southDraftTarneebSuit = nil
+        gameState = presentationState.gameState
+    }
+
+    private func selectSouthDraftBid(_ bid: BidValue) {
+        southDraftBid = bid
+        if bid.numericValue == nil {
+            southDraftTarneebSuit = nil
+        }
+    }
+
+    private func selectSouthDraftTarneebSuit(_ suit: Suit) {
+        guard gameState.biddingState?.isWaitingForSouth == true,
+              southDraftBid.numericValue != nil else {
+            return
+        }
+
+        southDraftTarneebSuit = suit
+    }
+
+    private func submitSouthBid() {
+        guard gameState.biddingState?.isWaitingForSouth == true else {
+            return
+        }
+
+        guard southDraftBid.numericValue == nil || southDraftTarneebSuit != nil else {
+            return
+        }
+
+        presentationState.submitSouthBid(southDraftBid, selectedTarneebSuit: southDraftTarneebSuit)
+        gameState = presentationState.gameState
+        southDraftBid = normalizedSouthDraftBid(for: gameState)
+        southDraftTarneebSuit = normalizedSouthDraftTarneebSuit(for: gameState)
+        beginTerminalBiddingTransitionIfNeeded()
+        scheduleSimulatedBiddingIfNeeded()
+    }
+
+    private func stageDealAnimationIfNeeded(for dealtState: GameState) {
         guard dealtState.phase == .dealt else {
             gameState = dealtState
             return
@@ -382,15 +783,27 @@ struct ContentView: View {
         }
     }
 
-    private func newGame() {
-        guard !isDealAnimationRunning else {
-            return
+    private func bidOptionIdentifier(for bid: BidValue) -> String {
+        bid.rawValue.lowercased()
+    }
+
+    private func normalizedSouthDraftBid(for state: GameState) -> BidValue {
+        guard state.biddingState?.isWaitingForSouth == true,
+              let legalValues = state.biddingState?.southLegalValues,
+              legalValues.contains(southDraftBid) else {
+            return .pass
         }
 
-        presentationState.newGame()
-        pendingDealtState = nil
-        lastDealAnimationPresentation = nil
-        gameState = presentationState.gameState
+        return southDraftBid
+    }
+
+    private func normalizedSouthDraftTarneebSuit(for state: GameState) -> Suit? {
+        guard state.biddingState?.isWaitingForSouth == true,
+              southDraftBid.numericValue != nil else {
+            return nil
+        }
+
+        return southDraftTarneebSuit
     }
 
     @MainActor
@@ -423,6 +836,10 @@ struct ContentView: View {
             withAnimation(.easeInOut(duration: GameAnimationToken.dealStationExpansionDuration.seconds)) {
                 dealAnimation?.deliveredSeats.insert(targetSeat)
                 dealAnimation?.isMovingStackVisible = false
+                if targetSeat == .south {
+                    dealAnimation?.southRevealState = .fannedBacks
+                    dealAnimation?.southRevealedCardCount = 0
+                }
             }
 
             try? await Task.sleep(nanoseconds: GameAnimationToken.dealStationExpansionDuration.nanoseconds)
@@ -433,10 +850,150 @@ struct ContentView: View {
         }
 
         withAnimation(.easeInOut(duration: GameAnimationToken.dealStationExpansionDuration.seconds)) {
+            dealAnimation?.southRevealState = .backsVisible
+            dealAnimation?.southRevealedCardCount = 0
+        }
+
+        try? await Task.sleep(nanoseconds: GameAnimationToken.dealStationExpansionDuration.nanoseconds)
+
+        guard dealAnimation != nil else {
+            return
+        }
+
+        dealAnimation?.southRevealState = .flipping
+
+        for revealedCount in 1...DealAnimationPresentation.cardsPerStack {
+            guard dealAnimation != nil else {
+                return
+            }
+
+            withAnimation(.easeInOut(duration: GameAnimationToken.dealSouthRevealFlipDuration.seconds)) {
+                dealAnimation?.southRevealedCardCount = revealedCount
+            }
+
+            if revealedCount < DealAnimationPresentation.cardsPerStack {
+                try? await Task.sleep(nanoseconds: GameAnimationToken.dealSouthRevealFlipStagger.nanoseconds)
+            } else {
+                try? await Task.sleep(nanoseconds: GameAnimationToken.dealSouthRevealFlipDuration.nanoseconds)
+            }
+        }
+
+        withAnimation(.easeInOut(duration: GameAnimationToken.dealStationExpansionDuration.seconds)) {
+            dealAnimation?.southRevealState = .revealed
             gameState = finalState
             pendingDealtState = nil
             dealAnimation = nil
         }
+
+        scheduleSimulatedBiddingIfNeeded()
+    }
+
+    private func scheduleSimulatedBiddingIfNeeded() {
+        cancelSimulatedBiddingTask()
+
+        guard gameState.phase == .dealt,
+              gameState.biddingStatus == .inProgress,
+              let currentBiddingSeat = gameState.currentBiddingSeat,
+              currentBiddingSeat != .south else {
+            return
+        }
+
+        simulatedBiddingTask = Task {
+            await runSimulatedBiddingLoop()
+        }
+    }
+
+    private func cancelSimulatedBiddingTask() {
+        simulatedBiddingTask?.cancel()
+        simulatedBiddingTask = nil
+    }
+
+    private func cancelBiddingAreaFadeTask() {
+        biddingAreaFadeTask?.cancel()
+        biddingAreaFadeTask = nil
+    }
+
+    private func beginTerminalBiddingTransitionIfNeeded() {
+        guard gameState.phase == .dealt,
+              gameState.biddingStatus == .complete,
+              !isBiddingAreaFadingOut,
+              biddingAreaFadeTask == nil else {
+            return
+        }
+
+        cancelSimulatedBiddingTask()
+        withAnimation(.easeInOut(duration: GameAnimationToken.bidAreaFadeOutDuration.seconds)) {
+            isBiddingAreaFadingOut = true
+        }
+
+        biddingAreaFadeTask = Task {
+            try? await Task.sleep(nanoseconds: GameAnimationToken.bidAreaFadeOutDuration.nanoseconds)
+            guard !Task.isCancelled else {
+                return
+            }
+
+            await MainActor.run {
+                guard gameState.biddingStatus == .complete else {
+                    isBiddingAreaFadingOut = false
+                    biddingAreaFadeTask = nil
+                    return
+                }
+
+                let completionOutcome = gameState.biddingCompletionOutcome
+                withAnimation(.easeInOut(duration: GameAnimationToken.bidValueFadeInDuration.seconds)) {
+                    isBiddingAreaFadingOut = false
+                }
+                biddingAreaFadeTask = nil
+
+                if completionOutcome == .allPassRedeal {
+                    beginAutomaticRedealAfterAllPassIfNeeded()
+                }
+            }
+        }
+    }
+
+    private func beginAutomaticRedealAfterAllPassIfNeeded() {
+        guard !isDealAnimationRunning,
+              gameState.biddingCompletionOutcome == .allPassRedeal else {
+            return
+        }
+
+        cancelSimulatedBiddingTask()
+        presentationState.automaticRedealAfterAllPass()
+        let dealtState = presentationState.gameState
+        southDraftBid = normalizedSouthDraftBid(for: dealtState)
+        southDraftTarneebSuit = normalizedSouthDraftTarneebSuit(for: dealtState)
+        stageDealAnimationIfNeeded(for: dealtState)
+    }
+
+    @MainActor
+    private func runSimulatedBiddingLoop() async {
+        while !Task.isCancelled,
+              gameState.phase == .dealt,
+              gameState.biddingStatus == .inProgress,
+              let currentBiddingSeat = gameState.currentBiddingSeat,
+              currentBiddingSeat != .south {
+            try? await Task.sleep(nanoseconds: GameAnimationToken.bidSimulatedTurnDelay.nanoseconds)
+
+            guard !Task.isCancelled,
+                  gameState.phase == .dealt,
+                  gameState.biddingStatus == .inProgress,
+                  let currentBiddingSeat = gameState.currentBiddingSeat,
+                  currentBiddingSeat != .south else {
+                return
+            }
+
+            withAnimation(.easeInOut(duration: GameAnimationToken.bidValueFadeOutDuration.seconds + GameAnimationToken.bidValueFadeInDuration.seconds)) {
+                presentationState.resolveNextSimulatedBid()
+                gameState = presentationState.gameState
+                southDraftBid = normalizedSouthDraftBid(for: gameState)
+                southDraftTarneebSuit = normalizedSouthDraftTarneebSuit(for: gameState)
+            }
+
+            beginTerminalBiddingTransitionIfNeeded()
+        }
+
+        simulatedBiddingTask = nil
     }
 
     private func player(for seat: Seat) -> Player {
@@ -467,9 +1024,13 @@ struct ContentView: View {
         isDealAnimationRunning ? "true" : "false"
     }
 
+    private var statusLabelText: String {
+        gameState.biddingStatus == .complete ? "Bidding complete" : "Deal complete"
+    }
+
     private var dealAnimationAccessibilityValue: String {
         if let dealAnimation {
-            return "dealAnimation=running;\(dealAnimation.presentation.accessibilityValue)"
+            return "dealAnimation=running;\(dealAnimation.accessibilityValue)"
         }
 
         if let lastDealAnimationPresentation {
@@ -484,7 +1045,27 @@ struct ContentView: View {
     }
 
     private func showsAnimatedHand(for seat: Seat) -> Bool {
-        dealAnimation?.deliveredSeats.contains(seat) ?? false
+        guard let dealAnimation else {
+            return false
+        }
+
+        if seat == .south {
+            return dealAnimation.southRevealState != .hidden || dealAnimation.deliveredSeats.contains(.south)
+        }
+
+        return dealAnimation.deliveredSeats.contains(seat)
+    }
+
+    private func expandsSouthStation(for seat: Seat) -> Bool {
+        guard seat == .south else {
+            return false
+        }
+
+        guard let dealAnimation else {
+            return gameState.phase == .dealt
+        }
+
+        return dealAnimation.southRevealState.usesExpandedStation
     }
 
     private func dealAnimationOffset(to seat: Seat, metrics: TableLayoutMetrics) -> CGSize {
@@ -504,7 +1085,7 @@ struct ContentView: View {
     }
 
     private func southStationHeight(metrics: TableLayoutMetrics) -> CGFloat {
-        showsDealtHand(for: .south) ? metrics.southStationMinHeight : metrics.compactStationSide
+        expandsSouthStation(for: .south) ? metrics.southStationMinHeight : metrics.compactStationSide
     }
 
     private func stationAccessibilityValue(
@@ -514,11 +1095,15 @@ struct ContentView: View {
     ) -> String {
         let stateValue: String
         if dealAnimation != nil {
-            stateValue = showsDealtHand(for: player.seat) ? "dealingDelivered" : "dealingWaiting"
+            if player.seat == .south, let dealAnimation {
+                stateValue = "southReveal=\(dealAnimation.southRevealState.rawValue)"
+            } else {
+                stateValue = showsDealtHand(for: player.seat) ? "dealingDelivered" : "dealingWaiting"
+            }
         } else {
             stateValue = gameState.phase == .dealt ? "dealt" : "notStarted"
         }
-        let shapeValue = player.seat == .south && showsDealtHand(for: player.seat) ? "expandedRoundedStation" : "roundedSquare"
+        let shapeValue = expandsSouthStation(for: player.seat) ? "expandedRoundedStation" : "roundedSquare"
 
         return [
             "label=\(GameColorRole.textPrimary.token.rawValue)",
@@ -540,6 +1125,8 @@ private struct DealAnimationPlayback: Equatable {
     var movingStackAtTarget = false
     var isMovingStackVisible = false
     var deliveredSeats: Set<Seat> = []
+    var southRevealState: SouthRevealState = .hidden
+    var southRevealedCardCount = 0
 
     var activeTargetSeat: Seat? {
         presentation.targetSeat(forStep: activeStepIndex)
@@ -559,6 +1146,41 @@ private struct DealAnimationPlayback: Equatable {
             movingStackVisible: isMovingStackVisible
         )
     }
+
+    var dealCompletionAvailable: Bool {
+        southRevealState == .revealed
+    }
+
+    var accessibilityValue: String {
+        [
+            presentation.accessibilityValue,
+            "southRevealState=\(southRevealState.rawValue)",
+            "southInterimFannedBacksVisible=\(southRevealState == .fannedBacks)",
+            "southRevealBackCount=\(DealAnimationPresentation.cardsPerStack)",
+            "southRevealRevealedCount=\(southRevealedCardCount)",
+            "southRevealTotalDuration=\(GameAnimationToken.dealSouthRevealTotalDuration.rawValue)",
+            "southRevealTotalSeconds=\(GameAnimationToken.dealSouthRevealTotalDuration.seconds)",
+            "dealCompletionAvailable=\(dealCompletionAvailable)",
+            "deliveredSeats=\(deliveredSeats.map(\.rawValue).sorted().joined(separator: ","))"
+        ].joined(separator: ";")
+    }
+}
+
+private enum SouthRevealState: String, Equatable {
+    case hidden
+    case fannedBacks
+    case backsVisible
+    case flipping
+    case revealed
+
+    var usesExpandedStation: Bool {
+        switch self {
+        case .hidden, .fannedBacks:
+            return false
+        case .backsVisible, .flipping, .revealed:
+            return true
+        }
+    }
 }
 
 private struct TableLayoutMetrics {
@@ -576,6 +1198,10 @@ private struct TableLayoutMetrics {
         max(280, screenWidth - 16)
     }
 
+    var bidAreaMaxWidth: CGFloat {
+        southStationMaxWidth
+    }
+
     var southStationMinHeight: CGFloat {
         142
     }
@@ -589,7 +1215,11 @@ private struct TableLayoutMetrics {
     }
 
     var verticalSpacing: CGFloat {
-        10
+        6
+    }
+
+    var bidAreaVerticalSpacing: CGFloat {
+        CGFloat(GameBidLayoutToken.bidTableRowGap.numericValue)
     }
 
 }
@@ -608,6 +1238,47 @@ private struct TokenButtonStyle: ButtonStyle {
                 RoundedRectangle(cornerRadius: 14)
                     .fill((configuration.isPressed ? tokens.pressedBackground : tokens.background).swiftUIColor)
             )
+    }
+}
+
+private struct CompactTokenButtonStyle: ButtonStyle {
+    let tokens: ButtonTokenSet
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle((isEnabled ? tokens.text : GameColorToken.textDisabled).swiftUIColor)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 10)
+                    .fill((configuration.isPressed ? tokens.pressedBackground : tokens.background).swiftUIColor)
+            )
+            .opacity(isEnabled ? 1 : GameEffectToken.bidButtonDisabledOpacity.value)
+    }
+}
+
+private struct BidSuitOptionButtonStyle: ButtonStyle {
+    let tokens: BidSuitSelectorTokenSet
+    let isSelected: Bool
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundStyle((isSelected ? tokens.selectedText : tokens.text).swiftUIColor)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill((isSelected ? tokens.selectedBackground : tokens.background).swiftUIColor)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(
+                                (isSelected || configuration.isPressed ? tokens.focusRing : tokens.border).swiftUIColor,
+                                lineWidth: isSelected || configuration.isPressed ? 2 : 1
+                            )
+                    )
+            )
+            .opacity(isEnabled ? 1 : tokens.disabledOpacity.value)
     }
 }
 
