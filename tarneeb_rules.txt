@@ -1,0 +1,92 @@
+Tarnib is a
+
+four-player partnership card game. There are two teams and partners sit opposite each other. One team is north and south and the other team is east and west. The
+
+game uses a normal 52 card deck with no jokers and every player receives 13 cards. The easiest way to understand tarnib is to think of every hand in five steps. First, the cards are dealt.
+
+Second, players bid on how many tricks their team can win. Third, the highest bidder chooses the trump suit, which is
+
+called tarnib. Fourth, all players play 13 tricks. Finally, the hand is scored based on whether the bidding team
+
+succeeded or failed. The card ranking is simple. Ace is the highest card followed by king, queen, jack, 10, 9, 8, 7, 6, 5,
+
+4, 3, and finally two is the lowest card. This ranking applies inside each suit. When there is no trunk card in a
+
+trick, the highest card of the suit that was led wins. Before we play a sample hand, let's define the key terms. A
+
+trick is one round of four cards, one card from each player. A bid is a promise about how many tricks your team
+
+expects to win. Trump or tarnib is the suit that beats all other suits. The declarer is the player who wins the
+
+bidding and chooses trump. To follow suit means playing the same suit as the first card in the trick if you can. If
+
+you have no cards in that suit, you are void. Cutting means using a trump card when you are void. Kaboot means winning
+
+all 13 tricks. The deal moves counterclockwise.
+
+The first dealer can be chosen randomly, and after each hand, the dealer position rotates. The dealer shuffles, offers the
+
+deck to be cut, and deals all cards one at a time, starting with the player on the dealer's right. At the end of the deal, each player has exactly 13 cards.
+
+After the deal, bidding begins with the player to the dealer's right and continues counterclockwise. A bid is the number of tricks your team promises to
+
+win from 7 to 13. The minimum bid is seven and each new bid must be higher than the previous bid. A player may pass
+
+but in the common version once a player passes they cannot reenter the bidding for that hand. For example, west bids
+
+seven, north passes, east bids eight, south passes, and west also passes. East
+
+wins the bid with eight tricks and now declares the trump suit. If east chooses hearts, then hearts become tarnb for this hand. Now let's see how a trick is
+
+played. The declarer leads the first trick by playing any card. Suppose hearts are trump and east leads the king
+
+of hearts. South has a heart and must follow suit. So south plays the nine of hearts. West has no hearts. So west is
+
+void and may play any card. Here west discards the two of clubs. North follows with the jack of hearts. Because hearts
+
+are trump. The highest heart wins and the king of hearts wins the trick. The winner leads the next trick. The most important playing rule is that you must
+
+follow suit if possible. If the first card in the trick is a spade and you have a spade, you must play a spade. If
+
+you do not have the letty suit, you may play a trump card to try to win the trick or you may discard another card.
+
+This decision is strategic. Sometimes it's worth spending a trump card to win an important trick. Other times, it's better to save your trump cards and
+
+discard a weak card. Scoring is where the bidding promise matters. If the declarers team meets or exceeds its bid,
+
+that team scores the number of tricks it actually won and the opponent scores zero. For example, if your team bids
+
+eight and wins nine tricks, your team scores nine points. If the declarers team fails, that team loses points equal
+
+to the bid and the opponents score the number of tricks they won. For example, if your team bids 10 but wins only seven
+
+tricks, your team scores minus 10 while the opponent scores six. Kaboot is the special case where one team wins all 13
+
+tricks. If the bid was less than 13, the team scores 16 points. If the bid was exactly 13 and succeeds, the team scores
+
+26 points. Let's compare two high-risk examples. First, suppose the declarer bids 12 and the team wins all 13 tricks.
+
+That is kaboot. So the declar's team scores 16 points. Now suppose the declar bids 13 but wins only 11 tricks. That
+
+failed 13 bid is heavily punished. The declar's team loses 16 points and the opponents scored double the tricks they
+
+won. Since the opponents won two tricks in this rule set, they score 22 points.
+
+This is why very high bids should only be made with truly powerful hands. Good bidding begins with honest hand evaluation. Count your high cards,
+
+especially aces and kings. Look for long suits because a long suit can become powerful if it is chosen as trump.
+
+Consider your sides suit winners, which are strong cards outside Trump. Also, pay attention to your partner's bids because bidding is a form of indirect
+
+communication. A beginner should avoid over bidding. It is usually better to bid conservatively until you learn how many tricks your hands can realistically
+
+win. Trump management is one of the biggest strategic skills in Tarnib.
+
+Trump cards can beat cards from any other suit, so do not waste them too early. Save high trumps for important tricks. Count how many trump cards have
+
+already been played and use trump cards to cut only when the trick is worth winning. If you are void in the lead suit, ask yourself, does this trick
+
+matter enough to spend a trump card or should I discard and save Trump for later? The most common beginner mistakes are over bidding, using trump cards too
+
+early, forgetting to follow suit, ignoring opponents bids, and losing track of tricks. To avoid these mistakes, bid carefully. Check your hand before playing. Watch what suits people are missing, and mentally count the tricks and high trump cards as the hand develops.
+

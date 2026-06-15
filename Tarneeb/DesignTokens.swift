@@ -18,11 +18,38 @@ enum GameColorToken: String, CaseIterable, Equatable, Hashable {
     case textSecondary = "color.text.secondary"
     case textDisabled = "color.text.disabled"
     case textWarning = "color.text.warning"
+    case bidAreaBackground = "color.bidArea.background"
+    case bidAreaBorder = "color.bidArea.border"
+    case bidAreaLabel = "color.bidArea.label"
+    case bidAreaTableDivider = "color.bidArea.table.divider"
+    case bidAreaValueText = "color.bidArea.value.text"
+    case bidAreaPendingValueText = "color.bidArea.value.pending.text"
+    case bidAreaHighestValueText = "color.bidArea.value.highest.text"
+    case bidAreaSeatText = "color.bidArea.seat.text"
+    case postBiddingSummaryBackground = "color.postBiddingSummary.background"
+    case postBiddingSummaryBorder = "color.postBiddingSummary.border"
+    case postBiddingSummaryLabelText = "color.postBiddingSummary.label.text"
+    case postBiddingSummaryTeamText = "color.postBiddingSummary.team.text"
+    case postBiddingSummaryBidText = "color.postBiddingSummary.bid.text"
+    case postBiddingSummaryTarneebText = "color.postBiddingSummary.tarneeb.text"
+    case bidSelectorBackground = "color.bidSelector.background"
+    case bidSelectorBorder = "color.bidSelector.border"
+    case bidSelectorText = "color.bidSelector.text"
+    case bidSelectorFocusRing = "color.bidSelector.focusRing"
+    case bidSuitSelectorBackground = "color.bidSuitSelector.background"
+    case bidSuitSelectorBorder = "color.bidSuitSelector.border"
+    case bidSuitSelectorText = "color.bidSuitSelector.text"
+    case bidSuitSelectorSelectedBackground = "color.bidSuitSelector.selected.background"
+    case bidSuitSelectorSelectedText = "color.bidSuitSelector.selected.text"
+    case bidSuitSelectorFocusRing = "color.bidSuitSelector.focusRing"
     case tableTitleText = "color.tableTitle.text"
     case tableTitleShadow = "effect.tableTitle.shadow.color"
     case buttonDealBackground = "color.button.deal.background"
     case buttonDealBackgroundPressed = "color.button.deal.background.pressed"
     case buttonDealText = "color.button.deal.text"
+    case buttonBidBackground = "color.button.bid.background"
+    case buttonBidBackgroundPressed = "color.button.bid.background.pressed"
+    case buttonBidText = "color.button.bid.text"
     case buttonNewGameBackground = "color.button.newGame.background"
     case buttonNewGameBackgroundPressed = "color.button.newGame.background.pressed"
     case buttonNewGameText = "color.button.newGame.text"
@@ -69,6 +96,54 @@ enum GameColorToken: String, CaseIterable, Equatable, Hashable {
             return "#FFFFFF66"
         case .textWarning:
             return "#FFD166"
+        case .bidAreaBackground:
+            return "#123A2A"
+        case .bidAreaBorder:
+            return "#E8DFC866"
+        case .bidAreaLabel:
+            return "#E8DFC8"
+        case .bidAreaTableDivider:
+            return "#FFFFFF2E"
+        case .bidAreaValueText:
+            return "#FFFFFF"
+        case .bidAreaPendingValueText:
+            return "#FFFFFF99"
+        case .bidAreaHighestValueText:
+            return "#FFB300"
+        case .bidAreaSeatText:
+            return "#D9D9D9"
+        case .postBiddingSummaryBackground:
+            return "#123A2A"
+        case .postBiddingSummaryBorder:
+            return "#E8DFC866"
+        case .postBiddingSummaryLabelText:
+            return "#D9D9D9"
+        case .postBiddingSummaryTeamText:
+            return "#FFFFFF"
+        case .postBiddingSummaryBidText:
+            return "#FFB300"
+        case .postBiddingSummaryTarneebText:
+            return "#FFFFFF"
+        case .bidSelectorBackground:
+            return "#FDFDFB"
+        case .bidSelectorBorder:
+            return "#D7D7D2"
+        case .bidSelectorText:
+            return "#1A1A1A"
+        case .bidSelectorFocusRing:
+            return "#1976D2"
+        case .bidSuitSelectorBackground:
+            return "#FDFDFB"
+        case .bidSuitSelectorBorder:
+            return "#D7D7D2"
+        case .bidSuitSelectorText:
+            return "#1A1A1A"
+        case .bidSuitSelectorSelectedBackground:
+            return "#1976D2"
+        case .bidSuitSelectorSelectedText:
+            return "#FFFFFF"
+        case .bidSuitSelectorFocusRing:
+            return "#1976D2"
         case .tableTitleText:
             return "#E8DFC8"
         case .tableTitleShadow:
@@ -78,6 +153,12 @@ enum GameColorToken: String, CaseIterable, Equatable, Hashable {
         case .buttonDealBackgroundPressed:
             return "#1257A0"
         case .buttonDealText:
+            return "#FFFFFF"
+        case .buttonBidBackground:
+            return "#1976D2"
+        case .buttonBidBackgroundPressed:
+            return "#1257A0"
+        case .buttonBidText:
             return "#FFFFFF"
         case .buttonNewGameBackground:
             return "#FFB300"
@@ -113,11 +194,38 @@ enum GameColorRole: String, CaseIterable, Equatable, Hashable {
     case textSecondary
     case textDisabled
     case textWarning
+    case bidAreaBackground
+    case bidAreaBorder
+    case bidAreaLabel
+    case bidAreaTableDivider
+    case bidAreaValueText
+    case bidAreaPendingValueText
+    case bidAreaHighestValueText
+    case bidAreaSeatText
+    case postBiddingSummaryBackground
+    case postBiddingSummaryBorder
+    case postBiddingSummaryLabelText
+    case postBiddingSummaryTeamText
+    case postBiddingSummaryBidText
+    case postBiddingSummaryTarneebText
+    case bidSelectorBackground
+    case bidSelectorBorder
+    case bidSelectorText
+    case bidSelectorFocusRing
+    case bidSuitSelectorBackground
+    case bidSuitSelectorBorder
+    case bidSuitSelectorText
+    case bidSuitSelectorSelectedBackground
+    case bidSuitSelectorSelectedText
+    case bidSuitSelectorFocusRing
     case tableTitleText
     case tableTitleShadow
     case dealActionBackground
     case dealActionPressedBackground
     case dealActionText
+    case bidActionBackground
+    case bidActionPressedBackground
+    case bidActionText
     case newGameActionBackground
     case newGameActionPressedBackground
     case newGameActionText
@@ -162,6 +270,54 @@ enum GameColorRole: String, CaseIterable, Equatable, Hashable {
             return .textDisabled
         case .textWarning:
             return .textWarning
+        case .bidAreaBackground:
+            return .bidAreaBackground
+        case .bidAreaBorder:
+            return .bidAreaBorder
+        case .bidAreaLabel:
+            return .bidAreaLabel
+        case .bidAreaTableDivider:
+            return .bidAreaTableDivider
+        case .bidAreaValueText:
+            return .bidAreaValueText
+        case .bidAreaPendingValueText:
+            return .bidAreaPendingValueText
+        case .bidAreaHighestValueText:
+            return .bidAreaHighestValueText
+        case .bidAreaSeatText:
+            return .bidAreaSeatText
+        case .postBiddingSummaryBackground:
+            return .postBiddingSummaryBackground
+        case .postBiddingSummaryBorder:
+            return .postBiddingSummaryBorder
+        case .postBiddingSummaryLabelText:
+            return .postBiddingSummaryLabelText
+        case .postBiddingSummaryTeamText:
+            return .postBiddingSummaryTeamText
+        case .postBiddingSummaryBidText:
+            return .postBiddingSummaryBidText
+        case .postBiddingSummaryTarneebText:
+            return .postBiddingSummaryTarneebText
+        case .bidSelectorBackground:
+            return .bidSelectorBackground
+        case .bidSelectorBorder:
+            return .bidSelectorBorder
+        case .bidSelectorText:
+            return .bidSelectorText
+        case .bidSelectorFocusRing:
+            return .bidSelectorFocusRing
+        case .bidSuitSelectorBackground:
+            return .bidSuitSelectorBackground
+        case .bidSuitSelectorBorder:
+            return .bidSuitSelectorBorder
+        case .bidSuitSelectorText:
+            return .bidSuitSelectorText
+        case .bidSuitSelectorSelectedBackground:
+            return .bidSuitSelectorSelectedBackground
+        case .bidSuitSelectorSelectedText:
+            return .bidSuitSelectorSelectedText
+        case .bidSuitSelectorFocusRing:
+            return .bidSuitSelectorFocusRing
         case .tableTitleText:
             return .tableTitleText
         case .tableTitleShadow:
@@ -172,6 +328,12 @@ enum GameColorRole: String, CaseIterable, Equatable, Hashable {
             return .buttonDealBackgroundPressed
         case .dealActionText:
             return .buttonDealText
+        case .bidActionBackground:
+            return .buttonBidBackground
+        case .bidActionPressedBackground:
+            return .buttonBidBackgroundPressed
+        case .bidActionText:
+            return .buttonBidText
         case .newGameActionBackground:
             return .buttonNewGameBackground
         case .newGameActionPressedBackground:
@@ -219,6 +381,8 @@ enum GameEffectToken: String, CaseIterable, Equatable, Hashable {
     case tableTitleTextOpacity = "effect.tableTitle.text.opacity"
     case tableTitleShadowOpacity = "effect.tableTitle.shadow.opacity"
     case tableTitleShadowBlurRadius = "effect.tableTitle.shadow.blurRadius"
+    case bidButtonDisabledOpacity = "effect.bidButton.disabled.opacity"
+    case bidSuitSelectorDisabledOpacity = "effect.bidSuitSelector.disabled.opacity"
 
     var value: Double {
         switch self {
@@ -228,6 +392,10 @@ enum GameEffectToken: String, CaseIterable, Equatable, Hashable {
             return 0.25
         case .tableTitleShadowBlurRadius:
             return 4
+        case .bidButtonDisabledOpacity:
+            return 0.55
+        case .bidSuitSelectorDisabledOpacity:
+            return 0.55
         }
     }
 }
@@ -236,6 +404,13 @@ enum GameAnimationToken: String, CaseIterable, Equatable, Hashable {
     case dealStackFlightDuration = "animation.deal.stack.flight.duration"
     case dealStationExpansionDuration = "animation.deal.station.expand.duration"
     case dealStepPauseDuration = "animation.deal.step.pause.duration"
+    case dealSouthRevealTotalDuration = "animation.deal.southReveal.total.duration"
+    case dealSouthRevealFlipDuration = "animation.deal.southReveal.flip.duration"
+    case dealSouthRevealFlipStagger = "animation.deal.southReveal.flip.stagger"
+    case bidSimulatedTurnDelay = "animation.bid.simulatedTurn.delay"
+    case bidValueFadeOutDuration = "animation.bid.value.fadeOut.duration"
+    case bidValueFadeInDuration = "animation.bid.value.fadeIn.duration"
+    case bidAreaFadeOutDuration = "animation.bid.area.fadeOut.duration"
 
     var seconds: Double {
         switch self {
@@ -245,6 +420,20 @@ enum GameAnimationToken: String, CaseIterable, Equatable, Hashable {
             return 0.16
         case .dealStepPauseDuration:
             return 0.06
+        case .dealSouthRevealTotalDuration:
+            return 1.5
+        case .dealSouthRevealFlipDuration:
+            return 0.18
+        case .dealSouthRevealFlipStagger:
+            return 0.11
+        case .bidSimulatedTurnDelay:
+            return 1.0
+        case .bidValueFadeOutDuration:
+            return 0.5
+        case .bidValueFadeInDuration:
+            return 0.5
+        case .bidAreaFadeOutDuration:
+            return 1.0
         }
     }
 
@@ -281,6 +470,56 @@ enum GameLayoutToken: String, CaseIterable, Equatable, Hashable {
             return 0
         case .undealtDeckEdgeBufferMinimum:
             return 12
+        }
+    }
+}
+
+enum GameBidLayoutToken: String, CaseIterable, Equatable, Hashable {
+    case bidAreaPadding = "layout.bidArea.padding"
+    case bidTableRowGap = "layout.bidArea.table.rowGap"
+    case bidAreaCornerRadius = "layout.bidArea.cornerRadius"
+    case bidSelectorHeight = "layout.bidSelector.height"
+    case bidSelectorMinimumWidth = "layout.bidSelector.minimumWidth"
+    case bidSuitSelectorHeight = "layout.bidSuitSelector.height"
+    case bidSuitSelectorMinimumWidth = "layout.bidSuitSelector.minimumWidth"
+    case bidSuitSelectorOptionMinimumWidth = "layout.bidSuitSelector.optionMinimumWidth"
+    case bidSuitSelectorOptionGap = "layout.bidSuitSelector.optionGap"
+    case bidButtonHeight = "layout.bidButton.height"
+    case bidButtonMinimumWidth = "layout.bidButton.minimumWidth"
+    case postBiddingSummaryPadding = "layout.postBiddingSummary.padding"
+    case postBiddingSummaryRowGap = "layout.postBiddingSummary.rowGap"
+    case postBiddingSummaryCornerRadius = "layout.postBiddingSummary.cornerRadius"
+
+    var numericValue: Double {
+        switch self {
+        case .bidAreaPadding:
+            return 12
+        case .bidTableRowGap:
+            return 6
+        case .bidAreaCornerRadius:
+            return 10
+        case .bidSelectorHeight:
+            return 36
+        case .bidSelectorMinimumWidth:
+            return 82
+        case .bidSuitSelectorHeight:
+            return 36
+        case .bidSuitSelectorMinimumWidth:
+            return 132
+        case .bidSuitSelectorOptionMinimumWidth:
+            return 36
+        case .bidSuitSelectorOptionGap:
+            return 4
+        case .bidButtonHeight:
+            return 36
+        case .bidButtonMinimumWidth:
+            return 56
+        case .postBiddingSummaryPadding:
+            return 12
+        case .postBiddingSummaryRowGap:
+            return 6
+        case .postBiddingSummaryCornerRadius:
+            return 10
         }
     }
 }
@@ -336,8 +575,343 @@ struct ButtonTokenSet: Equatable {
         text: .buttonNewGameText
     )
 
+    static let bid = ButtonTokenSet(
+        background: .buttonBidBackground,
+        pressedBackground: .buttonBidBackgroundPressed,
+        text: .buttonBidText
+    )
+
     var accessibilityValue: String {
         "background=\(background.rawValue);pressed=\(pressedBackground.rawValue);text=\(text.rawValue)"
+    }
+}
+
+struct BidAreaTokenSet: Equatable {
+    let background = GameColorToken.bidAreaBackground
+    let border = GameColorToken.bidAreaBorder
+    let label = GameColorToken.bidAreaLabel
+    let divider = GameColorToken.bidAreaTableDivider
+    let valueText = GameColorToken.bidAreaValueText
+    let pendingValueText = GameColorToken.bidAreaPendingValueText
+    let highestValueText = GameColorToken.bidAreaHighestValueText
+    let seatText = GameColorToken.bidAreaSeatText
+    let padding = GameBidLayoutToken.bidAreaPadding
+    let rowGap = GameBidLayoutToken.bidTableRowGap
+    let cornerRadius = GameBidLayoutToken.bidAreaCornerRadius
+
+    var accessibilityValue: String {
+        [
+            "background=\(background.rawValue)",
+            "border=\(border.rawValue)",
+            "label=\(label.rawValue)",
+            "divider=\(divider.rawValue)",
+            "valueText=\(valueText.rawValue)",
+            "pendingValueText=\(pendingValueText.rawValue)",
+            "highestValueText=\(highestValueText.rawValue)",
+            "seatText=\(seatText.rawValue)",
+            "padding=\(padding.rawValue)",
+            "rowGap=\(rowGap.rawValue)",
+            "cornerRadius=\(cornerRadius.rawValue)"
+        ].joined(separator: ";")
+    }
+}
+
+struct BidSelectorTokenSet: Equatable {
+    let background = GameColorToken.bidSelectorBackground
+    let border = GameColorToken.bidSelectorBorder
+    let text = GameColorToken.bidSelectorText
+    let focusRing = GameColorToken.bidSelectorFocusRing
+    let height = GameBidLayoutToken.bidSelectorHeight
+    let minimumWidth = GameBidLayoutToken.bidSelectorMinimumWidth
+
+    var accessibilityValue: String {
+        [
+            "background=\(background.rawValue)",
+            "border=\(border.rawValue)",
+            "text=\(text.rawValue)",
+            "focusRing=\(focusRing.rawValue)",
+            "height=\(height.rawValue)",
+            "minimumWidth=\(minimumWidth.rawValue)"
+        ].joined(separator: ";")
+    }
+}
+
+struct BidSuitSelectorTokenSet: Equatable {
+    let background = GameColorToken.bidSuitSelectorBackground
+    let border = GameColorToken.bidSuitSelectorBorder
+    let text = GameColorToken.bidSuitSelectorText
+    let selectedBackground = GameColorToken.bidSuitSelectorSelectedBackground
+    let selectedText = GameColorToken.bidSuitSelectorSelectedText
+    let focusRing = GameColorToken.bidSuitSelectorFocusRing
+    let disabledOpacity = GameEffectToken.bidSuitSelectorDisabledOpacity
+    let height = GameBidLayoutToken.bidSuitSelectorHeight
+    let minimumWidth = GameBidLayoutToken.bidSuitSelectorMinimumWidth
+    let optionMinimumWidth = GameBidLayoutToken.bidSuitSelectorOptionMinimumWidth
+    let optionGap = GameBidLayoutToken.bidSuitSelectorOptionGap
+
+    var accessibilityValue: String {
+        [
+            "background=\(background.rawValue)",
+            "border=\(border.rawValue)",
+            "text=\(text.rawValue)",
+            "selectedBackground=\(selectedBackground.rawValue)",
+            "selectedText=\(selectedText.rawValue)",
+            "focusRing=\(focusRing.rawValue)",
+            "disabledOpacity=\(disabledOpacity.rawValue)",
+            "height=\(height.rawValue)",
+            "minimumWidth=\(minimumWidth.rawValue)",
+            "optionMinimumWidth=\(optionMinimumWidth.rawValue)",
+            "optionGap=\(optionGap.rawValue)"
+        ].joined(separator: ";")
+    }
+}
+
+struct PostBiddingSummaryTokenSet: Equatable {
+    let background = GameColorToken.postBiddingSummaryBackground
+    let border = GameColorToken.postBiddingSummaryBorder
+    let labelText = GameColorToken.postBiddingSummaryLabelText
+    let teamText = GameColorToken.postBiddingSummaryTeamText
+    let bidText = GameColorToken.postBiddingSummaryBidText
+    let tarneebText = GameColorToken.postBiddingSummaryTarneebText
+    let padding = GameBidLayoutToken.postBiddingSummaryPadding
+    let rowGap = GameBidLayoutToken.postBiddingSummaryRowGap
+    let cornerRadius = GameBidLayoutToken.postBiddingSummaryCornerRadius
+
+    var accessibilityValue: String {
+        [
+            "background=\(background.rawValue)",
+            "border=\(border.rawValue)",
+            "labelText=\(labelText.rawValue)",
+            "teamText=\(teamText.rawValue)",
+            "bidText=\(bidText.rawValue)",
+            "tarneebText=\(tarneebText.rawValue)",
+            "padding=\(padding.rawValue)",
+            "rowGap=\(rowGap.rawValue)",
+            "cornerRadius=\(cornerRadius.rawValue)"
+        ].joined(separator: ";")
+    }
+}
+
+struct BidEntryPresentation: Equatable, Identifiable {
+    let seat: Seat
+    let bidState: BidState
+    let isSelectable: Bool
+    let isCurrentHighestBid: Bool
+    let southDraftBid: BidValue
+    let southDraftTarneebSuit: Suit?
+    let allowedValues: [BidValue]
+
+    var id: Seat {
+        seat
+    }
+
+    var seatLabel: String {
+        seat.displayLabel
+    }
+
+    var valueLabel: String {
+        isSelectable ? southDraftBid.displayLabel : bidState.displayLabel
+    }
+
+    var valueColorToken: GameColorToken {
+        if bidState == .pending && !isSelectable {
+            return .bidAreaPendingValueText
+        }
+
+        if isCurrentHighestBid && !isSelectable {
+            return .bidAreaHighestValueText
+        }
+
+        return .bidAreaValueText
+    }
+
+    var accessibilityValue: String {
+        [
+            "seat=\(seat.rawValue)",
+            "value=\(valueLabel)",
+            "state=\(stateLabel)",
+            "selectable=\(isSelectable)",
+            "currentHighest=\(isCurrentHighestBid)",
+            "allowed=\(allowedValuesLabel)",
+            "draftTarneebSuit=\(southDraftTarneebSuit?.rawValue ?? "none")",
+            "valueText=\(valueColorToken.rawValue)"
+        ].joined(separator: ";")
+    }
+
+    private var stateLabel: String {
+        switch bidState {
+        case .pending:
+            return "pending"
+        case .resolved:
+            return "resolved"
+        }
+    }
+
+    private var allowedValuesLabel: String {
+        allowedValues.map(\.displayLabel).joined(separator: ",")
+    }
+}
+
+struct BidAreaPresentation: Equatable {
+    enum PresentationState: String, Equatable {
+        case visible
+        case fadingOut
+    }
+
+    let label = "Bidding"
+    let presentationState: PresentationState
+    let entries: [BidEntryPresentation]
+    let status: BiddingRoundStatus
+    let completionOutcome: BiddingCompletionOutcome?
+    let currentTurnSeat: Seat?
+    let highestBidSeat: Seat?
+    let highestBidValue: BidValue?
+    let allowedValues: [BidValue]
+    let southSuitOptions: [Suit]
+    let southDraftTarneebSuit: Suit?
+    let southSuitSelectorVisible: Bool
+    let southSuitSelectorEnabled: Bool
+    let southBidButtonVisible: Bool
+    let southBidButtonEnabled: Bool
+    let areaTokens = BidAreaTokenSet()
+    let selectorTokens = BidSelectorTokenSet()
+    let suitSelectorTokens = BidSuitSelectorTokenSet()
+    let bidButtonTokens = ButtonTokenSet.bid
+    let bidButtonHeightToken = GameBidLayoutToken.bidButtonHeight
+    let bidButtonMinimumWidthToken = GameBidLayoutToken.bidButtonMinimumWidth
+    let simulatedTurnDelayToken = GameAnimationToken.bidSimulatedTurnDelay
+    let fadeOutToken = GameAnimationToken.bidValueFadeOutDuration
+    let fadeInToken = GameAnimationToken.bidValueFadeInDuration
+    let areaFadeOutToken = GameAnimationToken.bidAreaFadeOutDuration
+
+    init?(
+        phase: GamePhase,
+        biddingState: BiddingState?,
+        southDraftBid: BidValue = .pass,
+        southDraftTarneebSuit: Suit? = nil,
+        presentationState: PresentationState = .visible
+    ) {
+        guard phase == .dealt else {
+            return nil
+        }
+
+        guard let biddingState,
+              Set(biddingState.bids.keys) == Set(Seat.allCases) else {
+            return nil
+        }
+
+        let legalSouthValues = biddingState.southLegalValues
+        let normalizedSouthDraftBid = legalSouthValues.contains(southDraftBid) ? southDraftBid : .pass
+        let normalizedSouthDraftSuit = biddingState.isWaitingForSouth ? southDraftTarneebSuit : nil
+        let southSubmissionIsValid = normalizedSouthDraftBid.numericValue == nil || normalizedSouthDraftSuit != nil
+
+        self.presentationState = presentationState
+        self.status = biddingState.status
+        self.completionOutcome = biddingState.completionOutcome
+        self.currentTurnSeat = biddingState.currentTurnSeat
+        self.highestBidSeat = biddingState.highestBidSeat
+        self.highestBidValue = biddingState.highestBidValue
+        self.allowedValues = legalSouthValues
+        self.southSuitOptions = Suit.allCases
+        self.southDraftTarneebSuit = normalizedSouthDraftSuit
+        self.southSuitSelectorVisible = biddingState.isWaitingForSouth
+        self.southSuitSelectorEnabled = biddingState.isWaitingForSouth && normalizedSouthDraftBid.numericValue != nil
+        self.southBidButtonVisible = biddingState.status == .inProgress
+        self.southBidButtonEnabled = biddingState.isWaitingForSouth && southSubmissionIsValid
+        self.entries = Seat.dealOrder.map { seat in
+            BidEntryPresentation(
+                seat: seat,
+                bidState: biddingState.bids[seat] ?? .pending,
+                isSelectable: seat == .south && biddingState.isWaitingForSouth,
+                isCurrentHighestBid: seat == biddingState.highestBidSeat
+                    && (biddingState.bids[seat] ?? .pending).resolvedValue == biddingState.highestBidValue,
+                southDraftBid: normalizedSouthDraftBid,
+                southDraftTarneebSuit: normalizedSouthDraftSuit,
+                allowedValues: legalSouthValues
+            )
+        }
+    }
+
+    var allowedValuesLabel: String {
+        allowedValues.map(\.displayLabel).joined(separator: ",")
+    }
+
+    var southSuitOptionsLabel: String {
+        southSuitOptions.map(\.rawValue).joined(separator: ",")
+    }
+
+    var accessibilityValue: String {
+        [
+            "label=\(label)",
+            "visible=true",
+            "presentationState=\(presentationState.rawValue)",
+            "rows=\(entries.map(\.seat.rawValue).joined(separator: ","))",
+            "values=\(entries.map { "\($0.seat.rawValue):\($0.valueLabel)" }.joined(separator: ","))",
+            "valueTextRoles=\(entries.map { "\($0.seat.rawValue):\($0.valueColorToken.rawValue)" }.joined(separator: ","))",
+            "allowed=\(allowedValuesLabel)",
+            "southSuitOptions=\(southSuitOptionsLabel)",
+            "southDraftTarneebSuit=\(southDraftTarneebSuit?.rawValue ?? "none")",
+            "status=\(status.rawValue)",
+            "completionOutcome=\(completionOutcome?.rawValue ?? "none")",
+            "currentTurn=\(currentTurnSeat?.rawValue ?? "none")",
+            "highestSeat=\(highestBidSeat?.rawValue ?? "none")",
+            "highestBid=\(highestBidValue?.displayLabel ?? "none")",
+            "southSelectable=\(southBidButtonEnabled)",
+            "southTarneebSuitSelectorVisible=\(southSuitSelectorVisible)",
+            "southTarneebSuitSelectorEnabled=\(southSuitSelectorEnabled)",
+            "southBidButtonVisible=\(southBidButtonVisible)",
+            "southBidButtonEnabled=\(southBidButtonEnabled)",
+            "areaTokens=\(areaTokens.accessibilityValue)",
+            "selectorTokens=\(selectorTokens.accessibilityValue)",
+            "suitSelectorTokens=\(suitSelectorTokens.accessibilityValue)",
+            "bidButtonTokens=\(bidButtonTokens.accessibilityValue)",
+            "bidButtonHeight=\(bidButtonHeightToken.rawValue)",
+            "bidButtonMinimumWidth=\(bidButtonMinimumWidthToken.rawValue)",
+            "simulatedBidDelay=\(simulatedTurnDelayToken.rawValue)",
+            "simulatedBidDelaySeconds=\(simulatedTurnDelayToken.seconds)",
+            "fadeOut=\(fadeOutToken.rawValue)",
+            "fadeIn=\(fadeInToken.rawValue)",
+            "fadeTotalSeconds=\(fadeOutToken.seconds + fadeInToken.seconds)",
+            "areaFadeOut=\(areaFadeOutToken.rawValue)",
+            "areaFadeOutSeconds=\(areaFadeOutToken.seconds)"
+        ].joined(separator: ";")
+    }
+}
+
+struct PostBiddingSummaryPresentation: Equatable {
+    let teamLabel: String
+    let bidValueLabel: String
+    let tarneebLabel = "Tarneeb"
+    let tarneebSymbol: String
+    let tokens = PostBiddingSummaryTokenSet()
+
+    init?(
+        phase: GamePhase,
+        biddingStatus: BiddingRoundStatus?,
+        summary: PostBiddingSummary?,
+        isBiddingAreaFadingOut: Bool
+    ) {
+        guard phase == .dealt,
+              biddingStatus == .complete,
+              !isBiddingAreaFadingOut,
+              let summary else {
+            return nil
+        }
+
+        self.teamLabel = summary.teamLabel
+        self.bidValueLabel = summary.bidValue.displayLabel
+        self.tarneebSymbol = summary.tarneebSymbol
+    }
+
+    var accessibilityValue: String {
+        [
+            "visible=true",
+            "team=\(teamLabel)",
+            "bid=\(bidValueLabel)",
+            "tarneebLabel=\(tarneebLabel)",
+            "tarneebSymbol=\(tarneebSymbol)",
+            "tokens=\(tokens.accessibilityValue)"
+        ].joined(separator: ";")
     }
 }
 
@@ -548,7 +1122,10 @@ struct DealAnimationPresentation: Equatable {
             "targetOrder=\(targetOrderAccessibilityValue)",
             "flightDuration=\(GameAnimationToken.dealStackFlightDuration.rawValue)",
             "stationExpansionDuration=\(GameAnimationToken.dealStationExpansionDuration.rawValue)",
-            "stepPauseDuration=\(GameAnimationToken.dealStepPauseDuration.rawValue)"
+            "stepPauseDuration=\(GameAnimationToken.dealStepPauseDuration.rawValue)",
+            "southRevealTotalDuration=\(GameAnimationToken.dealSouthRevealTotalDuration.rawValue)",
+            "southRevealFlipDuration=\(GameAnimationToken.dealSouthRevealFlipDuration.rawValue)",
+            "southRevealFlipStagger=\(GameAnimationToken.dealSouthRevealFlipStagger.rawValue)"
         ].joined(separator: ";")
     }
 }
