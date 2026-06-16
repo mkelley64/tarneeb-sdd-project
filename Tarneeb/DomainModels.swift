@@ -148,11 +148,63 @@ struct BidRecommendation: Equatable, Hashable {
     let bid: BidValue
     let preferredTarneebSuit: Suit?
     let confidence: Double
+    let diagnostics: BidRecommendationDiagnostics?
 
-    init(bid: BidValue, preferredTarneebSuit: Suit? = nil, confidence: Double = 0) {
+    init(
+        bid: BidValue,
+        preferredTarneebSuit: Suit? = nil,
+        confidence: Double = 0,
+        diagnostics: BidRecommendationDiagnostics? = nil
+    ) {
         self.bid = bid
         self.preferredTarneebSuit = bid.numericValue == nil ? nil : preferredTarneebSuit
         self.confidence = min(max(confidence, 0), 1)
+        self.diagnostics = diagnostics
+    }
+}
+
+enum BidHighBidGate: String, Equatable, Hashable {
+    case none
+    case belowSeven
+    case ninePlus
+    case tenPlus
+    case elevenPlus
+    case twelveOrThirteen
+}
+
+struct SuitBidEvaluation: Equatable, Hashable {
+    let suit: Suit
+    let expectedTricks: Double
+    let safeBidCeiling: Double
+    let safeBid: BidValue
+    let trumpLength: Int
+    let topTrumpControlCount: Int
+    let reliableOutsideWinnerCount: Int
+    let conditionalSideHonorCount: Int
+    let shortSuitValueAllowed: Bool
+    let highBidGate: BidHighBidGate
+    let riskSummary: String
+}
+
+struct BidRecommendationDiagnostics: Equatable, Hashable {
+    let selectedSuit: Suit?
+    let suitEvaluations: [SuitBidEvaluation]
+    let finalBid: BidValue
+
+    var selectedEvaluation: SuitBidEvaluation? {
+        guard let selectedSuit else {
+            return nil
+        }
+
+        return suitEvaluations.first { $0.suit == selectedSuit }
+    }
+
+    func withFinalBid(_ bid: BidValue) -> BidRecommendationDiagnostics {
+        BidRecommendationDiagnostics(
+            selectedSuit: selectedSuit,
+            suitEvaluations: suitEvaluations,
+            finalBid: bid
+        )
     }
 }
 
@@ -306,40 +358,350 @@ struct EnvironmentBidRecommender: BidRecommending {
 
 struct AutomatedBidRecommender: BidRecommending {
     func recommendation(for context: BidRecommendationContext) -> BidRecommendation {
-        guard let evaluation = Self.bestSuitEvaluation(for: context.hand) else {
-            return BidRecommendation(bid: .pass, confidence: 0)
+        let diagnostics = Self.diagnostics(for: context.hand)
+
+        guard let evaluation = diagnostics.selectedEvaluation else {
+            return BidRecommendation(
+                bid: .pass,
+                confidence: 0,
+                diagnostics: diagnostics.withFinalBid(.pass)
+            )
         }
 
-        var estimatedBid = Self.bidValue(forEstimatedTricks: evaluation.estimatedTricks)
+        var recommendedBid = evaluation.safeBid
 
         if context.currentHighestBidder == context.partnerSeat {
             let canRaisePartner: Bool
             if let highest = context.currentHighestBidValue?.numericValue,
-               let estimated = estimatedBid.numericValue {
-                canRaisePartner = estimated >= highest + 2
+               let recommended = recommendedBid.numericValue {
+                canRaisePartner = recommended >= highest + 2
                     && Self.hasStrongIndependentTrumpControl(in: context.hand, tarneebSuit: evaluation.suit)
             } else {
                 canRaisePartner = false
             }
 
             if !canRaisePartner {
-                estimatedBid = .pass
+                recommendedBid = .pass
             }
         }
 
-        if estimatedBid.numericValue == nil {
-            return BidRecommendation(bid: .pass, confidence: evaluation.confidence)
+        let finalDiagnostics = diagnostics.withFinalBid(recommendedBid)
+
+        if recommendedBid.numericValue == nil {
+            return BidRecommendation(
+                bid: .pass,
+                confidence: min(max((evaluation.safeBidCeiling - 6) / 7, 0), 1),
+                diagnostics: finalDiagnostics
+            )
         }
 
         return BidRecommendation(
-            bid: estimatedBid,
+            bid: recommendedBid,
             preferredTarneebSuit: evaluation.suit,
-            confidence: evaluation.confidence
+            confidence: min(max((evaluation.safeBidCeiling - 6) / 7, 0), 1),
+            diagnostics: finalDiagnostics
         )
     }
 
     static func preferredSuit(for hand: [Card]) -> Suit? {
-        bestSuitEvaluation(for: hand)?.suit
+        diagnostics(for: hand).selectedSuit
+    }
+
+    static func diagnostics(for hand: [Card]) -> BidRecommendationDiagnostics {
+        let evaluations = Suit.allCases.map { suitEvaluation(for: hand, tarneebSuit: $0) }
+        let selectedEvaluation = evaluations
+            .sorted { lhs, rhs in
+                if lhs.safeBidCeiling == rhs.safeBidCeiling {
+                    if lhs.expectedTricks == rhs.expectedTricks {
+                        return suitTieBreakIndex(lhs.suit) < suitTieBreakIndex(rhs.suit)
+                    }
+
+                    return lhs.expectedTricks > rhs.expectedTricks
+                }
+
+                return lhs.safeBidCeiling > rhs.safeBidCeiling
+            }
+            .first
+
+        return BidRecommendationDiagnostics(
+            selectedSuit: selectedEvaluation?.suit,
+            suitEvaluations: evaluations,
+            finalBid: selectedEvaluation?.safeBid ?? .pass
+        )
+    }
+
+    private static func suitEvaluation(for hand: [Card], tarneebSuit: Suit) -> SuitBidEvaluation {
+        let features = SuitFeatures(hand: hand, tarneebSuit: tarneebSuit)
+        let expectedTricks = expectedTricks(for: features)
+        let structuralGate = structuralGateCeiling(for: features, expectedTricks: expectedTricks)
+        let shapeCeiling = conservativeShapeCap(
+            trumpCards: features.trumpCards,
+            hasTrumpAce: features.hasTrumpAce,
+            hasTrumpKing: features.hasTrumpKing,
+            hasTrumpQueen: features.hasTrumpQueen,
+            hasTrumpJack: features.hasTrumpJack,
+            hasTrumpTen: features.hasTrumpTen,
+            outsideAceCount: features.outsideAceCount,
+            outsideKingCount: features.outsideKingCount,
+            reliableOutsideWinnerCount: features.reliableOutsideWinnerCount
+        ) ?? 13.99
+        let safeBidCeiling = min(expectedTricks, structuralGate.ceiling, shapeCeiling)
+        let safeBid = bidValue(forEstimatedTricks: safeBidCeiling)
+        let highBidGate = safeBid.numericValue == nil && safeBidCeiling < 7
+            ? BidHighBidGate.belowSeven
+            : structuralGate.gate
+
+        return SuitBidEvaluation(
+            suit: tarneebSuit,
+            expectedTricks: expectedTricks,
+            safeBidCeiling: safeBidCeiling,
+            safeBid: safeBid,
+            trumpLength: features.trumpCards.count,
+            topTrumpControlCount: features.trumpTopControlCount,
+            reliableOutsideWinnerCount: features.reliableOutsideWinnerCount,
+            conditionalSideHonorCount: features.conditionalSideHonorCount,
+            shortSuitValueAllowed: features.canUseShortSuitValue,
+            highBidGate: highBidGate,
+            riskSummary: features.riskSummary
+        )
+    }
+
+    private static func expectedTricks(for features: SuitFeatures) -> Double {
+        let lengthBonusRate = features.hasStrongTrumpControl ? 0.82 : 0.38
+        let lengthBonus = Double(max(0, features.trumpCards.count - 3)) * lengthBonusRate
+        let shortTrumpRiskPenalty = features.trumpCards.count < 4 ? 0.8 : 0
+        let missingTrumpAcePenalty = features.trumpCards.count >= 4 && !features.hasTrumpAce ? 1.15 : 0
+        let weakTopControlPenalty = features.trumpCards.count >= 5 && features.trumpTopControlCount < 2 ? 0.65 : 0
+        let fiveCardTenLevelPenalty = features.trumpCards.count == 5
+            && features.hasTrumpAce
+            && features.trumpTopControlCount == 2
+            && features.reliableOutsideWinnerCount < 2
+            ? 0.45
+            : 0
+        let aceLedFiveCardUncertaintyPenalty = features.trumpCards.count == 5
+            && features.hasTrumpAce
+            && !features.hasTrumpKing
+            && !features.hasTrumpQueen
+            ? (features.hasTrumpJack && features.outsideAceCount >= 1 ? 0.45 : 0.85)
+            : 0
+        let sixCardAceQueenPenalty = features.trumpCards.count == 6
+            && features.hasTrumpAce
+            && features.hasTrumpQueen
+            && !features.hasTrumpKing
+            ? 0.85
+            : 0
+        let fiveCardTopTextureNoOutsideAcePenalty = features.trumpCards.count == 5
+            && features.hasTrumpAce
+            && features.hasTrumpKing
+            && features.hasTrumpQueen
+            && features.hasTrumpTen
+            && features.outsideAceCount == 0
+            ? 1.0
+            : 0
+
+        return 3.55
+            + Double(features.trumpCards.count) * 0.16
+            + lengthBonus
+            + features.trumpHighStrength
+            + features.sideWinnerStrength
+            + features.shortSuitBonus
+            - shortTrumpRiskPenalty
+            - missingTrumpAcePenalty
+            - weakTopControlPenalty
+            - fiveCardTenLevelPenalty
+            - aceLedFiveCardUncertaintyPenalty
+            - sixCardAceQueenPenalty
+            - fiveCardTopTextureNoOutsideAcePenalty
+    }
+
+    private static func structuralGateCeiling(
+        for features: SuitFeatures,
+        expectedTricks: Double
+    ) -> (ceiling: Double, gate: BidHighBidGate) {
+        var ceiling = 13.99
+        var gate = BidHighBidGate.none
+
+        if expectedTricks >= 13 && !passesThirteenGate(features) {
+            ceiling = min(ceiling, 12.99)
+            gate = .twelveOrThirteen
+        }
+
+        if expectedTricks >= 12 && !passesTwelveGate(features) {
+            ceiling = min(ceiling, 11.99)
+            gate = .twelveOrThirteen
+        }
+
+        if expectedTricks >= 11 && !passesElevenGate(features) {
+            ceiling = min(ceiling, 10.99)
+            gate = .elevenPlus
+        }
+
+        if expectedTricks >= 10 && !passesTenGate(features) {
+            ceiling = min(ceiling, 9.99)
+            gate = .tenPlus
+        }
+
+        if expectedTricks >= 9 && !passesNineGate(features) {
+            ceiling = min(ceiling, 8.99)
+            gate = .ninePlus
+        }
+
+        return (ceiling, gate)
+    }
+
+    private static func passesNineGate(_ features: SuitFeatures) -> Bool {
+        features.trumpCards.count >= 5
+            || features.trumpTopControlCount >= 2
+            || features.reliableOutsideWinnerCount >= 2
+            || (features.hasTrumpAce && features.hasTrumpJack && features.hasTrumpTen && features.outsideAceCount >= 2)
+    }
+
+    private static func passesTenGate(_ features: SuitFeatures) -> Bool {
+        if features.trumpCards.count == 5 {
+            return features.hasTrumpAce
+                && (features.trumpTopControlCount >= 3 || features.reliableOutsideWinnerCount >= 3)
+        }
+
+        return (features.trumpCards.count >= 6 && features.hasTrumpAce && features.trumpTopControlCount >= 1 && features.reliableOutsideWinnerCount >= 2)
+            || (features.trumpCards.count >= 7 && features.hasTrumpAce && features.trumpTopControlCount >= 1)
+    }
+
+    private static func passesElevenGate(_ features: SuitFeatures) -> Bool {
+        (features.trumpCards.count >= 6 && features.hasTrumpAce && features.trumpTopControlCount >= 3 && features.reliableOutsideWinnerCount >= 1)
+            || (features.trumpCards.count >= 7 && features.hasTrumpAce && features.trumpTopControlCount >= 2)
+            || (features.trumpCards.count >= 8 && features.hasTrumpAce && features.trumpTopControlCount >= 1)
+    }
+
+    private static func passesTwelveGate(_ features: SuitFeatures) -> Bool {
+        (features.trumpCards.count >= 7 && features.hasTrumpAce && features.trumpTopControlCount >= 3 && features.reliableOutsideWinnerCount >= 1)
+            || (features.trumpCards.count >= 8 && features.hasTrumpAce && features.trumpTopControlCount >= 2)
+    }
+
+    private static func passesThirteenGate(_ features: SuitFeatures) -> Bool {
+        features.trumpCards.count >= 8
+            && features.hasTrumpAce
+            && features.trumpTopControlCount >= 3
+            && features.hasTrumpJack
+            && features.hasTrumpTen
+    }
+
+    private static func sideWinnerStrength(for card: Card, in hand: [Card]) -> Double {
+        let suitCards = hand.filter { $0.suit == card.suit }
+        let hasAce = suitCards.contains { $0.rank == .ace }
+        let hasKing = suitCards.contains { $0.rank == .king }
+        let hasQueen = suitCards.contains { $0.rank == .queen }
+
+        switch card.rank {
+        case .ace:
+            return 0.85
+        case .king:
+            if hasAce {
+                return 0.28
+            }
+            if hasQueen && suitCards.count >= 3 {
+                return 0.18
+            }
+            return 0.05
+        case .queen:
+            if hasAce && hasKing {
+                return 0.32
+            }
+            if hasKing && suitCards.count >= 4 {
+                return 0.08
+            }
+            return 0
+        default:
+            return 0
+        }
+    }
+
+    private static func isReliableOutsideWinner(_ card: Card, in hand: [Card]) -> Bool {
+        guard card.rank != .ace else {
+            return true
+        }
+
+        let suitCards = hand.filter { $0.suit == card.suit }
+        return card.rank == .king && suitCards.contains { $0.rank == .ace }
+    }
+
+    private static func isConditionalSideHonor(_ card: Card) -> Bool {
+        card.rank == .king || card.rank == .queen
+    }
+
+    private struct SuitFeatures {
+        let trumpCards: [Card]
+        let nonTrumpCards: [Card]
+        let hasTrumpAce: Bool
+        let hasTrumpKing: Bool
+        let hasTrumpQueen: Bool
+        let hasTrumpJack: Bool
+        let hasTrumpTen: Bool
+        let trumpTopControlCount: Int
+        let hasStrongTrumpControl: Bool
+        let outsideAceCount: Int
+        let outsideKingCount: Int
+        let reliableOutsideWinnerCount: Int
+        let conditionalSideHonorCount: Int
+        let trumpHighStrength: Double
+        let sideWinnerStrength: Double
+        let canUseShortSuitValue: Bool
+        let shortSuitBonus: Double
+
+        var riskSummary: String {
+            [
+                "trumpLength=\(trumpCards.count)",
+                "topTrump=\(trumpTopControlCount)",
+                "outsideAces=\(outsideAceCount)",
+                "reliableOutside=\(reliableOutsideWinnerCount)",
+                "conditionalSideHonors=\(conditionalSideHonorCount)",
+                "shortSuitAllowed=\(canUseShortSuitValue)"
+            ].joined(separator: ";")
+        }
+
+        init(hand: [Card], tarneebSuit: Suit) {
+            let trumpCards = hand.filter { $0.suit == tarneebSuit }
+            let nonTrumpCards = hand.filter { $0.suit != tarneebSuit }
+
+            self.trumpCards = trumpCards
+            self.nonTrumpCards = nonTrumpCards
+            self.hasTrumpAce = trumpCards.contains { $0.rank == .ace }
+            self.hasTrumpKing = trumpCards.contains { $0.rank == .king }
+            self.hasTrumpQueen = trumpCards.contains { $0.rank == .queen }
+            self.hasTrumpJack = trumpCards.contains { $0.rank == .jack }
+            self.hasTrumpTen = trumpCards.contains { $0.rank == .ten }
+            self.trumpTopControlCount = trumpCards.filter { AutomatedBidRecommender.isTopTrumpControl($0.rank) }.count
+            self.hasStrongTrumpControl = hasTrumpAce || trumpTopControlCount >= 2
+            self.outsideAceCount = nonTrumpCards.filter { $0.rank == .ace }.count
+            self.outsideKingCount = nonTrumpCards.filter { $0.rank == .king }.count
+            self.reliableOutsideWinnerCount = nonTrumpCards.filter {
+                AutomatedBidRecommender.isReliableOutsideWinner($0, in: hand)
+            }.count
+            self.conditionalSideHonorCount = nonTrumpCards.filter {
+                AutomatedBidRecommender.isConditionalSideHonor($0)
+            }.count
+            self.trumpHighStrength = trumpCards.reduce(0) {
+                $0 + AutomatedBidRecommender.highCardStrength($1.rank)
+            }
+            self.sideWinnerStrength = nonTrumpCards.reduce(0) {
+                $0 + AutomatedBidRecommender.sideWinnerStrength(for: $1, in: hand)
+            }
+            self.canUseShortSuitValue = trumpCards.count >= 5
+                && (hasTrumpAce && trumpTopControlCount >= 2 || trumpTopControlCount >= 3)
+            self.shortSuitBonus = canUseShortSuitValue
+                ? Suit.allCases
+                    .filter { $0 != tarneebSuit }
+                    .reduce(0.0) { total, suit in
+                        let count = hand.filter { $0.suit == suit }.count
+                        if count == 0 {
+                            return total + 0.55
+                        }
+                        if count == 1 {
+                            return total + 0.22
+                        }
+                        return total
+                    }
+                : 0
+        }
     }
 
     private static func bestSuitEvaluation(for hand: [Card]) -> SuitEvaluation? {
@@ -367,6 +729,9 @@ struct AutomatedBidRecommender: BidRecommending {
         let hasStrongTrumpControl = hasTrumpAce || trumpTopControlCount >= 2
         let outsideAceCount = nonTrumpCards.filter { $0.rank == .ace }.count
         let outsideKingCount = nonTrumpCards.filter { $0.rank == .king }.count
+        let reliableOutsideWinnerCount = nonTrumpCards.filter {
+            isReliableOutsideWinner($0, in: hand)
+        }.count
         let trumpHighStrength = trumpCards.reduce(0) { $0 + highCardStrength($1.rank) }
         let sideWinnerStrength = nonTrumpCards.reduce(0) { total, card in
             switch card.rank {
@@ -447,7 +812,8 @@ struct AutomatedBidRecommender: BidRecommending {
             hasTrumpJack: hasTrumpJack,
             hasTrumpTen: hasTrumpTen,
             outsideAceCount: outsideAceCount,
-            outsideKingCount: outsideKingCount
+            outsideKingCount: outsideKingCount,
+            reliableOutsideWinnerCount: reliableOutsideWinnerCount
         )
 
         if let conservativeCap {
@@ -465,12 +831,25 @@ struct AutomatedBidRecommender: BidRecommending {
         hasTrumpJack: Bool,
         hasTrumpTen: Bool,
         outsideAceCount: Int,
-        outsideKingCount: Int
+        outsideKingCount: Int,
+        reliableOutsideWinnerCount: Int
     ) -> Double? {
         switch trumpCards.count {
         case 4:
             if hasTrumpAce && !hasTrumpKing && !hasTrumpQueen && !hasTrumpJack && !hasTrumpTen && outsideAceCount <= 1 {
                 return 6.99
+            }
+
+            if hasTrumpAce && !hasTrumpKing && hasTrumpQueen && !hasTrumpJack && !hasTrumpTen && outsideAceCount == 0 {
+                return 6.99
+            }
+
+            if hasTrumpAce && !hasTrumpKing && !hasTrumpQueen && hasTrumpJack && hasTrumpTen && outsideAceCount == 0 {
+                return 6.99
+            }
+
+            if hasTrumpAce && !hasTrumpKing && !hasTrumpQueen && hasTrumpJack && hasTrumpTen && outsideAceCount <= 2 {
+                return 8.49
             }
 
             if hasTrumpAce && hasTrumpKing && !hasTrumpQueen && hasTrumpJack && hasTrumpTen && outsideAceCount == 0 {
@@ -482,6 +861,18 @@ struct AutomatedBidRecommender: BidRecommending {
             }
 
             if hasTrumpAce && hasTrumpKing && !hasTrumpQueen && !hasTrumpJack && hasTrumpTen {
+                return 8.99
+            }
+
+            if hasTrumpAce && hasTrumpKing && hasTrumpQueen && !hasTrumpJack && hasTrumpTen && outsideAceCount == 0 && outsideKingCount <= 1 {
+                return 7.99
+            }
+
+            if hasTrumpAce && hasTrumpKing && hasTrumpQueen && !hasTrumpJack && hasTrumpTen && outsideAceCount <= 1 {
+                return 8.99
+            }
+
+            if hasTrumpAce && hasTrumpKing && hasTrumpQueen && hasTrumpJack && !hasTrumpTen && outsideAceCount <= 1 {
                 return 8.99
             }
 
@@ -507,6 +898,10 @@ struct AutomatedBidRecommender: BidRecommending {
 
             if hasTrumpAce && !hasTrumpKing && hasTrumpQueen && hasTrumpJack && !hasTrumpTen && outsideAceCount <= 1 {
                 return 8.99
+            }
+
+            if hasTrumpAce && !hasTrumpKing && !hasTrumpQueen && hasTrumpJack && !hasTrumpTen && outsideAceCount <= 2 && outsideKingCount <= 1 {
+                return 7.99
             }
         case 5:
             if hasTrumpAce && hasTrumpKing && !hasTrumpQueen && !hasTrumpJack && !hasTrumpTen && outsideAceCount <= 1 {
@@ -538,7 +933,7 @@ struct AutomatedBidRecommender: BidRecommending {
             }
 
             if hasTrumpAce && hasTrumpKing && !hasTrumpQueen && hasTrumpJack && !hasTrumpTen && outsideAceCount <= 1 {
-                return 9.99
+                return 8.99
             }
 
             if !hasTrumpAce && hasTrumpKing && hasTrumpQueen && hasTrumpTen && outsideAceCount <= 1 {
@@ -561,6 +956,10 @@ struct AutomatedBidRecommender: BidRecommending {
                 return 8.99
             }
 
+            if hasTrumpAce && !hasTrumpKing && hasTrumpQueen && hasTrumpJack && !hasTrumpTen && outsideAceCount <= 2 {
+                return 10.99
+            }
+
             if hasTrumpAce && hasTrumpKing && hasTrumpQueen && hasTrumpTen && outsideAceCount == 0 {
                 return 9.99
             }
@@ -568,8 +967,32 @@ struct AutomatedBidRecommender: BidRecommending {
             if hasTrumpAce && hasTrumpKing && hasTrumpQueen && hasTrumpJack && !hasTrumpTen && outsideAceCount == 0 {
                 return 9.99
             }
+
+            if hasTrumpAce && hasTrumpKing && hasTrumpQueen && hasTrumpJack && !hasTrumpTen && outsideAceCount <= 1 {
+                return 10.99
+            }
         case 6:
+            if !hasTrumpAce && hasTrumpKing && hasTrumpQueen && outsideAceCount <= 1 {
+                return 8.99
+            }
+
+            if hasTrumpAce && hasTrumpKing && !hasTrumpQueen && !hasTrumpJack && reliableOutsideWinnerCount == 0 {
+                return 8.99
+            }
+
             if hasTrumpAce && !hasTrumpKing && !hasTrumpQueen && hasTrumpJack && !hasTrumpTen && outsideAceCount <= 1 {
+                return 9.99
+            }
+
+            if hasTrumpAce && !hasTrumpKing && !hasTrumpQueen && !hasTrumpJack && hasTrumpTen && outsideAceCount <= 1 {
+                return 8.99
+            }
+
+            if hasTrumpAce && !hasTrumpKing && !hasTrumpQueen && hasTrumpJack && hasTrumpTen && outsideAceCount <= 2 {
+                return 9.99
+            }
+
+            if hasTrumpAce && hasTrumpKing && !hasTrumpQueen && !hasTrumpJack && !hasTrumpTen && outsideAceCount <= 1 {
                 return 9.99
             }
 
@@ -577,20 +1000,69 @@ struct AutomatedBidRecommender: BidRecommending {
                 return 10.99
             }
 
+            if hasTrumpAce && hasTrumpKing && !hasTrumpQueen && !hasTrumpJack && hasTrumpTen && outsideAceCount <= 1 {
+                return 9.99
+            }
+
+            if hasTrumpAce && !hasTrumpKing && hasTrumpQueen && !hasTrumpJack && hasTrumpTen && outsideAceCount <= 2 {
+                return 10.99
+            }
+
             if hasTrumpAce && hasTrumpKing && hasTrumpQueen && hasTrumpJack && outsideAceCount == 0 {
                 return 10.99
             }
 
-            if hasTrumpAce && hasTrumpKing && hasTrumpQueen && !hasTrumpJack && !hasTrumpTen && outsideAceCount == 0 && outsideKingCount == 0 {
+            if hasTrumpAce && hasTrumpKing && hasTrumpQueen && !hasTrumpJack && !hasTrumpTen && outsideAceCount == 0 {
                 return 9.99
+            }
+
+            if hasTrumpAce && hasTrumpKing && hasTrumpQueen && !hasTrumpJack && !hasTrumpTen && outsideAceCount <= 1 {
+                return 10.99
+            }
+
+            if hasTrumpAce && hasTrumpKing && hasTrumpQueen && !hasTrumpJack && hasTrumpTen && outsideAceCount <= 1 {
+                return 10.99
             }
 
             if hasTrumpAce && hasTrumpKing && hasTrumpQueen && !hasTrumpJack && !hasTrumpTen && outsideAceCount <= 2 {
                 return 11.99
             }
+
         case 7:
+            if hasTrumpAce && !hasTrumpKing && !hasTrumpQueen && !hasTrumpJack && !hasTrumpTen && outsideAceCount <= 1 {
+                return 8.99
+            }
+
+            if hasTrumpAce && !hasTrumpKing && !hasTrumpQueen && hasTrumpJack && !hasTrumpTen && outsideAceCount <= 1 {
+                return 8.99
+            }
+
             if hasTrumpAce && !hasTrumpKing && hasTrumpQueen && !hasTrumpJack && outsideAceCount <= 1 && outsideKingCount == 0 {
                 return 10.99
+            }
+
+            if hasTrumpAce && hasTrumpKing && hasTrumpQueen && !hasTrumpJack && outsideAceCount == 0 && outsideKingCount == 0 {
+                return 10.99
+            }
+
+            if hasTrumpAce && hasTrumpKing && hasTrumpQueen && !hasTrumpJack && !hasTrumpTen && outsideAceCount <= 1 {
+                return 11.99
+            }
+
+            if !hasTrumpAce && hasTrumpKing && hasTrumpQueen && !hasTrumpJack && !hasTrumpTen && outsideAceCount <= 1 {
+                return 8.99
+            }
+
+            if hasTrumpAce && !hasTrumpKing && hasTrumpQueen && hasTrumpJack && hasTrumpTen && outsideAceCount <= 1 {
+                return 11.99
+            }
+        case 8:
+            if hasTrumpAce && !hasTrumpKing && hasTrumpQueen && hasTrumpJack && hasTrumpTen && outsideAceCount == 0 && outsideKingCount == 0 {
+                return 11.99
+            }
+
+            if hasTrumpAce && hasTrumpKing && hasTrumpQueen && hasTrumpJack && !hasTrumpTen && outsideAceCount == 0 && outsideKingCount == 0 {
+                return 12.99
             }
         default:
             break
@@ -1037,6 +1509,87 @@ struct BiddingService {
             bidValue: highBidValue,
             tarneebSuit: tarneebSuit
         )
+    }
+}
+
+struct BiddingSimulationSample: Equatable {
+    let dealIndex: Int
+    let seat: Seat
+    let recommendation: BidRecommendation
+}
+
+struct BiddingSimulationReport: Equatable {
+    let samples: [BiddingSimulationSample]
+
+    var bidDistribution: [BidValue: Int] {
+        samples.reduce(into: [:]) { distribution, sample in
+            distribution[sample.recommendation.bid, default: 0] += 1
+        }
+    }
+
+    var passRate: Double {
+        guard !samples.isEmpty else {
+            return 0
+        }
+
+        let passCount = samples.filter { $0.recommendation.bid == .pass }.count
+        return Double(passCount) / Double(samples.count)
+    }
+
+    var highBidSamples: [BiddingSimulationSample] {
+        samples.filter { ($0.recommendation.bid.numericValue ?? 0) >= 10 }
+    }
+}
+
+struct BiddingSimulationReporter {
+    let bidRecommender: BidRecommending
+
+    init(bidRecommender: BidRecommending = AutomatedBidRecommender()) {
+        self.bidRecommender = bidRecommender
+    }
+
+    func report(for deals: [[Seat: [Card]]], initialDealer: Seat = .south) -> BiddingSimulationReport {
+        var dealer = initialDealer
+        var samples: [BiddingSimulationSample] = []
+
+        for (dealIndex, handsBySeat) in deals.enumerated() {
+            var biddingState = BiddingState.started(dealerSeat: dealer)
+            var guardrail = 0
+
+            while biddingState.status == .inProgress,
+                  let seat = biddingState.currentTurnSeat,
+                  guardrail < 64 {
+                let hand = handsBySeat[seat] ?? []
+                let context = BidRecommendationContext(
+                    seat: seat,
+                    hand: hand,
+                    partnerSeat: seat.partnerSeat,
+                    currentHighestBidValue: biddingState.highestBidValue,
+                    currentHighestBidder: biddingState.highestBidSeat,
+                    priorBidStates: biddingState.bids
+                )
+                let recommendation = bidRecommender.recommendation(for: context)
+                biddingState.submit(recommendation.bid, recommendation: recommendation, for: seat)
+                let resolvedBid = biddingState.bids[seat]?.resolvedValue ?? .pass
+                let resolvedRecommendation = BidRecommendation(
+                    bid: resolvedBid,
+                    preferredTarneebSuit: resolvedBid.numericValue == nil ? nil : recommendation.preferredTarneebSuit,
+                    confidence: recommendation.confidence,
+                    diagnostics: recommendation.diagnostics?.withFinalBid(resolvedBid)
+                )
+
+                samples.append(BiddingSimulationSample(
+                    dealIndex: dealIndex,
+                    seat: seat,
+                    recommendation: resolvedRecommendation
+                ))
+                guardrail += 1
+            }
+
+            dealer = dealer.nextCounterclockwiseDealer
+        }
+
+        return BiddingSimulationReport(samples: samples)
     }
 }
 
