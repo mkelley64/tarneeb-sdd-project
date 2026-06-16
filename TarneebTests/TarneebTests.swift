@@ -1611,6 +1611,15 @@ final class TarneebTests: XCTestCase {
         XCTAssertNil(recommendation.preferredTarneebSuit)
     }
 
+    func testFourCardAceJackTenLowTrumpWithoutOutsideAcesOrKingsDoesNotOpenSeven() {
+        let recommendation = automatedRecommendation(
+            for: hand("J♣ A♣ J♠ 5♥ Q♦ 8♥ 9♦ 2♦ 5♣ J♦ 5♠ 3♠ 10♣")
+        )
+
+        XCTAssertEqual(recommendation.bid, .pass)
+        XCTAssertNil(recommendation.preferredTarneebSuit)
+    }
+
     func testShallowTrumpCandidatesWithOutsideAcesDoNotOverbidEight() {
         let recommendation = automatedRecommendation(
             for: hand("7♥ J♦ Q♣ K♥ J♠ A♦ 6♠ 8♦ 5♣ 5♦ 8♠ A♠ Q♥")
@@ -1648,6 +1657,205 @@ final class TarneebTests: XCTestCase {
         XCTAssertEqual(recommendation.preferredTarneebSuit, .diamonds)
         XCTAssertLessThanOrEqual(recommendation.bid.numericValue ?? 0, 11)
         XCTAssertNotEqual(recommendation.bid, .twelve)
+    }
+
+    func testSixCardKingQueenTrumpWithoutAcesDoesNotOverbidNine() {
+        let recommendation = automatedRecommendation(
+            for: hand("9♥ 6♦ 6♠ K♠ 4♥ 10♠ 7♦ K♦ 7♥ Q♥ 3♥ Q♦ K♥")
+        )
+
+        XCTAssertEqual(recommendation.preferredTarneebSuit, .hearts)
+        XCTAssertLessThanOrEqual(recommendation.bid.numericValue ?? 0, 8)
+        XCTAssertNotEqual(recommendation.bid, .nine)
+    }
+
+    func testBidRecommendationDiagnosticsExposeExpectedTricksAndSafeBidCeilings() throws {
+        let cards = hand("K♣ Q♣ 9♣ 4♣ J♥ 5♠ 10♥ 10♦ 8♠ A♥ A♦ A♠ 8♥")
+        let recommendation = automatedRecommendation(for: cards)
+        let diagnostics = try XCTUnwrap(recommendation.diagnostics)
+        let heartsEvaluation = try XCTUnwrap(diagnostics.suitEvaluations.first { $0.suit == .hearts })
+
+        XCTAssertEqual(diagnostics.suitEvaluations.count, Suit.allCases.count)
+        XCTAssertEqual(diagnostics.selectedSuit, .hearts)
+        XCTAssertEqual(diagnostics.finalBid, recommendation.bid)
+        XCTAssertGreaterThan(heartsEvaluation.expectedTricks, heartsEvaluation.safeBidCeiling)
+        XCTAssertLessThanOrEqual(heartsEvaluation.safeBid.numericValue ?? 0, 8)
+        XCTAssertTrue(heartsEvaluation.riskSummary.contains("trumpLength=4"))
+    }
+
+    func testGeneralizedSafeCeilingCoversRecentTooAggressiveRegressionHands() throws {
+        let fixtures: [(rawHand: String, preferredSuit: Suit, maximumBid: Int)] = [
+            ("K♣ Q♣ 9♣ 4♣ J♥ 5♠ 10♥ 10♦ 8♠ A♥ A♦ A♠ 8♥", .hearts, 8),
+            ("6♣ A♣ 8♠ K♥ Q♣ 8♣ 10♣ A♠ J♣ 4♦ 7♦ 3♥ 3♣", .clubs, 11),
+            ("A♦ A♥ Q♣ 4♠ A♠ 4♦ 2♥ 6♥ K♦ 9♥ Q♥ 7♦ 10♥", .hearts, 10),
+            ("K♠ 4♣ K♦ K♣ Q♣ 10♣ 10♠ 7♣ 8♠ J♠ 3♦ A♣ 2♥", .clubs, 10),
+            ("Q♣ K♦ 9♠ A♠ 5♦ 10♥ 8♦ Q♠ 2♣ 3♦ J♠ A♣ K♠", .spades, 10),
+            ("7♦ K♣ 10♥ 9♣ 7♣ Q♣ 8♣ 10♠ 5♣ J♣ A♣ 4♠ 8♠", .clubs, 12),
+            ("8♠ A♣ A♦ K♦ K♣ 10♦ A♠ 5♠ J♠ 6♥ 5♣ K♥ Q♠", .spades, 10),
+            ("Q♦ 9♠ 5♠ A♠ 6♠ 7♦ 7♥ 2♥ A♣ 4♠ 10♠ 4♣ 6♦", .spades, 8),
+            ("A♦ A♠ 8♦ 9♣ Q♠ J♦ 4♦ Q♥ 10♦ K♥ 7♦ 7♠ A♥", .diamonds, 9),
+            ("Q♠ K♣ 10♥ 8♦ 4♠ K♥ 4♣ 7♣ J♣ 5♠ K♠ A♠ 7♠", .spades, 9),
+            ("6♦ A♠ Q♥ Q♠ 10♠ 9♥ 8♠ 7♠ 5♠ J♣ K♠ 3♦ 4♦", .spades, 10),
+            ("10♥ 3♥ 4♠ K♥ J♣ Q♥ Q♦ 5♥ 5♦ A♣ 10♣ A♥ Q♣", .hearts, 10),
+            ("5♦ A♠ 8♣ 6♦ A♦ 7♦ J♥ 4♦ 7♠ 4♥ 2♦ 10♣ 3♦", .diamonds, 8),
+            ("A♦ 2♦ 4♦ A♣ 2♥ 8♦ 7♦ 6♦ 7♥ 8♠ J♦ 4♠ 4♥", .diamonds, 8),
+            ("4♣ Q♥ A♦ 7♣ K♥ K♠ Q♦ 10♦ J♠ A♥ K♦ 6♣ 10♠", .diamonds, 8)
+        ]
+
+        for fixture in fixtures {
+            let recommendation = automatedRecommendation(for: hand(fixture.rawHand))
+            let diagnostics = try XCTUnwrap(recommendation.diagnostics)
+            let selectedEvaluation = try XCTUnwrap(diagnostics.selectedEvaluation)
+
+            XCTAssertEqual(diagnostics.selectedSuit, fixture.preferredSuit, fixture.rawHand)
+            if recommendation.bid != .pass {
+                XCTAssertEqual(recommendation.preferredTarneebSuit, fixture.preferredSuit, fixture.rawHand)
+            }
+            XCTAssertLessThanOrEqual(recommendation.bid.numericValue ?? 0, fixture.maximumBid, fixture.rawHand)
+            XCTAssertLessThanOrEqual(selectedEvaluation.safeBid.numericValue ?? 0, fixture.maximumBid, fixture.rawHand)
+            XCTAssertFalse(selectedEvaluation.riskSummary.isEmpty, fixture.rawHand)
+        }
+    }
+
+    func testLatestSimulationSuspectsStayWithinGeneralizedConservativeCaps() throws {
+        let fixtures: [(rawHand: String, targetSuit: Suit, maximumBid: Int, forbiddenBid: BidValue)] = [
+            ("K♦ Q♥ Q♠ K♥ 4♥ 2♠ 7♥ A♦ Q♣ 8♠ J♣ A♥ 2♥", .hearts, 10, .eleven),
+            ("3♠ 5♦ 5♠ 6♦ 8♠ K♠ Q♠ A♣ 4♠ 10♦ 9♥ 6♠ K♣", .spades, 8, .nine),
+            ("8♣ J♣ A♣ A♥ 10♣ K♥ 4♠ 3♦ 10♠ 4♦ 7♦ J♥ Q♥", .hearts, 8, .nine),
+            ("A♥ K♣ 6♣ Q♦ 9♦ 7♥ 3♥ K♥ 5♠ A♦ 2♦ 4♥ 9♥", .hearts, 9, .ten),
+            ("3♠ 5♦ 10♥ 10♠ 7♦ A♥ 5♥ A♠ 3♥ 2♥ K♥ 9♦ 10♦", .hearts, 9, .ten),
+            ("8♥ A♦ A♥ 4♦ 8♣ 2♦ 2♥ 3♥ K♥ J♠ A♠ 8♦ 10♠", .hearts, 9, .ten),
+            ("10♥ 9♥ 7♥ A♣ 8♠ Q♠ 8♣ 2♣ A♥ A♠ Q♣ 6♣ Q♥", .hearts, 9, .ten),
+            ("Q♣ 4♦ Q♥ A♣ A♦ A♠ 10♦ 7♣ K♦ 9♥ 7♥ 9♦ 3♥", .diamonds, 9, .ten),
+            ("K♣ 3♠ 9♣ J♦ 5♦ 6♠ 3♣ J♣ A♣ 8♥ A♠ A♥ 4♠", .clubs, 9, .ten),
+            ("10♦ 7♠ A♦ Q♥ 3♦ 3♥ J♥ J♠ 2♦ 8♦ K♦ Q♣ 8♥", .diamonds, 8, .nine),
+            ("5♣ 4♣ A♣ 8♦ Q♠ 6♣ 7♣ K♣ 3♠ J♥ 7♦ 7♥ 4♠", .clubs, 8, .nine),
+            ("8♦ 7♥ 6♣ K♣ A♣ 2♥ J♦ 5♥ 10♣ 8♣ Q♠ 2♣ 5♠", .clubs, 8, .nine),
+            ("6♣ 4♥ 3♣ 2♥ 8♥ A♠ K♥ Q♥ A♥ 5♥ 4♦ 10♣ K♣", .hearts, 11, .twelve),
+            ("A♠ K♥ 8♣ 7♠ Q♥ A♥ 4♠ 7♥ 4♣ 7♣ 8♥ 2♥ 4♥", .hearts, 11, .twelve)
+        ]
+
+        for fixture in fixtures {
+            let recommendation = automatedRecommendation(for: hand(fixture.rawHand))
+            let diagnostics = try XCTUnwrap(recommendation.diagnostics)
+            let targetEvaluation = try XCTUnwrap(diagnostics.suitEvaluations.first { $0.suit == fixture.targetSuit })
+
+            XCTAssertLessThanOrEqual(targetEvaluation.safeBid.numericValue ?? 0, fixture.maximumBid, fixture.rawHand)
+            XCTAssertNotEqual(targetEvaluation.safeBid, fixture.forbiddenBid, fixture.rawHand)
+            XCTAssertFalse(targetEvaluation.riskSummary.isEmpty, fixture.rawHand)
+            if diagnostics.selectedSuit == fixture.targetSuit {
+                XCTAssertLessThanOrEqual(recommendation.bid.numericValue ?? 0, fixture.maximumBid, fixture.rawHand)
+            }
+        }
+    }
+
+    func testSixCardAceKingTrumpWithoutReliableOutsideWinnersDoesNotReachNine() throws {
+        let fixtures: [(rawHand: String, preferredSuit: Suit)] = [
+            ("10♦ 7♠ A♦ Q♥ 3♦ 3♥ J♥ J♠ 2♦ 8♦ K♦ Q♣ 8♥", .diamonds),
+            ("5♣ 4♣ A♣ 8♦ Q♠ 6♣ 7♣ K♣ 3♠ J♥ 7♦ 7♥ 4♠", .clubs),
+            ("8♦ 7♥ 6♣ K♣ A♣ 2♥ J♦ 5♥ 10♣ 8♣ Q♠ 2♣ 5♠", .clubs)
+        ]
+
+        for fixture in fixtures {
+            let recommendation = automatedRecommendation(for: hand(fixture.rawHand))
+            let diagnostics = try XCTUnwrap(recommendation.diagnostics)
+            let selectedEvaluation = try XCTUnwrap(diagnostics.selectedEvaluation)
+
+            XCTAssertEqual(diagnostics.selectedSuit, fixture.preferredSuit, fixture.rawHand)
+            XCTAssertEqual(selectedEvaluation.reliableOutsideWinnerCount, 0, fixture.rawHand)
+            XCTAssertLessThanOrEqual(selectedEvaluation.safeBid.numericValue ?? 0, 8, fixture.rawHand)
+            XCTAssertLessThanOrEqual(recommendation.bid.numericValue ?? 0, 8, fixture.rawHand)
+        }
+    }
+
+    func testSixCardKingQueenMissingAceWithLimitedOutsideAcesDoesNotReachNine() throws {
+        let fixtures: [(rawHand: String, targetSuit: Suit)] = [
+            ("A♣ K♥ 10♣ 5♥ Q♠ 3♦ 2♥ 6♠ 7♠ 10♥ Q♥ J♥ K♠", .hearts),
+            ("9♦ J♦ 3♥ 3♦ 2♣ J♠ A♠ J♥ 5♦ K♠ Q♦ Q♠ K♦", .diamonds),
+            ("Q♣ 5♥ A♠ K♠ 3♣ Q♦ 8♦ J♣ 7♠ K♣ 2♦ 10♣ 7♣", .clubs),
+            ("A♣ 7♦ 3♣ 10♠ 4♠ 9♠ K♠ 3♠ K♣ Q♣ 9♣ Q♠ K♦", .spades),
+            ("Q♦ K♦ J♦ 5♣ 5♥ 2♥ 8♦ K♠ 10♦ K♣ Q♥ A♥ 3♦", .diamonds),
+            ("3♥ A♦ 9♦ J♠ K♦ 7♥ 6♦ 9♣ Q♥ 8♣ J♥ K♥ 10♥", .hearts)
+        ]
+
+        for fixture in fixtures {
+            let recommendation = automatedRecommendation(for: hand(fixture.rawHand))
+            let diagnostics = try XCTUnwrap(recommendation.diagnostics)
+            let targetEvaluation = try XCTUnwrap(diagnostics.suitEvaluations.first { $0.suit == fixture.targetSuit })
+
+            XCTAssertEqual(targetEvaluation.trumpLength, 6, fixture.rawHand)
+            XCTAssertEqual(targetEvaluation.topTrumpControlCount, 2, fixture.rawHand)
+            XCTAssertLessThanOrEqual(targetEvaluation.safeBid.numericValue ?? 0, 8, fixture.rawHand)
+            if diagnostics.selectedSuit == fixture.targetSuit {
+                XCTAssertLessThanOrEqual(recommendation.bid.numericValue ?? 0, 8, fixture.rawHand)
+            }
+        }
+    }
+
+    func testSevenCardNearCommandingTrumpDoesNotReachThirteen() throws {
+        let rawHand = "A♣ A♥ K♦ 4♦ J♦ 4♣ Q♦ 7♦ 8♠ 8♥ Q♥ A♦ 10♦"
+        let recommendation = automatedRecommendation(for: hand(rawHand))
+        let diamondsEvaluation = try XCTUnwrap(recommendation.diagnostics?.suitEvaluations.first { $0.suit == .diamonds })
+
+        XCTAssertEqual(diamondsEvaluation.trumpLength, 7)
+        XCTAssertLessThanOrEqual(diamondsEvaluation.safeBid.numericValue ?? 0, 12)
+        XCTAssertNotEqual(diamondsEvaluation.safeBid, .thirteen)
+        if recommendation.diagnostics?.selectedSuit == .diamonds {
+            XCTAssertLessThanOrEqual(recommendation.bid.numericValue ?? 0, 12)
+            XCTAssertNotEqual(recommendation.bid, .thirteen)
+        }
+    }
+
+    func testFiveCardTrumpTenGateBlocksMarginalPartnerRaise() {
+        let recommendation = automatedRecommendation(
+            for: hand("10♥ 9♥ 7♥ A♣ 8♠ Q♠ 8♣ 2♣ A♥ A♠ Q♣ 6♣ Q♥"),
+            seat: .south,
+            partnerSeat: .north,
+            currentHighestBidValue: .eight,
+            currentHighestBidder: .north
+        )
+
+        XCTAssertEqual(recommendation.bid, .pass)
+        XCTAssertNil(recommendation.preferredTarneebSuit)
+    }
+
+    func testSideKingsAndQueensAreConditionalSupportInDiagnostics() throws {
+        let recommendation = automatedRecommendation(
+            for: hand("Q♣ K♦ 9♠ A♠ 5♦ 10♥ 8♦ Q♠ 2♣ 3♦ J♠ A♣ K♠")
+        )
+        let selectedEvaluation = try XCTUnwrap(recommendation.diagnostics?.selectedEvaluation)
+
+        XCTAssertEqual(selectedEvaluation.suit, .spades)
+        XCTAssertGreaterThan(selectedEvaluation.conditionalSideHonorCount, selectedEvaluation.reliableOutsideWinnerCount)
+        XCTAssertLessThanOrEqual(selectedEvaluation.safeBid.numericValue ?? 0, 10)
+    }
+
+    func testShortSuitValueRequiresTrumpControlInDiagnostics() throws {
+        let diagnostics = AutomatedBidRecommender.diagnostics(
+            for: hand("A♥ 7♥ 6♥ 5♥ 4♥ 2♠ 3♠ 4♠ 5♠ 6♣ 7♣ 8♣ 9♣")
+        )
+        let heartsEvaluation = try XCTUnwrap(diagnostics.suitEvaluations.first { $0.suit == .hearts })
+
+        XCTAssertFalse(heartsEvaluation.shortSuitValueAllowed)
+        XCTAssertLessThan(heartsEvaluation.safeBidCeiling, heartsEvaluation.expectedTricks + 0.001)
+    }
+
+    func testBiddingSimulationReportSummarizesDistributionAndDiagnostics() {
+        let dealHands: [Seat: [Card]] = [
+            .south: hand("A♥ K♥ Q♥ J♥ 10♥ 9♥ 8♥ A♣ A♦ K♠ 2♣ 3♦ 4♠"),
+            .east: hand("K♣ Q♣ 9♣ 4♣ J♥ 5♠ 10♥ 10♦ 8♠ A♥ A♦ A♠ 8♥"),
+            .north: hand("Q♦ 9♠ 5♠ A♠ 6♠ 7♦ 7♥ 2♥ A♣ 4♠ 10♠ 4♣ 6♦"),
+            .west: hand("9♥ 6♦ 6♠ K♠ 4♥ 10♠ 7♦ K♦ 7♥ Q♥ 3♥ Q♦ K♥")
+        ]
+        let report = BiddingSimulationReporter().report(for: [dealHands], initialDealer: .south)
+        let distributionTotal = report.bidDistribution.values.reduce(0, +)
+
+        XCTAssertFalse(report.samples.isEmpty)
+        XCTAssertEqual(distributionTotal, report.samples.count)
+        XCTAssertGreaterThanOrEqual(report.passRate, 0)
+        XCTAssertLessThanOrEqual(report.passRate, 1)
+        XCTAssertTrue(report.samples.allSatisfy { $0.recommendation.diagnostics != nil })
+        XCTAssertTrue(report.highBidSamples.allSatisfy { ($0.recommendation.bid.numericValue ?? 0) >= 10 })
     }
 
     func testAutomatedBidRecommenderPassesWhenPartnerIsHighestUnlessMaterialRaise() {
