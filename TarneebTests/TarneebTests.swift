@@ -6,7 +6,7 @@ final class TarneebTests: XCTestCase {
         XCTAssertEqual(Bundle.main.bundleIdentifier, "com.mkelley.Tarneeb")
     }
 
-    func testDesignTokenSourceCoversRequiredMVP005TokenKeys() {
+    func testDesignTokenSourceCoversRequiredMVP007TokenKeys() {
         let requiredTokenKeys = [
             "color.table.background.primary",
             "color.table.background.secondary",
@@ -920,17 +920,33 @@ final class TarneebTests: XCTestCase {
         XCTAssertEqual(completedState.bids[.west], .resolved(.pass))
     }
 
-    func testSouthNumericBidRequiresSelectedTarneebSuit() throws {
+    func testSouthNumericBidWaitsForPostBiddingTarneebSuitSelection() throws {
         let state = try makeCompletedDeal(dealerSeat: .west)
         let service = BiddingService(bidGenerator: BidGenerator { _ in .pass })
-        let unchangedState = service.submitSouthBid(.ten, in: state)
-
-        XCTAssertEqual(unchangedState, state)
-
-        let submittedState = service.submitSouthBid(.ten, selectedTarneebSuit: .hearts, in: state)
+        let submittedState = service.submitSouthBid(.ten, in: state)
 
         XCTAssertEqual(submittedState.bids[.south], .resolved(.ten))
-        XCTAssertEqual(submittedState.biddingState?.bidRecommendations[.south]?.preferredTarneebSuit, .hearts)
+        XCTAssertEqual(submittedState.highestBidSeat, .south)
+        XCTAssertEqual(submittedState.highestBidValue, .ten)
+        XCTAssertNil(submittedState.biddingState?.bidRecommendations[.south]?.preferredTarneebSuit)
+        XCTAssertNil(submittedState.postBiddingSummary)
+
+        let afterEast = service.resolveNextSimulatedBid(in: submittedState)
+        let afterNorth = service.resolveNextSimulatedBid(in: afterEast)
+        let completedWithoutSuit = service.resolveNextSimulatedBid(in: afterNorth)
+
+        XCTAssertEqual(completedWithoutSuit.biddingStatus, .complete)
+        XCTAssertEqual(completedWithoutSuit.highestBidSeat, .south)
+        XCTAssertNil(completedWithoutSuit.biddingState?.bidRecommendations[.south]?.preferredTarneebSuit)
+        XCTAssertNil(completedWithoutSuit.postBiddingSummary)
+
+        let completedWithSuit = service.submitSouthTarneebSuit(.hearts, in: completedWithoutSuit)
+        let summary = try XCTUnwrap(completedWithSuit.postBiddingSummary)
+
+        XCTAssertEqual(completedWithSuit.biddingState?.bidRecommendations[.south]?.preferredTarneebSuit, .hearts)
+        XCTAssertEqual(summary.highBidderSeat, .south)
+        XCTAssertEqual(summary.bidValue, .ten)
+        XCTAssertEqual(summary.tarneebSuit, .hearts)
     }
 
     func testSouthCannotBidAgainAfterPassingAndLaterPlayerRaises() throws {
@@ -2012,20 +2028,24 @@ final class TarneebTests: XCTestCase {
 
         XCTAssertEqual(warmPresentation.cardID, "hearts-A")
         XCTAssertEqual(warmPresentation.displayLabel, "A♥")
+        XCTAssertEqual(warmPresentation.faceAssetName, "card_face_AH")
         XCTAssertEqual(warmPresentation.rankText, "A")
         XCTAssertEqual(warmPresentation.suitSymbol, "♥")
         XCTAssertEqual(warmPresentation.suitColorRole, .suitWarm)
         XCTAssertEqual(warmPresentation.suitColorToken, .cardSuitRed)
         XCTAssertEqual(warmPresentation.accessibilityLabel, "A♥")
         XCTAssertEqual(warmPresentation.sizeCategory, .sharedBaseCard)
+        XCTAssertTrue(warmPresentation.accessibilityValue.contains("asset=card_face_AH"))
         XCTAssertTrue(warmPresentation.accessibilityValue.contains("surface=color.card.background"))
         XCTAssertTrue(warmPresentation.accessibilityValue.contains("border=color.card.border"))
         XCTAssertTrue(warmPresentation.accessibilityValue.contains("shadow=color.card.shadow"))
         XCTAssertFalse(warmPresentation.accessibilityValue.contains("#"))
 
+        XCTAssertEqual(neutralPresentation.faceAssetName, "card_face_2S")
         XCTAssertEqual(neutralPresentation.suitColorRole, .suitNeutral)
         XCTAssertEqual(neutralPresentation.suitColorToken, .cardSuitBlack)
         XCTAssertEqual(neutralPresentation.sizeCategory, .sharedBaseCard)
+        XCTAssertTrue(neutralPresentation.accessibilityValue.contains("asset=card_face_2S"))
         XCTAssertFalse(neutralPresentation.accessibilityValue.contains("#"))
     }
 
@@ -2293,20 +2313,21 @@ final class TarneebTests: XCTestCase {
         XCTAssertEqual(presentation.label, "Bidding")
         XCTAssertEqual(presentation.entries.map(\.seat), Seat.dealOrder)
         XCTAssertEqual(presentation.entries.map(\.seatLabel), ["South", "East", "North", "West"])
-        XCTAssertEqual(presentation.entries.map(\.valueLabel), ["11", "7", "Pass", "10"])
+        XCTAssertEqual(presentation.entries.map(\.valueLabel), ["--", "7", "Pass", "10"])
         XCTAssertEqual(presentation.entries.map(\.isSelectable), [true, false, false, false])
         XCTAssertEqual(presentation.entries.map(\.isCurrentHighestBid), [false, false, false, true])
         XCTAssertEqual(
             presentation.entries.map(\.valueColorToken),
-            [.bidAreaValueText, .bidAreaValueText, .bidAreaValueText, .bidAreaHighestValueText]
+            [.bidAreaPendingValueText, .bidAreaValueText, .bidAreaValueText, .bidAreaHighestValueText]
         )
         XCTAssertEqual(presentation.allowedValues, [.pass, .eleven, .twelve, .thirteen])
         XCTAssertEqual(presentation.allowedValuesLabel, "Pass,11,12,13")
         XCTAssertEqual(presentation.southSuitOptions, Suit.allCases)
         XCTAssertEqual(presentation.southSuitOptionsLabel, "spades,clubs,hearts,diamonds")
-        XCTAssertEqual(presentation.southDraftTarneebSuit, .spades)
-        XCTAssertTrue(presentation.southSuitSelectorVisible)
-        XCTAssertTrue(presentation.southSuitSelectorEnabled)
+        XCTAssertEqual(presentation.southDraftBid, .eleven)
+        XCTAssertNil(presentation.southDraftTarneebSuit)
+        XCTAssertFalse(presentation.southSuitSelectorVisible)
+        XCTAssertFalse(presentation.southSuitSelectorEnabled)
         XCTAssertEqual(presentation.status, .inProgress)
         XCTAssertNil(presentation.completionOutcome)
         XCTAssertEqual(presentation.presentationState, .visible)
@@ -2320,17 +2341,18 @@ final class TarneebTests: XCTestCase {
         XCTAssertEqual(presentation.suitSelectorTokens.background, .bidSuitSelectorBackground)
         XCTAssertTrue(presentation.accessibilityValue.contains("label=Bidding"))
         XCTAssertTrue(presentation.accessibilityValue.contains("rows=south,east,north,west"))
-        XCTAssertTrue(presentation.accessibilityValue.contains("values=south:11,east:7,north:Pass,west:10"))
-        XCTAssertTrue(presentation.accessibilityValue.contains("valueTextRoles=south:color.bidArea.value.text,east:color.bidArea.value.text,north:color.bidArea.value.text,west:color.bidArea.value.highest.text"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("values=south:--,east:7,north:Pass,west:10"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("valueTextRoles=south:color.bidArea.value.pending.text,east:color.bidArea.value.text,north:color.bidArea.value.text,west:color.bidArea.value.highest.text"))
         XCTAssertTrue(presentation.accessibilityValue.contains("allowed=Pass,11,12,13"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("southDraftBid=11"))
         XCTAssertTrue(presentation.accessibilityValue.contains("southSuitOptions=spades,clubs,hearts,diamonds"))
-        XCTAssertTrue(presentation.accessibilityValue.contains("southDraftTarneebSuit=spades"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("southDraftTarneebSuit=none"))
         XCTAssertTrue(presentation.accessibilityValue.contains("completionOutcome=none"))
         XCTAssertTrue(presentation.accessibilityValue.contains("currentTurn=south"))
         XCTAssertTrue(presentation.accessibilityValue.contains("highestSeat=west"))
         XCTAssertTrue(presentation.accessibilityValue.contains("highestBid=10"))
-        XCTAssertTrue(presentation.accessibilityValue.contains("southTarneebSuitSelectorVisible=true"))
-        XCTAssertTrue(presentation.accessibilityValue.contains("southTarneebSuitSelectorEnabled=true"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("southTarneebSuitSelectorVisible=false"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("southTarneebSuitSelectorEnabled=false"))
         XCTAssertTrue(presentation.accessibilityValue.contains("southBidButtonVisible=true"))
         XCTAssertTrue(presentation.accessibilityValue.contains("southBidButtonEnabled=true"))
         XCTAssertTrue(presentation.accessibilityValue.contains("areaTokens=background=color.bidArea.background"))
@@ -2391,13 +2413,13 @@ final class TarneebTests: XCTestCase {
             southDraftBid: .seven
         ))
 
-        XCTAssertTrue(activeSouthNumericWithoutSuitPresentation.southSuitSelectorVisible)
-        XCTAssertTrue(activeSouthNumericWithoutSuitPresentation.southSuitSelectorEnabled)
+        XCTAssertFalse(activeSouthNumericWithoutSuitPresentation.southSuitSelectorVisible)
+        XCTAssertFalse(activeSouthNumericWithoutSuitPresentation.southSuitSelectorEnabled)
         XCTAssertNil(activeSouthNumericWithoutSuitPresentation.southDraftTarneebSuit)
         XCTAssertTrue(activeSouthNumericWithoutSuitPresentation.southBidButtonVisible)
-        XCTAssertFalse(activeSouthNumericWithoutSuitPresentation.southBidButtonEnabled)
+        XCTAssertTrue(activeSouthNumericWithoutSuitPresentation.southBidButtonEnabled)
         XCTAssertTrue(activeSouthNumericWithoutSuitPresentation.accessibilityValue.contains("southDraftTarneebSuit=none"))
-        XCTAssertTrue(activeSouthNumericWithoutSuitPresentation.accessibilityValue.contains("southTarneebSuitSelectorEnabled=true"))
+        XCTAssertTrue(activeSouthNumericWithoutSuitPresentation.accessibilityValue.contains("southTarneebSuitSelectorEnabled=false"))
 
         let activeSouthPassPresentation = try XCTUnwrap(BidAreaPresentation(
             phase: .dealt,
@@ -2405,7 +2427,7 @@ final class TarneebTests: XCTestCase {
             southDraftBid: .pass
         ))
 
-        XCTAssertTrue(activeSouthPassPresentation.southSuitSelectorVisible)
+        XCTAssertFalse(activeSouthPassPresentation.southSuitSelectorVisible)
         XCTAssertFalse(activeSouthPassPresentation.southSuitSelectorEnabled)
         XCTAssertTrue(activeSouthPassPresentation.southBidButtonEnabled)
 
@@ -2480,14 +2502,67 @@ final class TarneebTests: XCTestCase {
         XCTAssertEqual(presentation.bidValueLabel, "10")
         XCTAssertEqual(presentation.tarneebLabel, "Tarneeb")
         XCTAssertEqual(presentation.tarneebSymbol, "♣")
+        XCTAssertEqual(presentation.tarneebSymbolColorToken, .cardSuitBlack)
+        XCTAssertEqual(presentation.tarneebSymbolBackgroundColorToken, .cardBackground)
+        XCTAssertEqual(presentation.tarneebSymbolBorderColorToken, .buttonNewGameBackground)
         XCTAssertEqual(presentation.tokens.background, .postBiddingSummaryBackground)
         XCTAssertTrue(presentation.accessibilityValue.contains("team=East-West"))
         XCTAssertTrue(presentation.accessibilityValue.contains("bid=10"))
         XCTAssertTrue(presentation.accessibilityValue.contains("tarneebSymbol=♣"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("tarneebSymbolColor=color.card.suit.black"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("tarneebSymbolBackground=color.card.background"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("tarneebSymbolBorder=color.button.newGame.background"))
         XCTAssertTrue(presentation.accessibilityValue.contains("background=color.postBiddingSummary.background"))
+
+        let warmSummary = PostBiddingSummary(
+            highBidderSeat: .south,
+            bidValue: .eleven,
+            tarneebSuit: .hearts
+        )
+        let warmPresentation = try XCTUnwrap(PostBiddingSummaryPresentation(
+            phase: .dealt,
+            biddingStatus: .complete,
+            summary: warmSummary,
+            isBiddingAreaFadingOut: false
+        ))
+
+        XCTAssertEqual(warmPresentation.tarneebSymbol, "♥")
+        XCTAssertEqual(warmPresentation.tarneebSymbolColorToken, .cardSuitRed)
+        XCTAssertTrue(warmPresentation.accessibilityValue.contains("tarneebSymbolColor=color.card.suit.red"))
         XCTAssertNil(PostBiddingSummaryPresentation(phase: .notStarted, biddingStatus: nil, summary: summary, isBiddingAreaFadingOut: false))
         XCTAssertNil(PostBiddingSummaryPresentation(phase: .dealt, biddingStatus: .complete, summary: summary, isBiddingAreaFadingOut: true))
         XCTAssertNil(PostBiddingSummaryPresentation(phase: .dealt, biddingStatus: .complete, summary: nil, isBiddingAreaFadingOut: false))
+    }
+
+    func testSouthTarneebSelectionPresentationOnlyAppearsAfterSouthWinsWithoutSummary() throws {
+        let presentation = try XCTUnwrap(SouthTarneebSelectionPresentation(
+            phase: .dealt,
+            biddingStatus: .complete,
+            highestBidSeat: .south,
+            highestBidValue: .ten,
+            summary: nil,
+            isBiddingAreaFadingOut: false,
+            selectedSuit: .spades
+        ))
+
+        XCTAssertEqual(presentation.teamLabel, "North-South")
+        XCTAssertEqual(presentation.bidValueLabel, "10")
+        XCTAssertEqual(presentation.tarneebLabel, "Tarneeb")
+        XCTAssertEqual(presentation.selectedSuit, .spades)
+        XCTAssertEqual(presentation.suitOptions, Suit.allCases)
+        XCTAssertTrue(presentation.submitEnabled)
+        XCTAssertEqual(presentation.suitOptionsLabel, "spades,clubs,hearts,diamonds")
+        XCTAssertTrue(presentation.accessibilityValue.contains("visible=true"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("team=North-South"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("bid=10"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("selected=spades"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("submitEnabled=true"))
+        XCTAssertNil(SouthTarneebSelectionPresentation(phase: .notStarted, biddingStatus: .complete, highestBidSeat: .south, highestBidValue: .ten, summary: nil, isBiddingAreaFadingOut: false, selectedSuit: nil))
+        XCTAssertNil(SouthTarneebSelectionPresentation(phase: .dealt, biddingStatus: .inProgress, highestBidSeat: .south, highestBidValue: .ten, summary: nil, isBiddingAreaFadingOut: false, selectedSuit: nil))
+        XCTAssertNil(SouthTarneebSelectionPresentation(phase: .dealt, biddingStatus: .complete, highestBidSeat: .east, highestBidValue: .ten, summary: nil, isBiddingAreaFadingOut: false, selectedSuit: nil))
+        XCTAssertNil(SouthTarneebSelectionPresentation(phase: .dealt, biddingStatus: .complete, highestBidSeat: .south, highestBidValue: .pass, summary: nil, isBiddingAreaFadingOut: false, selectedSuit: nil))
+        XCTAssertNil(SouthTarneebSelectionPresentation(phase: .dealt, biddingStatus: .complete, highestBidSeat: .south, highestBidValue: .ten, summary: PostBiddingSummary(highBidderSeat: .south, bidValue: .ten, tarneebSuit: .spades), isBiddingAreaFadingOut: false, selectedSuit: nil))
+        XCTAssertNil(SouthTarneebSelectionPresentation(phase: .dealt, biddingStatus: .complete, highestBidSeat: .south, highestBidValue: .ten, summary: nil, isBiddingAreaFadingOut: true, selectedSuit: nil))
     }
 
     func testTableLayoutPresentationExposesDiameterStationPlacementsAndCenteredDeckAnchor() {
@@ -2527,6 +2602,50 @@ final class TarneebTests: XCTestCase {
                 && image.idiom == "universal"
                 && image.scale == "1x"
         })
+    }
+
+    func testCardFaceAssetCatalogExposesXCardsFaceImages() throws {
+        let projectRoot = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let assetCatalogURL = projectRoot
+            .appendingPathComponent("Tarneeb")
+            .appendingPathComponent("Assets.xcassets")
+
+        for card in DeckFactory.makeCanonicalDeck() {
+            let presentation = CardPresentation(card: card)
+            let imageSetURL = assetCatalogURL
+                .appendingPathComponent("\(presentation.faceAssetName).imageset")
+            let contentsURL = imageSetURL.appendingPathComponent("Contents.json")
+            let assetCode = presentation.faceAssetName.replacingOccurrences(of: "card_face_", with: "")
+            let scaleFilenames = ["1x", "2x", "3x"].map { scale in
+                "\(assetCode)@\(scale).png"
+            }
+
+            XCTAssertTrue(FileManager.default.fileExists(atPath: contentsURL.path), presentation.faceAssetName)
+            for filename in scaleFilenames {
+                XCTAssertTrue(
+                    FileManager.default.fileExists(atPath: imageSetURL.appendingPathComponent(filename).path),
+                    "\(presentation.faceAssetName) \(filename)"
+                )
+            }
+
+            let contents = try JSONDecoder().decode(
+                AssetCatalogContents.self,
+                from: Data(contentsOf: contentsURL)
+            )
+
+            for scale in ["1x", "2x", "3x"] {
+                XCTAssertTrue(contents.images.contains { image in
+                    image.filename == "\(assetCode)@\(scale).png"
+                        && image.idiom == "universal"
+                        && image.scale == scale
+                }, "\(presentation.faceAssetName) \(scale)")
+            }
+        }
+
+        let jokerImageSetURL = assetCatalogURL.appendingPathComponent("card_face_joker.imageset")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: jokerImageSetURL.path))
     }
 
     func testAppIconAssetCatalogUsesTarneebImage() throws {

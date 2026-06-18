@@ -710,15 +710,23 @@ struct BidEntryPresentation: Equatable, Identifiable {
     }
 
     var valueLabel: String {
-        isSelectable ? southDraftBid.displayLabel : bidState.displayLabel
+        bidState.displayLabel
+    }
+
+    var historyValueLabel: String {
+        bidState.displayLabel
+    }
+
+    var historyValueColorToken: GameColorToken {
+        bidState == .pending ? .bidAreaPendingValueText : valueColorToken
     }
 
     var valueColorToken: GameColorToken {
-        if bidState == .pending && !isSelectable {
+        if bidState == .pending {
             return .bidAreaPendingValueText
         }
 
-        if isCurrentHighestBid && !isSelectable {
+        if isCurrentHighestBid {
             return .bidAreaHighestValueText
         }
 
@@ -733,6 +741,7 @@ struct BidEntryPresentation: Equatable, Identifiable {
             "selectable=\(isSelectable)",
             "currentHighest=\(isCurrentHighestBid)",
             "allowed=\(allowedValuesLabel)",
+            "draftBid=\(southDraftBid.displayLabel)",
             "draftTarneebSuit=\(southDraftTarneebSuit?.rawValue ?? "none")",
             "valueText=\(valueColorToken.rawValue)"
         ].joined(separator: ";")
@@ -768,6 +777,7 @@ struct BidAreaPresentation: Equatable {
     let highestBidValue: BidValue?
     let allowedValues: [BidValue]
     let southSuitOptions: [Suit]
+    let southDraftBid: BidValue
     let southDraftTarneebSuit: Suit?
     let southSuitSelectorVisible: Bool
     let southSuitSelectorEnabled: Bool
@@ -802,8 +812,7 @@ struct BidAreaPresentation: Equatable {
 
         let legalSouthValues = biddingState.southLegalValues
         let normalizedSouthDraftBid = legalSouthValues.contains(southDraftBid) ? southDraftBid : .pass
-        let normalizedSouthDraftSuit = biddingState.isWaitingForSouth ? southDraftTarneebSuit : nil
-        let southSubmissionIsValid = normalizedSouthDraftBid.numericValue == nil || normalizedSouthDraftSuit != nil
+        let normalizedSouthDraftSuit: Suit? = nil
 
         self.presentationState = presentationState
         self.status = biddingState.status
@@ -813,11 +822,12 @@ struct BidAreaPresentation: Equatable {
         self.highestBidValue = biddingState.highestBidValue
         self.allowedValues = legalSouthValues
         self.southSuitOptions = Suit.allCases
+        self.southDraftBid = normalizedSouthDraftBid
         self.southDraftTarneebSuit = normalizedSouthDraftSuit
-        self.southSuitSelectorVisible = biddingState.isWaitingForSouth
-        self.southSuitSelectorEnabled = biddingState.isWaitingForSouth && normalizedSouthDraftBid.numericValue != nil
+        self.southSuitSelectorVisible = false
+        self.southSuitSelectorEnabled = false
         self.southBidButtonVisible = biddingState.status == .inProgress
-        self.southBidButtonEnabled = biddingState.isWaitingForSouth && southSubmissionIsValid
+        self.southBidButtonEnabled = biddingState.isWaitingForSouth
         self.entries = Seat.dealOrder.map { seat in
             BidEntryPresentation(
                 seat: seat,
@@ -849,6 +859,7 @@ struct BidAreaPresentation: Equatable {
             "values=\(entries.map { "\($0.seat.rawValue):\($0.valueLabel)" }.joined(separator: ","))",
             "valueTextRoles=\(entries.map { "\($0.seat.rawValue):\($0.valueColorToken.rawValue)" }.joined(separator: ","))",
             "allowed=\(allowedValuesLabel)",
+            "southDraftBid=\(southDraftBid.displayLabel)",
             "southSuitOptions=\(southSuitOptionsLabel)",
             "southDraftTarneebSuit=\(southDraftTarneebSuit?.rawValue ?? "none")",
             "status=\(status.rawValue)",
@@ -883,6 +894,9 @@ struct PostBiddingSummaryPresentation: Equatable {
     let bidValueLabel: String
     let tarneebLabel = "Tarneeb"
     let tarneebSymbol: String
+    let tarneebSymbolColorToken: GameColorToken
+    let tarneebSymbolBackgroundColorToken = GameColorToken.cardBackground
+    let tarneebSymbolBorderColorToken = GameColorToken.buttonNewGameBackground
     let tokens = PostBiddingSummaryTokenSet()
 
     init?(
@@ -901,6 +915,7 @@ struct PostBiddingSummaryPresentation: Equatable {
         self.teamLabel = summary.teamLabel
         self.bidValueLabel = summary.bidValue.displayLabel
         self.tarneebSymbol = summary.tarneebSymbol
+        self.tarneebSymbolColorToken = summary.tarneebSuit.colorToken
     }
 
     var accessibilityValue: String {
@@ -910,7 +925,72 @@ struct PostBiddingSummaryPresentation: Equatable {
             "bid=\(bidValueLabel)",
             "tarneebLabel=\(tarneebLabel)",
             "tarneebSymbol=\(tarneebSymbol)",
+            "tarneebSymbolColor=\(tarneebSymbolColorToken.rawValue)",
+            "tarneebSymbolBackground=\(tarneebSymbolBackgroundColorToken.rawValue)",
+            "tarneebSymbolBorder=\(tarneebSymbolBorderColorToken.rawValue)",
             "tokens=\(tokens.accessibilityValue)"
+        ].joined(separator: ";")
+    }
+}
+
+struct SouthTarneebSelectionPresentation: Equatable {
+    let teamLabel: String
+    let bidValueLabel: String
+    let tarneebLabel = "Tarneeb"
+    let selectedSuit: Suit?
+    let suitOptions = Suit.allCases
+    let tokens = PostBiddingSummaryTokenSet()
+    let suitSelectorTokens = BidSuitSelectorTokenSet()
+    let bidButtonTokens = ButtonTokenSet.bid
+    let bidButtonHeightToken = GameBidLayoutToken.bidButtonHeight
+    let bidButtonMinimumWidthToken = GameBidLayoutToken.bidButtonMinimumWidth
+
+    init?(
+        phase: GamePhase,
+        biddingStatus: BiddingRoundStatus?,
+        highestBidSeat: Seat?,
+        highestBidValue: BidValue?,
+        summary: PostBiddingSummary?,
+        isBiddingAreaFadingOut: Bool,
+        selectedSuit: Suit?
+    ) {
+        guard phase == .dealt,
+              biddingStatus == .complete,
+              !isBiddingAreaFadingOut,
+              highestBidSeat == .south,
+              let highestBidValue,
+              highestBidValue.numericValue != nil,
+              summary == nil else {
+            return nil
+        }
+
+        self.teamLabel = Seat.south.highBiddingTeamLabel
+        self.bidValueLabel = highestBidValue.displayLabel
+        self.selectedSuit = selectedSuit
+    }
+
+    var submitEnabled: Bool {
+        selectedSuit != nil
+    }
+
+    var suitOptionsLabel: String {
+        suitOptions.map(\.rawValue).joined(separator: ",")
+    }
+
+    var accessibilityValue: String {
+        [
+            "visible=true",
+            "team=\(teamLabel)",
+            "bid=\(bidValueLabel)",
+            "tarneebLabel=\(tarneebLabel)",
+            "selected=\(selectedSuit?.rawValue ?? "none")",
+            "options=\(suitOptionsLabel)",
+            "submitEnabled=\(submitEnabled)",
+            "tokens=\(tokens.accessibilityValue)",
+            "suitSelectorTokens=\(suitSelectorTokens.accessibilityValue)",
+            "bidButtonTokens=\(bidButtonTokens.accessibilityValue)",
+            "bidButtonHeight=\(bidButtonHeightToken.rawValue)",
+            "bidButtonMinimumWidth=\(bidButtonMinimumWidthToken.rawValue)"
         ].joined(separator: ";")
     }
 }
@@ -971,6 +1051,7 @@ struct TableTitlePresentation: Equatable {
 struct CardPresentation: Equatable {
     let cardID: String
     let displayLabel: String
+    let faceAssetName: String
     let rankText: String
     let suitSymbol: String
     let suitColorRole: GameColorRole
@@ -984,6 +1065,7 @@ struct CardPresentation: Equatable {
         self.rankText = card.rank.displayLabel
         self.suitSymbol = card.suit.displaySymbol
         self.displayLabel = "\(card.rank.displayLabel)\(card.suit.displaySymbol)"
+        self.faceAssetName = "card_face_\(card.rank.cardFaceAssetCode)\(card.suit.cardFaceAssetCode)"
         self.suitColorRole = card.suit.colorRole
         self.suitColorToken = card.suit.colorToken
         self.sortKey = card.southHandSortKey
@@ -996,7 +1078,7 @@ struct CardPresentation: Equatable {
     }
 
     var accessibilityValue: String {
-        "role=\(suitColorRole.rawValue);token=\(suitColorToken.rawValue);size=\(sizeCategory.rawValue);surface=\(GameColorRole.cardFace.token.rawValue);border=\(GameColorRole.cardBorder.token.rawValue);shadow=\(GameColorRole.cardShadow.token.rawValue)"
+        "asset=\(faceAssetName);role=\(suitColorRole.rawValue);token=\(suitColorToken.rawValue);size=\(sizeCategory.rawValue);surface=\(GameColorRole.cardFace.token.rawValue);border=\(GameColorRole.cardBorder.token.rawValue);shadow=\(GameColorRole.cardShadow.token.rawValue)"
     }
 }
 
@@ -1508,11 +1590,33 @@ extension Suit {
             return 3
         }
     }
+
+    var cardFaceAssetCode: String {
+        switch self {
+        case .clubs:
+            return "C"
+        case .diamonds:
+            return "D"
+        case .hearts:
+            return "H"
+        case .spades:
+            return "S"
+        }
+    }
 }
 
 extension Rank {
     var displayOrder: Int {
         Rank.allCases.firstIndex(of: self) ?? 0
+    }
+
+    var cardFaceAssetCode: String {
+        switch self {
+        case .ten:
+            return "T"
+        default:
+            return rawValue
+        }
     }
 }
 

@@ -1225,9 +1225,6 @@ struct BiddingState: Equatable, Hashable {
         }
 
         let acceptedBid = acceptedBid(from: selectedBid)
-        guard acceptedBid.numericValue == nil || recommendation?.preferredTarneebSuit != nil else {
-            return
-        }
 
         bids[seat] = .resolved(acceptedBid)
 
@@ -1334,6 +1331,22 @@ struct BiddingState: Equatable, Hashable {
             )
         }
     }
+
+    mutating func setPreferredTarneebSuit(_ suit: Suit, for seat: Seat) {
+        guard status == .complete,
+              seat == highestBidSeat,
+              let highestBidValue,
+              highestBidValue.numericValue != nil else {
+            return
+        }
+
+        let existingRecommendation = bidRecommendations[seat]
+        bidRecommendations[seat] = BidRecommendation(
+            bid: highestBidValue,
+            preferredTarneebSuit: suit,
+            confidence: existingRecommendation?.confidence ?? 1
+        )
+    }
 }
 
 struct BiddingService {
@@ -1365,22 +1378,29 @@ struct BiddingService {
             return gameState
         }
 
-        let recommendation: BidRecommendation
-        if selectedBid.numericValue == nil {
-            recommendation = BidRecommendation(bid: selectedBid, confidence: 0)
-        } else {
-            guard let selectedTarneebSuit else {
-                return gameState
-            }
-
-            recommendation = BidRecommendation(
-                bid: selectedBid,
-                preferredTarneebSuit: selectedTarneebSuit,
-                confidence: 1
-            )
-        }
+        let recommendation = BidRecommendation(
+            bid: selectedBid,
+            preferredTarneebSuit: selectedBid.numericValue == nil ? nil : selectedTarneebSuit,
+            confidence: selectedBid.numericValue == nil ? 0 : 1
+        )
 
         biddingState.submit(selectedBid, recommendation: recommendation, for: .south)
+        return gameState.replacingBiddingState(
+            biddingState,
+            postBiddingSummary: summaryIfComplete(for: biddingState, players: gameState.players)
+        )
+    }
+
+    func submitSouthTarneebSuit(_ suit: Suit, in gameState: GameState) -> GameState {
+        guard var biddingState = gameState.biddingState,
+              biddingState.status == .complete,
+              biddingState.highestBidSeat == .south,
+              biddingState.highestBidValue?.numericValue != nil,
+              gameState.postBiddingSummary == nil else {
+            return gameState
+        }
+
+        biddingState.setPreferredTarneebSuit(suit, for: .south)
         return gameState.replacingBiddingState(
             biddingState,
             postBiddingSummary: summaryIfComplete(for: biddingState, players: gameState.players)
@@ -2041,6 +2061,10 @@ final class TarneebPresentationState {
 
     func submitSouthBid(_ bid: BidValue, selectedTarneebSuit: Suit? = nil) {
         gameState = biddingService.submitSouthBid(bid, selectedTarneebSuit: selectedTarneebSuit, in: gameState)
+    }
+
+    func submitSouthTarneebSuit(_ suit: Suit) {
+        gameState = biddingService.submitSouthTarneebSuit(suit, in: gameState)
     }
 
     func resolveNextSimulatedBid() {

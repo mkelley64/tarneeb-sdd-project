@@ -9,9 +9,9 @@ final class TarneebLaunchUITests: XCTestCase {
         XCUIDevice.shared.orientation = .portrait
     }
 
-    func testMVP005SmallestSupportedSimulatorIsDocumented() throws {
-        XCTContext.runActivity(named: "MVP 005 smallest supported simulator: \(Self.mvp005SmallestSupportedSimulator)") { _ in
-            XCTAssertEqual(Self.mvp005SmallestSupportedSimulator, "iPhone SE (3rd generation)")
+    func testMVP007SmallestSupportedSimulatorIsDocumented() throws {
+        XCTContext.runActivity(named: "MVP 007 smallest supported simulator: \(Self.mvp007SmallestSupportedSimulator)") { _ in
+            XCTAssertEqual(Self.mvp007SmallestSupportedSimulator, "iPhone SE (3rd generation)")
         }
     }
 
@@ -68,7 +68,7 @@ final class TarneebLaunchUITests: XCTestCase {
         }
     }
 
-    func testInitialScreenExposesMVP005TokenAndLayoutHooks() throws {
+    func testInitialScreenExposesMVP007TokenAndLayoutHooks() throws {
         let app = launchApp()
         let screen = TarneebScreen(app: app)
 
@@ -305,8 +305,9 @@ final class TarneebLaunchUITests: XCTestCase {
         try assertTokenValue(screen.bidArea, contains: "highestSeat=none")
         try assertTokenValue(screen.bidArea, contains: "highestBid=none")
         try assertTokenValue(screen.bidArea, contains: "southSuitOptions=spades,clubs,hearts,diamonds")
+        try assertTokenValue(screen.bidArea, contains: "southDraftBid=Pass")
         try assertTokenValue(screen.bidArea, contains: "southDraftTarneebSuit=none")
-        try assertTokenValue(screen.bidArea, contains: "southTarneebSuitSelectorVisible=true")
+        try assertTokenValue(screen.bidArea, contains: "southTarneebSuitSelectorVisible=false")
         try assertTokenValue(screen.bidArea, contains: "southTarneebSuitSelectorEnabled=false")
         try assertTokenValue(screen.bidArea, contains: "southBidButtonVisible=true")
         try assertTokenValue(screen.bidArea, contains: "southBidButtonEnabled=true")
@@ -324,15 +325,11 @@ final class TarneebLaunchUITests: XCTestCase {
         try assertTokenValue(screen.southBidSelector, contains: "selected=Pass")
         try assertTokenValue(screen.southBidSelector, contains: "allowed=Pass,7,8,9,10,11,12,13")
         try assertTokenValue(screen.southBidSelector, contains: "background=color.bidSelector.background")
-        XCTAssertTrue(screen.southTarneebSuitSelector.exists)
-        XCTAssertFalse(screen.southTarneebSuitOption("spades").isEnabled)
-        try assertTokenValue(screen.southTarneebSuitSelector, contains: "selected=none")
-        try assertTokenValue(screen.southTarneebSuitSelector, contains: "enabled=false")
-        try assertTokenValue(screen.southTarneebSuitSelector, contains: "options=spades,clubs,hearts,diamonds")
-        try assertTokenValue(screen.southTarneebSuitSelector, contains: "background=color.bidSuitSelector.background")
+        XCTAssertFalse(screen.southTarneebSuitSelector.exists)
         try assertTokenValue(screen.southBidButton, contains: "background=color.button.bid.background")
         try assertTokenValue(screen.southBidButton, contains: "enabled=true")
         try assertTokenValue(screen.southBidButton, contains: "selected=Pass")
+        try assertTokenValue(screen.southBidButton, contains: "title=Bid")
 
         for label in screen.seatLabels {
             try assertTokenValue(label, contains: "text=color.text.primary")
@@ -349,6 +346,7 @@ final class TarneebLaunchUITests: XCTestCase {
 
         for card in screen.visibleCards.allElementsBoundByIndex {
             let value = try XCTUnwrap(card.value as? String)
+            XCTAssertTrue(value.contains("asset=card_face_"))
             XCTAssertTrue(value.contains("size=sharedBaseCard"))
             XCTAssertTrue(value.contains("surface=color.card.background"))
             XCTAssertTrue(value.contains("border=color.card.border"))
@@ -429,7 +427,7 @@ final class TarneebLaunchUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["Winning Bid"].exists)
     }
 
-    func testSouthBidDropdownShowsAllowedValuesAndUpdatesSelection() throws {
+    func testSouthBidChipsShowAllowedValuesAndUpdateSelection() throws {
         let app = launchApp(initialDealer: "west", simulatedBids: "east:Pass,north:Pass,west:Pass")
         let screen = TarneebScreen(app: app)
 
@@ -437,7 +435,6 @@ final class TarneebLaunchUITests: XCTestCase {
 
         try assertTokenValue(screen.southBidSelector, contains: "selected=Pass")
         assertSouthBidButtonAppearsBelowBidValue(on: screen)
-        screen.southBidSelector.tap()
 
         for optionLabel in ["Pass", "7", "8", "9", "10", "11", "12", "13"] {
             XCTAssertTrue(app.buttons[optionLabel].waitForExistence(timeout: 2), "Missing bid option \(optionLabel)")
@@ -447,16 +444,13 @@ final class TarneebLaunchUITests: XCTestCase {
 
         XCTAssertTrue(screen.southBidSelector.waitForExistence(timeout: 2))
         try assertTokenValue(screen.southBidSelector, contains: "selected=10")
-        try assertTokenValue(screen.bidArea, contains: "south:10")
-        XCTAssertTrue(screen.southTarneebSuitSelector.exists)
-        XCTAssertTrue(screen.southTarneebSuitOption("spades").isEnabled)
-        XCTAssertFalse(screen.southBidButton.isEnabled)
-        try assertTokenValue(screen.bidArea, contains: "southDraftTarneebSuit=none")
-        try assertTokenValue(screen.bidArea, contains: "southTarneebSuitSelectorEnabled=true")
-        screen.southTarneebSuitOption("spades").tap()
+        try assertTokenValue(screen.bidArea, contains: "values=south:--")
+        try assertTokenValue(screen.bidArea, contains: "southDraftBid=10")
+        XCTAssertFalse(screen.southTarneebSuitSelector.exists)
         XCTAssertTrue(screen.southBidButton.isEnabled)
-        try assertTokenValue(screen.southTarneebSuitSelector, contains: "selected=spades")
-        try assertTokenValue(screen.bidArea, contains: "southDraftTarneebSuit=spades")
+        try assertTokenValue(screen.bidArea, contains: "southDraftTarneebSuit=none")
+        try assertTokenValue(screen.bidArea, contains: "southTarneebSuitSelectorEnabled=false")
+        try assertTokenValue(screen.southBidButton, contains: "title=Bid")
         assertBidAreaShowsLegalValues(on: screen)
 
         screen.southBidButton.tap()
@@ -476,8 +470,40 @@ final class TarneebLaunchUITests: XCTestCase {
 
         XCTAssertTrue(screen.biddingCompleteMessage.waitForExistence(timeout: 8))
         XCTAssertFalse(screen.southBidButton.exists)
-        try assertTokenValue(screen.bidArea, contains: "status=complete")
         try assertTokenValue(screen.dealCompleteMessage, contains: "status=Bidding complete")
+        XCTAssertTrue(screen.southTarneebSelection.waitForExistence(timeout: 4))
+        try assertTokenValue(screen.tableScene, contains: "southTarneebSelectionVisible=true")
+        try assertTokenValue(screen.southTarneebSelection, contains: "team=North-South")
+        try assertTokenValue(screen.southTarneebSelection, contains: "bid=10")
+        try assertTokenValue(screen.southTarneebSelection, contains: "selected=none")
+        try assertTokenValue(screen.postBiddingSouthSuitSelector, contains: "selected=none")
+        try assertTokenValue(screen.postBiddingSouthSuitButton, contains: "enabled=false")
+        try assertTokenValue(screen.southTarneebSuitOption("spades"), contains: "background=color.card.background")
+        try assertTokenValue(screen.southTarneebSuitOption("spades"), contains: "text=color.card.suit.black")
+        try assertTokenValue(screen.southTarneebSuitOption("clubs"), contains: "background=color.card.background")
+        try assertTokenValue(screen.southTarneebSuitOption("clubs"), contains: "text=color.card.suit.black")
+        try assertTokenValue(screen.southTarneebSuitOption("hearts"), contains: "background=color.card.background")
+        try assertTokenValue(screen.southTarneebSuitOption("hearts"), contains: "text=color.card.suit.red")
+        try assertTokenValue(screen.southTarneebSuitOption("diamonds"), contains: "background=color.card.background")
+        try assertTokenValue(screen.southTarneebSuitOption("diamonds"), contains: "text=color.card.suit.red")
+
+        screen.southTarneebSuitOption("spades").tap()
+
+        XCTAssertTrue(screen.postBiddingSouthSuitButton.isEnabled)
+        try assertTokenValue(screen.southTarneebSelection, contains: "selected=spades")
+        try assertTokenValue(screen.postBiddingSouthSuitSelector, contains: "selected=spades")
+        try assertTokenValue(screen.postBiddingSouthSuitButton, contains: "title=Set")
+
+        screen.postBiddingSouthSuitButton.tap()
+
+        XCTAssertTrue(screen.postBiddingSummary.waitForExistence(timeout: 2))
+        XCTAssertFalse(screen.southTarneebSelection.exists)
+        try assertTokenValue(screen.postBiddingSummary, contains: "team=North-South")
+        try assertTokenValue(screen.postBiddingSummary, contains: "bid=10")
+        try assertTokenValue(screen.postBiddingSummary, contains: "tarneebSymbol=♠")
+        try assertTokenValue(screen.postBiddingSummary, contains: "tarneebSymbolColor=color.card.suit.black")
+        try assertTokenValue(screen.postBiddingSummary, contains: "tarneebSymbolBackground=color.card.background")
+        try assertTokenValue(screen.postBiddingSummary, contains: "tarneebSymbolBorder=color.button.newGame.background")
     }
 
     func testSouthPassRemainsReadonlyAfterLaterPlayerRaises() throws {
@@ -488,8 +514,8 @@ final class TarneebLaunchUITests: XCTestCase {
 
         XCTAssertTrue(screen.southBidSelector.exists)
         try assertTokenValue(screen.southBidSelector, contains: "selected=Pass")
-        XCTAssertTrue(screen.southTarneebSuitSelector.exists)
-        XCTAssertFalse(screen.southTarneebSuitOption("spades").isEnabled)
+        XCTAssertFalse(screen.southTarneebSuitSelector.exists)
+        try assertTokenValue(screen.southBidButton, contains: "title=Bid")
 
         screen.southBidButton.tap()
 
@@ -512,7 +538,8 @@ final class TarneebLaunchUITests: XCTestCase {
         deal(on: screen)
 
         try assertTokenValue(screen.bidArea, contains: "currentTurn=south")
-        try assertTokenValue(screen.bidArea, contains: "values=south:Pass,east:--,north:--,west:--")
+        try assertTokenValue(screen.bidArea, contains: "values=south:--,east:--,north:--,west:--")
+        try assertTokenValue(screen.bidArea, contains: "southDraftBid=Pass")
 
         screen.southBidButton.tap()
 
@@ -1042,7 +1069,7 @@ final class TarneebLaunchUITests: XCTestCase {
     private static let allowedBidLabels = ["Pass", "7", "8", "9", "10", "11", "12", "13"]
     private static let visibleBidLabels = ["--"] + allowedBidLabels
 
-    private static let mvp005SmallestSupportedSimulator = "iPhone SE (3rd generation)"
+    private static let mvp007SmallestSupportedSimulator = "iPhone SE (3rd generation)"
 }
 
 private struct TarneebScreen {
@@ -1318,6 +1345,18 @@ private struct TarneebScreen {
 
     var postBiddingSummary: XCUIElement {
         element(identifier: "tarneeb-post-bidding-summary")
+    }
+
+    var southTarneebSelection: XCUIElement {
+        element(identifier: "tarneeb-south-tarneeb-selection")
+    }
+
+    var postBiddingSouthSuitSelector: XCUIElement {
+        element(identifier: "tarneeb-post-bidding-suit-selector-south")
+    }
+
+    var postBiddingSouthSuitButton: XCUIElement {
+        app.buttons.matching(identifier: "tarneeb-post-bidding-suit-button-south").firstMatch
     }
 
     var prohibitedBiddingResolutionElements: [XCUIElement] {

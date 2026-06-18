@@ -59,10 +59,19 @@ struct ContentView: View {
             summary: gameState.postBiddingSummary,
             isBiddingAreaFadingOut: isBiddingAreaFadingOut
         )
+        let southTarneebSelectionPresentation = SouthTarneebSelectionPresentation(
+            phase: gameState.phase,
+            biddingStatus: gameState.biddingStatus,
+            highestBidSeat: gameState.highestBidSeat,
+            highestBidValue: gameState.highestBidValue,
+            summary: gameState.postBiddingSummary,
+            isBiddingAreaFadingOut: isBiddingAreaFadingOut,
+            selectedSuit: southDraftTarneebSuit
+        )
         let bidEntriesAccessibilityValue = bidPresentation?.entries
             .map { "\($0.seat.rawValue):\($0.valueLabel)" }
             .joined(separator: ",") ?? "none"
-        let tableSceneAccessibilityValue = "table=\(GameColorRole.tableSurface.token.rawValue);label=\(GameColorRole.textPrimary.token.rawValue);station=\(GameColorRole.stationOutline.token.rawValue);dealer=\(gameState.dealerSeat.rawValue);diameter=\(Int(metrics.tableDiameter.rounded()));bidAreaVisible=\(String(bidPresentation != nil));bidAreaFading=\(String(isBiddingAreaFadingOut));postBiddingSummaryVisible=\(String(postBiddingSummaryPresentation != nil));bids=\(bidEntriesAccessibilityValue);summary=\(postBiddingSummaryPresentation?.teamLabel ?? "none");\(dealAnimationAccessibilityValue)"
+        let tableSceneAccessibilityValue = "table=\(GameColorRole.tableSurface.token.rawValue);label=\(GameColorRole.textPrimary.token.rawValue);station=\(GameColorRole.stationOutline.token.rawValue);dealer=\(gameState.dealerSeat.rawValue);diameter=\(Int(metrics.tableDiameter.rounded()));bidAreaVisible=\(String(bidPresentation != nil));bidAreaFading=\(String(isBiddingAreaFadingOut));postBiddingSummaryVisible=\(String(postBiddingSummaryPresentation != nil));southTarneebSelectionVisible=\(String(southTarneebSelectionPresentation != nil));bids=\(bidEntriesAccessibilityValue);summary=\(postBiddingSummaryPresentation?.teamLabel ?? "none");\(dealAnimationAccessibilityValue)"
 
         return ZStack {
             VStack(spacing: metrics.verticalSpacing) {
@@ -88,6 +97,8 @@ struct ContentView: View {
                             )
                     } else if let postBiddingSummaryPresentation {
                         postBiddingSummaryView(postBiddingSummaryPresentation, metrics: metrics)
+                    } else if let southTarneebSelectionPresentation {
+                        southTarneebSelectionView(southTarneebSelectionPresentation, metrics: metrics)
                     }
                 }
             }
@@ -358,18 +369,12 @@ struct ContentView: View {
     }
 
     private func cardFaceView(_ presentation: CardPresentation) -> some View {
-        Text(presentation.displayLabel)
-            .font(.system(size: cardSizeConfiguration.rankFontPointSize, weight: .semibold))
+        Image(presentation.faceAssetName)
+            .interpolation(.high)
+            .antialiased(true)
+            .resizable()
+            .scaledToFit()
             .frame(width: cardSizeConfiguration.baseCardWidth, height: cardSizeConfiguration.baseCardHeight)
-            .foregroundStyle(presentation.suitColorToken.swiftUIColor)
-            .background(
-                RoundedRectangle(cornerRadius: cardSizeConfiguration.cornerRadius)
-                    .fill(GameColorRole.cardFace.token.swiftUIColor)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: cardSizeConfiguration.cornerRadius)
-                            .stroke(GameColorRole.cardBorder.token.swiftUIColor, lineWidth: 1)
-                    )
-            )
             .shadow(color: GameColorRole.cardShadow.token.swiftUIColor, radius: 1, y: 1)
             .accessibilityLabel(presentation.accessibilityLabel)
             .accessibilityIdentifier("tarneeb-visible-card")
@@ -435,7 +440,7 @@ struct ContentView: View {
             .accessibilityValue(presentation.accessibilityValue)
 
             if presentation.southBidButtonVisible {
-                southBidButtonRow(presentation: presentation)
+                southBidActionTray(presentation: presentation)
             }
         }
         .padding(CGFloat(presentation.areaTokens.padding.numericValue))
@@ -480,9 +485,7 @@ struct ContentView: View {
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(presentation.tokens.labelText.swiftUIColor)
                 Spacer()
-                Text(presentation.tarneebSymbol)
-                    .font(.title3.weight(.bold))
-                    .foregroundStyle(presentation.tokens.tarneebText.swiftUIColor)
+                postBiddingTarneebSuitChip(presentation)
             }
         }
         .padding(CGFloat(presentation.tokens.padding.numericValue))
@@ -500,6 +503,91 @@ struct ContentView: View {
         .accessibilityValue(presentation.accessibilityValue)
     }
 
+    private func postBiddingTarneebSuitChip(_ presentation: PostBiddingSummaryPresentation) -> some View {
+        Text(presentation.tarneebSymbol)
+            .font(.subheadline.weight(.bold))
+            .foregroundStyle(presentation.tarneebSymbolColorToken.swiftUIColor)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(
+                RoundedRectangle(cornerRadius: 5)
+                    .fill(presentation.tarneebSymbolBackgroundColorToken.swiftUIColor)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 5)
+                            .stroke(presentation.tarneebSymbolBorderColorToken.swiftUIColor, lineWidth: 1)
+                    )
+            )
+    }
+
+    private func southTarneebSelectionView(_ presentation: SouthTarneebSelectionPresentation, metrics: TableLayoutMetrics) -> some View {
+        VStack(alignment: .leading, spacing: CGFloat(presentation.tokens.rowGap.numericValue)) {
+            HStack {
+                Text("Team")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(presentation.tokens.labelText.swiftUIColor)
+                Spacer()
+                Text(presentation.teamLabel)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(presentation.tokens.teamText.swiftUIColor)
+            }
+
+            HStack {
+                Text("Bid")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(presentation.tokens.labelText.swiftUIColor)
+                Spacer()
+                Text(presentation.bidValueLabel)
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(presentation.tokens.bidText.swiftUIColor)
+            }
+
+            Text(presentation.tarneebLabel)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(presentation.tokens.labelText.swiftUIColor)
+
+            HStack(spacing: CGFloat(presentation.suitSelectorTokens.optionGap.numericValue)) {
+                ForEach(presentation.suitOptions, id: \.self) { suit in
+                    southTarneebSuitOptionButton(
+                        suit,
+                        selectedSuit: southDraftTarneebSuit,
+                        isEnabled: true,
+                        tokens: presentation.suitSelectorTokens
+                    )
+                }
+            }
+            .frame(
+                minHeight: CGFloat(presentation.suitSelectorTokens.height.numericValue),
+                alignment: .leading
+            )
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("tarneeb-post-bidding-suit-selector-south")
+            .accessibilityValue(Text(verbatim: "visible=true;enabled=true;selected=\(southDraftTarneebSuit?.rawValue ?? "none");options=\(presentation.suitOptionsLabel);\(presentation.suitSelectorTokens.accessibilityValue)"))
+
+            Button("Set", action: submitSouthTarneebSuit)
+                .buttonStyle(CompactTokenButtonStyle(tokens: presentation.bidButtonTokens))
+                .disabled(!presentation.submitEnabled)
+                .frame(
+                    minWidth: CGFloat(presentation.bidButtonMinimumWidthToken.numericValue),
+                    minHeight: CGFloat(presentation.bidButtonHeightToken.numericValue)
+                )
+                .accessibilityIdentifier("tarneeb-post-bidding-suit-button-south")
+                .accessibilityValue(Text(verbatim: "visible=true;enabled=\(String(presentation.submitEnabled));selectedSuit=\(southDraftTarneebSuit?.rawValue ?? "none");title=Set;\(presentation.bidButtonTokens.accessibilityValue);height=\(presentation.bidButtonHeightToken.rawValue);minimumWidth=\(presentation.bidButtonMinimumWidthToken.rawValue)"))
+        }
+        .padding(CGFloat(presentation.tokens.padding.numericValue))
+        .frame(maxWidth: metrics.bidAreaMaxWidth, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: CGFloat(presentation.tokens.cornerRadius.numericValue))
+                .fill(presentation.tokens.background.swiftUIColor)
+                .overlay(
+                    RoundedRectangle(cornerRadius: CGFloat(presentation.tokens.cornerRadius.numericValue))
+                        .stroke(presentation.tokens.border.swiftUIColor, lineWidth: 1)
+                )
+        )
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("tarneeb-south-tarneeb-selection")
+        .accessibilityValue(presentation.accessibilityValue)
+    }
+
     private func bidRow(_ entry: BidEntryPresentation, presentation: BidAreaPresentation) -> some View {
         VStack(spacing: CGFloat(presentation.areaTokens.rowGap.numericValue)) {
             Text(entry.seatLabel)
@@ -509,13 +597,13 @@ struct ContentView: View {
                 .minimumScaleFactor(0.8)
 
             if entry.isSelectable {
-                VStack(spacing: CGFloat(presentation.suitSelectorTokens.optionGap.numericValue)) {
-                    bidSelector(entry: entry, presentation: presentation)
-
-                    if presentation.southSuitSelectorVisible {
-                        southTarneebSuitSelector(presentation: presentation)
-                    }
-                }
+                bidValueText(
+                    entry.historyValueLabel,
+                    colorToken: entry.historyValueColorToken,
+                    accessibilityValue: entry.accessibilityValue,
+                    identifier: "tarneeb-bid-value-\(entry.seat.rawValue)",
+                    presentation: presentation
+                )
             } else {
                 Text(entry.valueLabel)
                     .font(.subheadline.weight(.semibold))
@@ -545,16 +633,69 @@ struct ContentView: View {
         .accessibilityValue(entry.accessibilityValue)
     }
 
-    private func southBidButtonRow(presentation: BidAreaPresentation) -> some View {
-        southBidButton(presentation: presentation)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.top, CGFloat(presentation.selectorTokens.height.numericValue))
+    private func bidValueText(
+        _ value: String,
+        colorToken: GameColorToken,
+        accessibilityValue: String,
+        identifier: String,
+        presentation: BidAreaPresentation
+    ) -> some View {
+        Text(value)
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(colorToken.swiftUIColor)
+            .frame(
+                minHeight: CGFloat(presentation.selectorTokens.height.numericValue),
+                alignment: .center
+            )
+            .id(identifier + "-\(value)")
+            .transition(.opacity)
+            .animation(
+                .easeInOut(duration: presentation.fadeOutToken.seconds + presentation.fadeInToken.seconds),
+                value: value
+            )
+            .animation(
+                .easeInOut(duration: presentation.fadeOutToken.seconds + presentation.fadeInToken.seconds),
+                value: colorToken.rawValue
+            )
+            .accessibilityIdentifier(identifier)
+            .accessibilityValue(accessibilityValue)
+    }
+
+    private func southBidActionTray(presentation: BidAreaPresentation) -> some View {
+        VStack(alignment: .leading, spacing: CGFloat(presentation.areaTokens.rowGap.numericValue)) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(presentation.currentTurnSeat == .south ? "Your bid" : waitingForBidderLabel(presentation))
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(presentation.areaTokens.seatText.swiftUIColor)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                    .accessibilityIdentifier("tarneeb-bid-action-label-south")
+
+                Spacer(minLength: 8)
+            }
+
+            if presentation.currentTurnSeat == .south {
+                southBidChoiceTray(presentation: presentation)
+
+                if presentation.southSuitSelectorVisible {
+                    southTarneebSuitSelector(presentation: presentation)
+                }
+            }
+
+            southBidButton(presentation: presentation)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.top, CGFloat(presentation.areaTokens.rowGap.numericValue))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("tarneeb-bid-action-tray-south")
+        .accessibilityValue(Text(verbatim: "currentTurn=\(presentation.currentTurnSeat?.rawValue ?? "none");selected=\(southDraftBid.displayLabel);selectedSuit=\(southDraftTarneebSuit?.rawValue ?? "none");allowed=\(presentation.allowedValuesLabel);buttonEnabled=\(presentation.southBidButtonEnabled)"))
     }
 
     private func southBidButton(presentation: BidAreaPresentation) -> some View {
-        let buttonAccessibilityValue = "visible=true;enabled=\(String(presentation.southBidButtonEnabled));selected=\(southDraftBid.displayLabel);selectedSuit=\(southDraftTarneebSuit?.rawValue ?? "none");allowed=\(presentation.allowedValuesLabel);currentTurn=\(presentation.currentTurnSeat?.rawValue ?? "none");\(presentation.bidButtonTokens.accessibilityValue);height=\(presentation.bidButtonHeightToken.rawValue);minimumWidth=\(presentation.bidButtonMinimumWidthToken.rawValue)"
+        let buttonTitle = "Bid"
+        let buttonAccessibilityValue = "visible=true;enabled=\(String(presentation.southBidButtonEnabled));selected=\(southDraftBid.displayLabel);selectedSuit=\(southDraftTarneebSuit?.rawValue ?? "none");allowed=\(presentation.allowedValuesLabel);currentTurn=\(presentation.currentTurnSeat?.rawValue ?? "none");title=\(buttonTitle);\(presentation.bidButtonTokens.accessibilityValue);height=\(presentation.bidButtonHeightToken.rawValue);minimumWidth=\(presentation.bidButtonMinimumWidthToken.rawValue)"
 
-        return Button("Bid", action: submitSouthBid)
+        return Button(buttonTitle, action: submitSouthBid)
             .buttonStyle(CompactTokenButtonStyle(tokens: presentation.bidButtonTokens))
             .disabled(!presentation.southBidButtonEnabled)
             .frame(
@@ -565,48 +706,29 @@ struct ContentView: View {
             .accessibilityValue(Text(verbatim: buttonAccessibilityValue))
     }
 
-    private func bidSelector(entry: BidEntryPresentation, presentation: BidAreaPresentation) -> some View {
-        Menu {
+    private func waitingForBidderLabel(_ presentation: BidAreaPresentation) -> String {
+        guard let currentTurnSeat = presentation.currentTurnSeat else {
+            return "Waiting"
+        }
+
+        return "Waiting for \(currentTurnSeat.displayLabel)"
+    }
+
+    private func southBidChoiceTray(presentation: BidAreaPresentation) -> some View {
+        HStack(spacing: CGFloat(presentation.suitSelectorTokens.optionGap.numericValue)) {
             ForEach(presentation.allowedValues, id: \.self) { bidValue in
                 Button(bidValue.displayLabel) {
                     selectSouthDraftBid(bidValue)
                 }
+                .buttonStyle(BidChoiceChipButtonStyle(isSelected: southDraftBid == bidValue, isPass: bidValue == .pass))
                 .accessibilityIdentifier("tarneeb-bid-option-\(bidOptionIdentifier(for: bidValue))")
             }
-        } label: {
-            HStack(spacing: 6) {
-                Text(entry.valueLabel)
-                    .font(.subheadline.weight(.semibold))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-                    .id("south-selector-\(entry.valueLabel)")
-                    .transition(.opacity)
-                    .animation(
-                        .easeInOut(duration: presentation.fadeOutToken.seconds + presentation.fadeInToken.seconds),
-                        value: entry.valueLabel
-                    )
-
-                Image(systemName: "chevron.down")
-                    .font(.caption.weight(.bold))
-                    .accessibilityHidden(true)
-            }
-            .foregroundStyle(presentation.selectorTokens.text.swiftUIColor)
-            .frame(
-                minWidth: CGFloat(presentation.selectorTokens.minimumWidth.numericValue),
-                minHeight: CGFloat(presentation.selectorTokens.height.numericValue)
-            )
-            .background(
-                RoundedRectangle(cornerRadius: CGFloat(presentation.areaTokens.cornerRadius.numericValue))
-                    .fill(presentation.selectorTokens.background.swiftUIColor)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: CGFloat(presentation.areaTokens.cornerRadius.numericValue))
-                            .stroke(presentation.selectorTokens.border.swiftUIColor, lineWidth: 1)
-                    )
-            )
         }
+        .frame(minHeight: CGFloat(presentation.selectorTokens.height.numericValue), alignment: .leading)
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("tarneeb-bid-selector-south")
         .accessibilityValue(
-            Text(verbatim: "selected=\(entry.valueLabel);allowed=\(presentation.allowedValuesLabel);\(entry.accessibilityValue);\(presentation.selectorTokens.accessibilityValue)")
+            Text(verbatim: "selected=\(southDraftBid.displayLabel);allowed=\(presentation.allowedValuesLabel);\(presentation.selectorTokens.accessibilityValue)")
         )
     }
 
@@ -616,22 +738,17 @@ struct ContentView: View {
 
         return HStack(spacing: CGFloat(presentation.suitSelectorTokens.optionGap.numericValue)) {
             ForEach(presentation.southSuitOptions, id: \.self) { suit in
-                southTarneebSuitOptionButton(suit, presentation: presentation)
+                southTarneebSuitOptionButton(
+                    suit,
+                    selectedSuit: southDraftTarneebSuit,
+                    isEnabled: presentation.southSuitSelectorEnabled,
+                    tokens: presentation.suitSelectorTokens
+                )
             }
         }
         .frame(
-            minWidth: CGFloat(presentation.suitSelectorTokens.minimumWidth.numericValue),
             minHeight: CGFloat(presentation.suitSelectorTokens.height.numericValue),
-            alignment: .center
-        )
-        .padding(.horizontal, CGFloat(presentation.suitSelectorTokens.optionGap.numericValue))
-        .background(
-            RoundedRectangle(cornerRadius: CGFloat(presentation.areaTokens.cornerRadius.numericValue))
-                .fill(presentation.suitSelectorTokens.background.swiftUIColor)
-                .overlay(
-                    RoundedRectangle(cornerRadius: CGFloat(presentation.areaTokens.cornerRadius.numericValue))
-                        .stroke(presentation.suitSelectorTokens.border.swiftUIColor, lineWidth: 1)
-                )
+            alignment: .leading
         )
         .opacity(presentation.southSuitSelectorEnabled ? 1 : presentation.suitSelectorTokens.disabledOpacity.value)
         .accessibilityElement(children: .contain)
@@ -639,11 +756,16 @@ struct ContentView: View {
         .accessibilityValue(Text(verbatim: accessibilityValue))
     }
 
-    private func southTarneebSuitOptionButton(_ suit: Suit, presentation: BidAreaPresentation) -> some View {
-        let isSelected = southDraftTarneebSuit == suit
-        let optionWidth = CGFloat(presentation.suitSelectorTokens.optionMinimumWidth.numericValue)
-        let optionHeight = CGFloat(presentation.suitSelectorTokens.height.numericValue)
-        let accessibilityValue = "selected=\(isSelected);enabled=\(presentation.southSuitSelectorEnabled);symbol=\(suit.displaySymbol)"
+    private func southTarneebSuitOptionButton(
+        _ suit: Suit,
+        selectedSuit: Suit?,
+        isEnabled: Bool,
+        tokens: BidSuitSelectorTokenSet
+    ) -> some View {
+        let isSelected = selectedSuit == suit
+        let optionWidth = CGFloat(tokens.optionMinimumWidth.numericValue)
+        let optionHeight = CGFloat(tokens.height.numericValue)
+        let accessibilityValue = "selected=\(isSelected);enabled=\(isEnabled);symbol=\(suit.displaySymbol);background=\(GameColorToken.cardBackground.rawValue);text=\(suit.colorToken.rawValue)"
 
         return Button {
             selectSouthDraftTarneebSuit(suit)
@@ -652,13 +774,8 @@ struct ContentView: View {
                 .font(.caption.weight(.bold))
                 .frame(minWidth: optionWidth, minHeight: optionHeight)
         }
-        .buttonStyle(
-            BidSuitOptionButtonStyle(
-                tokens: presentation.suitSelectorTokens,
-                isSelected: isSelected
-            )
-        )
-        .disabled(!presentation.southSuitSelectorEnabled)
+        .buttonStyle(BidSuitChipButtonStyle(suit: suit, isSelected: isSelected))
+        .disabled(!isEnabled)
         .accessibilityIdentifier("tarneeb-bid-suit-option-\(suit.rawValue)")
         .accessibilityLabel(Text(verbatim: suit.rawValue.capitalized))
         .accessibilityValue(Text(verbatim: accessibilityValue))
@@ -738,8 +855,7 @@ struct ContentView: View {
     }
 
     private func selectSouthDraftTarneebSuit(_ suit: Suit) {
-        guard gameState.biddingState?.isWaitingForSouth == true,
-              southDraftBid.numericValue != nil else {
+        guard isWaitingForSouthPostBiddingTarneebSelection else {
             return
         }
 
@@ -751,16 +867,23 @@ struct ContentView: View {
             return
         }
 
-        guard southDraftBid.numericValue == nil || southDraftTarneebSuit != nil else {
-            return
-        }
-
-        presentationState.submitSouthBid(southDraftBid, selectedTarneebSuit: southDraftTarneebSuit)
+        presentationState.submitSouthBid(southDraftBid)
         gameState = presentationState.gameState
         southDraftBid = normalizedSouthDraftBid(for: gameState)
         southDraftTarneebSuit = normalizedSouthDraftTarneebSuit(for: gameState)
         beginTerminalBiddingTransitionIfNeeded()
         scheduleSimulatedBiddingIfNeeded()
+    }
+
+    private func submitSouthTarneebSuit() {
+        guard isWaitingForSouthPostBiddingTarneebSelection,
+              let selectedTarneebSuit = southDraftTarneebSuit else {
+            return
+        }
+
+        presentationState.submitSouthTarneebSuit(selectedTarneebSuit)
+        gameState = presentationState.gameState
+        southDraftTarneebSuit = normalizedSouthDraftTarneebSuit(for: gameState)
     }
 
     private func stageDealAnimationIfNeeded(for dealtState: GameState) {
@@ -798,12 +921,23 @@ struct ContentView: View {
     }
 
     private func normalizedSouthDraftTarneebSuit(for state: GameState) -> Suit? {
-        guard state.biddingState?.isWaitingForSouth == true,
-              southDraftBid.numericValue != nil else {
+        guard state.biddingStatus == .complete,
+              state.highestBidSeat == .south,
+              state.highestBidValue?.numericValue != nil,
+              state.postBiddingSummary == nil else {
             return nil
         }
 
         return southDraftTarneebSuit
+    }
+
+    private var isWaitingForSouthPostBiddingTarneebSelection: Bool {
+        gameState.phase == .dealt
+            && gameState.biddingStatus == .complete
+            && gameState.highestBidSeat == .south
+            && gameState.highestBidValue?.numericValue != nil
+            && gameState.postBiddingSummary == nil
+            && !isBiddingAreaFadingOut
     }
 
     @MainActor
@@ -1279,6 +1413,79 @@ private struct BidSuitOptionButtonStyle: ButtonStyle {
                     )
             )
             .opacity(isEnabled ? 1 : tokens.disabledOpacity.value)
+    }
+}
+
+private struct BidChoiceChipButtonStyle: ButtonStyle {
+    let isSelected: Bool
+    let isPass: Bool
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.caption.weight(.bold))
+            .foregroundStyle(foregroundColor.swiftUIColor)
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
+            .frame(minWidth: isPass ? 48 : 32, minHeight: 32)
+            .padding(.horizontal, isPass ? 4 : 0)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(backgroundColor.swiftUIColor)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(borderColor.swiftUIColor, lineWidth: isSelected || configuration.isPressed ? 2 : 1)
+                    )
+            )
+            .opacity(isEnabled ? 1 : GameEffectToken.bidButtonDisabledOpacity.value)
+    }
+
+    private var foregroundColor: GameColorToken {
+        if isSelected {
+            return .buttonNewGameText
+        }
+
+        return isPass ? .bidAreaSeatText : .bidAreaValueText
+    }
+
+    private var backgroundColor: GameColorToken {
+        isSelected ? .buttonNewGameBackground : .bidAreaBackground
+    }
+
+    private var borderColor: GameColorToken {
+        isSelected ? .buttonNewGameBackground : .bidAreaBorder
+    }
+}
+
+private struct BidSuitChipButtonStyle: ButtonStyle {
+    let suit: Suit
+    let isSelected: Bool
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundStyle(foregroundColor.swiftUIColor)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(backgroundColor.swiftUIColor)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(borderColor.swiftUIColor, lineWidth: isSelected || configuration.isPressed ? 2 : 1)
+                    )
+            )
+            .opacity(isEnabled ? 1 : GameEffectToken.bidSuitSelectorDisabledOpacity.value)
+    }
+
+    private var foregroundColor: GameColorToken {
+        suit.colorToken
+    }
+
+    private var backgroundColor: GameColorToken {
+        .cardBackground
+    }
+
+    private var borderColor: GameColorToken {
+        isSelected ? .buttonNewGameBackground : .bidAreaBorder
     }
 }
 
