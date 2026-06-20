@@ -81,7 +81,7 @@ enum GameColorToken: String, CaseIterable, Equatable, Hashable {
         case .stationOutline:
             return "#F5F5F5"
         case .stationOutlineActive:
-            return "#FFFFFF"
+            return "#FFB300"
         case .stationOutlineInactive:
             return "#FFFFFF66"
         case .dealerBadgeBackground:
@@ -383,6 +383,29 @@ enum GameEffectToken: String, CaseIterable, Equatable, Hashable {
     case tableTitleShadowBlurRadius = "effect.tableTitle.shadow.blurRadius"
     case bidButtonDisabledOpacity = "effect.bidButton.disabled.opacity"
     case bidSuitSelectorDisabledOpacity = "effect.bidSuitSelector.disabled.opacity"
+    case tableCenterSurfaceOpacity = "effect.table.centerSurface.opacity"
+    case tableInnerRingOpacity = "effect.table.innerRing.opacity"
+    case tableRailHighlightOpacity = "effect.table.rail.highlight.opacity"
+    case tableRailInnerBevelOpacity = "effect.table.rail.innerBevel.opacity"
+    case tableRailShadowOpacity = "effect.table.rail.shadow.opacity"
+    case tableRailShadowRadius = "effect.table.rail.shadow.radius"
+    case tablePlayAreaShadowOpacity = "effect.table.playArea.shadow.opacity"
+    case southHandRailBackgroundOpacity = "effect.southHand.rail.background.opacity"
+    case southHandRailStrokeOpacity = "effect.southHand.rail.stroke.opacity"
+    case stationBackgroundDefaultOpacity = "effect.station.background.default.opacity"
+    case stationBackgroundActiveOpacity = "effect.station.background.active.opacity"
+    case bidStationCueBackgroundOpacity = "effect.bid.stationCue.background.opacity"
+    case bidStationCueScale = "effect.bid.stationCue.scale"
+    case bidStationCueShadowOpacity = "effect.bid.stationCue.shadow.opacity"
+    case bidStationCueShadowRadius = "effect.bid.stationCue.shadow.radius"
+    case bidTurnPillBackgroundOpacity = "effect.bidArea.turnPill.background.opacity"
+    case bidCellDefaultBackgroundOpacity = "effect.bidArea.cell.default.background.opacity"
+    case bidCellActiveBackgroundOpacity = "effect.bidArea.cell.active.background.opacity"
+    case bidCellHighestBackgroundOpacity = "effect.bidArea.cell.highest.background.opacity"
+    case bidActionTrayBackgroundOpacity = "effect.bidArea.actionTray.background.opacity"
+    case phaseStatusBackgroundOpacity = "effect.phaseStatus.background.opacity"
+    case statusPillBorderOpacity = "effect.statusPill.border.opacity"
+    case bottomControlSeparatorOpacity = "effect.bottomControl.separator.opacity"
 
     var value: Double {
         switch self {
@@ -396,6 +419,52 @@ enum GameEffectToken: String, CaseIterable, Equatable, Hashable {
             return 0.55
         case .bidSuitSelectorDisabledOpacity:
             return 0.55
+        case .tableCenterSurfaceOpacity:
+            return 0.16
+        case .tableInnerRingOpacity:
+            return 0.38
+        case .tableRailHighlightOpacity:
+            return 0.42
+        case .tableRailInnerBevelOpacity:
+            return 0.28
+        case .tableRailShadowOpacity:
+            return 0.24
+        case .tableRailShadowRadius:
+            return 6
+        case .tablePlayAreaShadowOpacity:
+            return 0.16
+        case .southHandRailBackgroundOpacity:
+            return 0.14
+        case .southHandRailStrokeOpacity:
+            return 0.36
+        case .stationBackgroundDefaultOpacity:
+            return 0.08
+        case .stationBackgroundActiveOpacity:
+            return 0.24
+        case .bidStationCueBackgroundOpacity:
+            return 0.34
+        case .bidStationCueScale:
+            return 1.035
+        case .bidStationCueShadowOpacity:
+            return 0.34
+        case .bidStationCueShadowRadius:
+            return 7
+        case .bidTurnPillBackgroundOpacity:
+            return 0.22
+        case .bidCellDefaultBackgroundOpacity:
+            return 0.06
+        case .bidCellActiveBackgroundOpacity:
+            return 0.10
+        case .bidCellHighestBackgroundOpacity:
+            return 0.14
+        case .bidActionTrayBackgroundOpacity:
+            return 0.10
+        case .phaseStatusBackgroundOpacity:
+            return 0.72
+        case .statusPillBorderOpacity:
+            return 0.55
+        case .bottomControlSeparatorOpacity:
+            return 0.35
         }
     }
 }
@@ -408,9 +477,11 @@ enum GameAnimationToken: String, CaseIterable, Equatable, Hashable {
     case dealSouthRevealFlipDuration = "animation.deal.southReveal.flip.duration"
     case dealSouthRevealFlipStagger = "animation.deal.southReveal.flip.stagger"
     case bidSimulatedTurnDelay = "animation.bid.simulatedTurn.delay"
+    case bidStationCuePulseDuration = "animation.bid.stationCue.pulse.duration"
     case bidValueFadeOutDuration = "animation.bid.value.fadeOut.duration"
     case bidValueFadeInDuration = "animation.bid.value.fadeIn.duration"
     case bidAreaFadeOutDuration = "animation.bid.area.fadeOut.duration"
+    case trickPlayedCardFlightDuration = "animation.trick.playedCard.flight.duration"
 
     var seconds: Double {
         switch self {
@@ -428,12 +499,16 @@ enum GameAnimationToken: String, CaseIterable, Equatable, Hashable {
             return 0.11
         case .bidSimulatedTurnDelay:
             return 1.0
+        case .bidStationCuePulseDuration:
+            return 0.24
         case .bidValueFadeOutDuration:
             return 0.5
         case .bidValueFadeInDuration:
             return 0.5
         case .bidAreaFadeOutDuration:
             return 1.0
+        case .trickPlayedCardFlightDuration:
+            return 0.30
         }
     }
 
@@ -480,6 +555,7 @@ enum GameBidLayoutToken: String, CaseIterable, Equatable, Hashable {
     case bidAreaCornerRadius = "layout.bidArea.cornerRadius"
     case bidSelectorHeight = "layout.bidSelector.height"
     case bidSelectorMinimumWidth = "layout.bidSelector.minimumWidth"
+    case bidSelectorOptionGap = "layout.bidSelector.optionGap"
     case bidSuitSelectorHeight = "layout.bidSuitSelector.height"
     case bidSuitSelectorMinimumWidth = "layout.bidSuitSelector.minimumWidth"
     case bidSuitSelectorOptionMinimumWidth = "layout.bidSuitSelector.optionMinimumWidth"
@@ -489,6 +565,7 @@ enum GameBidLayoutToken: String, CaseIterable, Equatable, Hashable {
     case postBiddingSummaryPadding = "layout.postBiddingSummary.padding"
     case postBiddingSummaryRowGap = "layout.postBiddingSummary.rowGap"
     case postBiddingSummaryCornerRadius = "layout.postBiddingSummary.cornerRadius"
+    case postBiddingSummaryTableEdgeVerticalOffsetRatio = "layout.postBiddingSummary.tableEdgeVerticalOffsetRatio"
 
     var numericValue: Double {
         switch self {
@@ -501,7 +578,9 @@ enum GameBidLayoutToken: String, CaseIterable, Equatable, Hashable {
         case .bidSelectorHeight:
             return 36
         case .bidSelectorMinimumWidth:
-            return 82
+            return 32
+        case .bidSelectorOptionGap:
+            return 2
         case .bidSuitSelectorHeight:
             return 36
         case .bidSuitSelectorMinimumWidth:
@@ -520,6 +599,8 @@ enum GameBidLayoutToken: String, CaseIterable, Equatable, Hashable {
             return 6
         case .postBiddingSummaryCornerRadius:
             return 10
+        case .postBiddingSummaryTableEdgeVerticalOffsetRatio:
+            return 0.35
         }
     }
 }
@@ -535,6 +616,10 @@ struct CardSizeConfiguration: Equatable {
     let cornerRadius: Double
     let rankFontPointSize: Double
     let hiddenStackOffset: Double
+    let hiddenFanRotationStepDegrees: Double
+    let hiddenFanArcDepth: Double
+    let southHandCardSpacing: Double
+    let southHandSuitBoundarySpacing: Double
 
     static let sharedBase = CardSizeConfiguration(
         category: .sharedBaseCard,
@@ -542,7 +627,11 @@ struct CardSizeConfiguration: Equatable {
         baseCardHeight: 50.4,
         cornerRadius: 6,
         rankFontPointSize: 12,
-        hiddenStackOffset: 2.5
+        hiddenStackOffset: 2.5,
+        hiddenFanRotationStepDegrees: 0.35,
+        hiddenFanArcDepth: 2.5,
+        southHandCardSpacing: 4,
+        southHandSuitBoundarySpacing: 8
     )
 
     var aspectRatio: Double {
@@ -555,6 +644,10 @@ struct CardSizeConfiguration: Equatable {
         }
 
         return baseCardWidth + hiddenStackOffset * Double(count - 1)
+    }
+
+    var southHandAdditionalSuitBoundarySpacing: Double {
+        max(0, southHandSuitBoundarySpacing - southHandCardSpacing)
     }
 }
 
@@ -623,6 +716,7 @@ struct BidSelectorTokenSet: Equatable {
     let focusRing = GameColorToken.bidSelectorFocusRing
     let height = GameBidLayoutToken.bidSelectorHeight
     let minimumWidth = GameBidLayoutToken.bidSelectorMinimumWidth
+    let optionGap = GameBidLayoutToken.bidSelectorOptionGap
 
     var accessibilityValue: String {
         [
@@ -631,18 +725,19 @@ struct BidSelectorTokenSet: Equatable {
             "text=\(text.rawValue)",
             "focusRing=\(focusRing.rawValue)",
             "height=\(height.rawValue)",
-            "minimumWidth=\(minimumWidth.rawValue)"
+            "minimumWidth=\(minimumWidth.rawValue)",
+            "optionGap=\(optionGap.rawValue)"
         ].joined(separator: ";")
     }
 }
 
 struct BidSuitSelectorTokenSet: Equatable {
-    let background = GameColorToken.bidSuitSelectorBackground
-    let border = GameColorToken.bidSuitSelectorBorder
-    let text = GameColorToken.bidSuitSelectorText
-    let selectedBackground = GameColorToken.bidSuitSelectorSelectedBackground
-    let selectedText = GameColorToken.bidSuitSelectorSelectedText
-    let focusRing = GameColorToken.bidSuitSelectorFocusRing
+    let background = GameColorToken.cardBackground
+    let border = GameColorToken.cardBorder
+    let text = GameColorToken.cardSuitBlack
+    let selectedBackground = GameColorToken.cardBackground
+    let selectedText = GameColorToken.cardSuitBlack
+    let focusRing = GameColorToken.buttonNewGameBackground
     let disabledOpacity = GameEffectToken.bidSuitSelectorDisabledOpacity
     let height = GameBidLayoutToken.bidSuitSelectorHeight
     let minimumWidth = GameBidLayoutToken.bidSuitSelectorMinimumWidth
@@ -696,6 +791,7 @@ struct BidEntryPresentation: Equatable, Identifiable {
     let seat: Seat
     let bidState: BidState
     let isSelectable: Bool
+    let isActiveTurn: Bool
     let isCurrentHighestBid: Bool
     let southDraftBid: BidValue
     let southDraftTarneebSuit: Suit?
@@ -739,6 +835,7 @@ struct BidEntryPresentation: Equatable, Identifiable {
             "value=\(valueLabel)",
             "state=\(stateLabel)",
             "selectable=\(isSelectable)",
+            "activeTurn=\(isActiveTurn)",
             "currentHighest=\(isCurrentHighestBid)",
             "allowed=\(allowedValuesLabel)",
             "draftBid=\(southDraftBid.displayLabel)",
@@ -790,6 +887,7 @@ struct BidAreaPresentation: Equatable {
     let bidButtonHeightToken = GameBidLayoutToken.bidButtonHeight
     let bidButtonMinimumWidthToken = GameBidLayoutToken.bidButtonMinimumWidth
     let simulatedTurnDelayToken = GameAnimationToken.bidSimulatedTurnDelay
+    let stationCuePulseToken = GameAnimationToken.bidStationCuePulseDuration
     let fadeOutToken = GameAnimationToken.bidValueFadeOutDuration
     let fadeInToken = GameAnimationToken.bidValueFadeInDuration
     let areaFadeOutToken = GameAnimationToken.bidAreaFadeOutDuration
@@ -833,6 +931,7 @@ struct BidAreaPresentation: Equatable {
                 seat: seat,
                 bidState: biddingState.bids[seat] ?? .pending,
                 isSelectable: seat == .south && biddingState.isWaitingForSouth,
+                isActiveTurn: seat == biddingState.currentTurnSeat,
                 isCurrentHighestBid: seat == biddingState.highestBidSeat
                     && (biddingState.bids[seat] ?? .pending).resolvedValue == biddingState.highestBidValue,
                 southDraftBid: normalizedSouthDraftBid,
@@ -880,6 +979,8 @@ struct BidAreaPresentation: Equatable {
             "bidButtonMinimumWidth=\(bidButtonMinimumWidthToken.rawValue)",
             "simulatedBidDelay=\(simulatedTurnDelayToken.rawValue)",
             "simulatedBidDelaySeconds=\(simulatedTurnDelayToken.seconds)",
+            "stationCuePulse=\(stationCuePulseToken.rawValue)",
+            "stationCuePulseSeconds=\(stationCuePulseToken.seconds)",
             "fadeOut=\(fadeOutToken.rawValue)",
             "fadeIn=\(fadeInToken.rawValue)",
             "fadeTotalSeconds=\(fadeOutToken.seconds + fadeInToken.seconds)",
@@ -891,13 +992,14 @@ struct BidAreaPresentation: Equatable {
 
 struct PostBiddingSummaryPresentation: Equatable {
     let teamLabel: String
+    let highBidderLabel: String
     let bidValueLabel: String
     let tarneebLabel = "Tarneeb"
+    let tarneebSuit: Suit
     let tarneebSymbol: String
     let tarneebSymbolColorToken: GameColorToken
-    let tarneebSymbolBackgroundColorToken = GameColorToken.cardBackground
-    let tarneebSymbolBorderColorToken = GameColorToken.buttonNewGameBackground
     let tokens = PostBiddingSummaryTokenSet()
+    let tarneebSymbolChipTokens = BidSuitSelectorTokenSet()
 
     init?(
         phase: GamePhase,
@@ -913,21 +1015,32 @@ struct PostBiddingSummaryPresentation: Equatable {
         }
 
         self.teamLabel = summary.teamLabel
+        self.highBidderLabel = summary.highBidderSeat.displayLabel
         self.bidValueLabel = summary.bidValue.displayLabel
+        self.tarneebSuit = summary.tarneebSuit
         self.tarneebSymbol = summary.tarneebSymbol
         self.tarneebSymbolColorToken = summary.tarneebSuit.colorToken
+    }
+
+    var tarneebSymbolBackgroundColorToken: GameColorToken {
+        tarneebSymbolChipTokens.background
+    }
+
+    var tarneebSymbolBorderColorToken: GameColorToken {
+        tarneebSymbolChipTokens.focusRing
     }
 
     var accessibilityValue: String {
         [
             "visible=true",
-            "team=\(teamLabel)",
-            "bid=\(bidValueLabel)",
+            "placement=tableEdgeRibbon",
+            "display=tarneebOnlyRibbon",
             "tarneebLabel=\(tarneebLabel)",
             "tarneebSymbol=\(tarneebSymbol)",
             "tarneebSymbolColor=\(tarneebSymbolColorToken.rawValue)",
             "tarneebSymbolBackground=\(tarneebSymbolBackgroundColorToken.rawValue)",
             "tarneebSymbolBorder=\(tarneebSymbolBorderColorToken.rawValue)",
+            "tarneebSymbolChipTokens=\(tarneebSymbolChipTokens.accessibilityValue)",
             "tokens=\(tokens.accessibilityValue)"
         ].joined(separator: ";")
     }
@@ -935,6 +1048,7 @@ struct PostBiddingSummaryPresentation: Equatable {
 
 struct SouthTarneebSelectionPresentation: Equatable {
     let teamLabel: String
+    let highBidderLabel: String
     let bidValueLabel: String
     let tarneebLabel = "Tarneeb"
     let selectedSuit: Suit?
@@ -965,6 +1079,7 @@ struct SouthTarneebSelectionPresentation: Equatable {
         }
 
         self.teamLabel = Seat.south.highBiddingTeamLabel
+        self.highBidderLabel = Seat.south.displayLabel
         self.bidValueLabel = highestBidValue.displayLabel
         self.selectedSuit = selectedSuit
     }
@@ -980,7 +1095,7 @@ struct SouthTarneebSelectionPresentation: Equatable {
     var accessibilityValue: String {
         [
             "visible=true",
-            "team=\(teamLabel)",
+            "highBidder=\(highBidderLabel)",
             "bid=\(bidValueLabel)",
             "tarneebLabel=\(tarneebLabel)",
             "selected=\(selectedSuit?.rawValue ?? "none")",
@@ -1131,6 +1246,45 @@ struct HiddenHandPresentation: Equatable {
     var stackWidth: Double {
         sizeConfiguration.hiddenStackWidth(for: hiddenCardCount)
     }
+
+    var stackHeight: Double {
+        guard hiddenCardCount > 0 else {
+            return 0
+        }
+
+        return sizeConfiguration.baseCardHeight + sizeConfiguration.hiddenFanArcDepth
+    }
+
+    var accessibilityValue: String {
+        [
+            "count=\(hiddenCardCount)",
+            "asset=card_back",
+            "hidden=true",
+            "size=\(sizeConfiguration.category.rawValue)",
+            "layout=stackedFan",
+            "stackOffset=\(stackOffset)",
+            "fanRotationStep=\(sizeConfiguration.hiddenFanRotationStepDegrees)",
+            "fanArcDepth=\(sizeConfiguration.hiddenFanArcDepth)"
+        ].joined(separator: ";")
+    }
+
+    func visualTransform(for hiddenCard: HiddenCardBackPresentation) -> HandCardTransform {
+        let midpoint = Double(max(hiddenCardCount - 1, 0)) / 2
+        let centeredIndex = Double(hiddenCard.index) - midpoint
+        let normalizedDistance = midpoint > 0 ? abs(centeredIndex) / midpoint : 0
+
+        return HandCardTransform(
+            offsetX: Double(hiddenCard.index) * stackOffset,
+            offsetY: sizeConfiguration.hiddenFanArcDepth * (1 - normalizedDistance),
+            rotationDegrees: centeredIndex * sizeConfiguration.hiddenFanRotationStepDegrees
+        )
+    }
+}
+
+struct HandCardTransform: Equatable {
+    let offsetX: Double
+    let offsetY: Double
+    let rotationDegrees: Double
 }
 
 struct DealAnimationPresentation: Equatable {
@@ -1188,6 +1342,7 @@ struct DealAnimationPresentation: Equatable {
         }
 
         return DealAnimationStackPresentation(
+            sourceSeat: dealerSeat,
             targetSeat: targetSeat,
             targetOrder: targetOrder,
             sizeConfiguration: sizeConfiguration
@@ -1199,6 +1354,7 @@ struct DealAnimationPresentation: Equatable {
             "dealerSeat=\(dealerSeat.rawValue)",
             "start=dealerRight",
             "direction=counterclockwise",
+            "origin=dealerStation",
             "cardsPerStack=\(Self.cardsPerStack)",
             "totalCards=\(Self.totalCards)",
             "targetOrder=\(targetOrderAccessibilityValue)",
@@ -1218,13 +1374,14 @@ struct DealAnimationOffset: Equatable {
 }
 
 struct DealAnimationPathPresentation: Equatable {
+    let dealerSeat: Seat
     let tableDiameter: Double
     let compactStationSide: Double
     let southStationHeight: Double
     let horizontalSpacing: Double
     let verticalSpacing: Double
 
-    var deckCenterOffsetFromSceneCenter: DealAnimationOffset {
+    var tableCenterOffsetFromSceneCenter: DealAnimationOffset {
         let middleRowHeight = max(tableDiameter, compactStationSide)
         let sceneHeight = compactStationSide + verticalSpacing + middleRowHeight + verticalSpacing + southStationHeight
         let deckCenterY = compactStationSide + verticalSpacing + middleRowHeight / 2
@@ -1232,22 +1389,29 @@ struct DealAnimationPathPresentation: Equatable {
         return DealAnimationOffset(x: 0, y: deckCenterY - sceneHeight / 2)
     }
 
-    func offset(to seat: Seat, stackAtTarget: Bool) -> DealAnimationOffset {
-        let origin = deckCenterOffsetFromSceneCenter
+    var sourceDeckOffsetFromSceneCenter: DealAnimationOffset {
+        stationOffsetFromSceneCenter(to: dealerSeat)
+    }
 
+    func offset(to seat: Seat, stackAtTarget: Bool) -> DealAnimationOffset {
         guard stackAtTarget else {
-            return origin
+            return sourceDeckOffsetFromSceneCenter
         }
 
-        let targetOffset = stationOffsetFromDeckCenter(to: seat)
+        return stationOffsetFromSceneCenter(to: seat)
+    }
+
+    func stationOffsetFromSceneCenter(to seat: Seat) -> DealAnimationOffset {
+        let tableCenter = tableCenterOffsetFromSceneCenter
+        let stationOffset = stationOffsetFromTableCenter(to: seat)
 
         return DealAnimationOffset(
-            x: origin.x + targetOffset.x,
-            y: origin.y + targetOffset.y
+            x: tableCenter.x + stationOffset.x,
+            y: tableCenter.y + stationOffset.y
         )
     }
 
-    private func stationOffsetFromDeckCenter(to seat: Seat) -> DealAnimationOffset {
+    private func stationOffsetFromTableCenter(to seat: Seat) -> DealAnimationOffset {
         let horizontalOffset = tableDiameter / 2 + horizontalSpacing + compactStationSide / 2
         let verticalOffset = tableDiameter / 2 + verticalSpacing + compactStationSide / 2
 
@@ -1265,16 +1429,19 @@ struct DealAnimationPathPresentation: Equatable {
 }
 
 struct DealAnimationStackPresentation: Equatable {
+    let sourceSeat: Seat
     let targetSeat: Seat
     let targetOrder: [Seat]
     let hiddenCards: [HiddenCardBackPresentation]
     let sizeConfiguration: CardSizeConfiguration
 
     init(
+        sourceSeat: Seat,
         targetSeat: Seat,
         targetOrder: [Seat],
         sizeConfiguration: CardSizeConfiguration = .sharedBase
     ) {
+        self.sourceSeat = sourceSeat
         self.targetSeat = targetSeat
         self.targetOrder = targetOrder
         self.sizeConfiguration = sizeConfiguration
@@ -1300,8 +1467,9 @@ struct DealAnimationStackPresentation: Equatable {
             "count=\(hiddenCardCount)",
             "asset=card_back",
             "hidden=true",
-            "from=center",
-            "origin=centerDeck",
+            "from=dealerStation",
+            "origin=dealerStation",
+            "source=\(sourceSeat.rawValue)",
             "destination=playerStation",
             "renderLayer=tableSceneOverlay",
             "target=\(targetSeat.rawValue)",
@@ -1318,15 +1486,18 @@ struct UndealtDeckStackPresentation: Equatable {
     let sizeConfiguration: CardSizeConfiguration
     let isVisible: Bool
     let layout: CenteredDeckLayoutPresentation
+    let dealerSeat: Seat
 
     init(
         phase: GamePhase,
         hiddenCardCount: Int = 52,
-        sizeConfiguration: CardSizeConfiguration = .sharedBase
+        sizeConfiguration: CardSizeConfiguration = .sharedBase,
+        dealerSeat: Seat = .south
     ) {
         self.isVisible = phase == .notStarted
         self.sizeConfiguration = sizeConfiguration
         self.layout = CenteredDeckLayoutPresentation(sizeConfiguration: sizeConfiguration)
+        self.dealerSeat = dealerSeat
         self.hiddenCards = isVisible
             ? (0..<hiddenCardCount).map { index in
                 HiddenCardBackPresentation(index: index, sizeConfiguration: sizeConfiguration)
@@ -1360,6 +1531,8 @@ struct UndealtDeckStackPresentation: Equatable {
             "asset=card_back",
             "hidden=true",
             "layout=squaredStack",
+            "source=dealerStation",
+            "dealerSeat=\(dealerSeat.rawValue)",
             "placement=\(layout.placementLabel)",
             "anchor=\(layout.anchorLabel)",
             "anchorX=\(layout.anchorXToken.rawValue)",
@@ -1433,15 +1606,15 @@ struct CenteredDeckLayoutPresentation: Equatable {
     }
 
     var titleOverlapAllowed: Bool {
-        true
+        false
     }
 
     var placementLabel: String {
-        "veryCenter"
+        "dealerStation"
     }
 
     var anchorLabel: String {
-        "center"
+        "stationCenter"
     }
 
     func offset(forTableDiameter _: Double) -> (x: Double, y: Double) {
@@ -1467,45 +1640,144 @@ struct DealerStationPresentation: Equatable {
     let seat: Seat
     let phase: GamePhase
     let dealerSeat: Seat
+    let activeSeat: Seat?
+    let bidCueSeat: Seat?
+    let isBidCuePulsed: Bool
 
-    var showsDealerBadge: Bool {
-        seat == dealerSeat
+    init(
+        seat: Seat,
+        phase: GamePhase,
+        dealerSeat: Seat,
+        activeSeat: Seat? = nil,
+        bidCueSeat: Seat? = nil,
+        isBidCuePulsed: Bool = false
+    ) {
+        self.seat = seat
+        self.phase = phase
+        self.dealerSeat = dealerSeat
+        self.activeSeat = activeSeat
+        self.bidCueSeat = bidCueSeat
+        self.isBidCuePulsed = isBidCuePulsed
+    }
+
+    var showsDealerPill: Bool {
+        seat == dealerSeat && phase == .notStarted
+    }
+
+    var isActiveTurn: Bool {
+        seat == activeSeat
+    }
+
+    var isBidMotionCueActive: Bool {
+        seat == bidCueSeat
+    }
+
+    var isBidMotionCuePulsed: Bool {
+        isBidMotionCueActive && isBidCuePulsed
     }
 
     var outlineColorRole: GameColorRole {
-        .stationOutline
+        if isBidMotionCueActive || isActiveTurn {
+            return .stationOutlineActive
+        }
+
+        return .stationOutline
     }
 
     var outlineToken: GameColorToken {
         outlineColorRole.token
     }
 
-    var badgeBackgroundRole: GameColorRole {
+    var outlineLineWidth: Double {
+        if isBidMotionCueActive {
+            return 3
+        }
+
+        return isActiveTurn ? 2 : 1
+    }
+
+    var stationBackgroundOpacityToken: GameEffectToken {
+        if isBidMotionCueActive {
+            return .bidStationCueBackgroundOpacity
+        }
+
+        return isActiveTurn ? .stationBackgroundActiveOpacity : .stationBackgroundDefaultOpacity
+    }
+
+    var stationBackgroundOpacity: Double {
+        stationBackgroundOpacityToken.value
+    }
+
+    var stationScale: Double {
+        isBidMotionCuePulsed ? GameEffectToken.bidStationCueScale.value : 1
+    }
+
+    var stationShadowOpacity: Double {
+        isBidMotionCueActive ? GameEffectToken.bidStationCueShadowOpacity.value : 0
+    }
+
+    var stationShadowRadius: Double {
+        isBidMotionCueActive ? GameEffectToken.bidStationCueShadowRadius.value : 0
+    }
+
+    var dealerPillBackgroundRole: GameColorRole {
         .dealerBadgeBackground
     }
 
-    var badgeBackgroundToken: GameColorToken {
-        badgeBackgroundRole.token
+    var dealerPillBackgroundToken: GameColorToken {
+        dealerPillBackgroundRole.token
     }
 
-    var badgeTextRole: GameColorRole {
+    var dealerPillTextRole: GameColorRole {
         .dealerBadgeText
     }
 
+    var dealerPillTextToken: GameColorToken {
+        dealerPillTextRole.token
+    }
+
+    var badgeBackgroundRole: GameColorRole {
+        dealerPillBackgroundRole
+    }
+
+    var badgeBackgroundToken: GameColorToken {
+        dealerPillBackgroundToken
+    }
+
+    var badgeTextRole: GameColorRole {
+        dealerPillTextRole
+    }
+
     var badgeTextToken: GameColorToken {
-        badgeTextRole.token
+        dealerPillTextToken
     }
 
     var accessibilityValue: String {
         [
             "dealerSeat=\(dealerSeat.rawValue)",
-            "dealerBadgeVisible=\(showsDealerBadge)",
-            "badgeShape=circle",
-            "badgePlacement=upper-left",
-            "badgeText=D",
-            "badgeBackground=\(badgeBackgroundToken.rawValue)",
-            "badgeTextColor=\(badgeTextToken.rawValue)",
+            "dealerIndicator=pill",
+            "dealerPillVisible=\(showsDealerPill)",
+            "dealerPillPlacement=besideName",
+            "dealerPillText=D",
+            "dealerPillBackground=\(dealerPillBackgroundToken.rawValue)",
+            "dealerPillTextColor=\(dealerPillTextToken.rawValue)",
+            "activeTurn=\(isActiveTurn)",
+            "bidMotionCueActive=\(isBidMotionCueActive)",
+            "bidMotionCuePulsed=\(isBidMotionCuePulsed)",
+            "bidMotionCueSeat=\(bidCueSeat?.rawValue ?? "none")",
+            "outlineRole=\(outlineColorRole.rawValue)",
             "outline=\(outlineToken.rawValue)",
+            "outlineLineWidth=\(outlineLineWidth)",
+            "stationBackgroundOpacity=\(stationBackgroundOpacityToken.rawValue)",
+            "stationBackgroundOpacityValue=\(stationBackgroundOpacity)",
+            "stationScale=\(stationScale)",
+            "stationCueScaleToken=\(GameEffectToken.bidStationCueScale.rawValue)",
+            "stationShadowOpacity=\(stationShadowOpacity)",
+            "stationShadowOpacityToken=\(GameEffectToken.bidStationCueShadowOpacity.rawValue)",
+            "stationShadowRadius=\(stationShadowRadius)",
+            "stationShadowRadiusToken=\(GameEffectToken.bidStationCueShadowRadius.rawValue)",
+            "stationCuePulse=\(GameAnimationToken.bidStationCuePulseDuration.rawValue)",
+            "stationCuePulseSeconds=\(GameAnimationToken.bidStationCuePulseDuration.seconds)",
             "defaultOutline=\(GameColorRole.stationOutline.token.rawValue)"
         ].joined(separator: ";")
     }
@@ -1561,6 +1833,54 @@ enum SouthHandPresentation {
         sortedCards(from: cards).map { card in
             CardPresentation(card: card, sizeConfiguration: sizeConfiguration)
         }
+    }
+
+    static func readableLayout(
+        cardCount: Int,
+        sizeConfiguration: CardSizeConfiguration = .sharedBase
+    ) -> SouthHandLayoutPresentation {
+        SouthHandLayoutPresentation(cardCount: cardCount, sizeConfiguration: sizeConfiguration)
+    }
+}
+
+struct SouthHandLayoutPresentation: Equatable {
+    let cardCount: Int
+    let sizeConfiguration: CardSizeConfiguration
+
+    var cardSpacing: Double {
+        sizeConfiguration.southHandCardSpacing
+    }
+
+    var suitBoundarySpacing: Double {
+        sizeConfiguration.southHandSuitBoundarySpacing
+    }
+
+    var additionalSuitBoundarySpacing: Double {
+        sizeConfiguration.southHandAdditionalSuitBoundarySpacing
+    }
+
+    var accessibilityValue: String {
+        [
+            "layout=suitSeparatedGrid",
+            "count=\(cardCount)",
+            "cardSpacing=\(cardSpacing)",
+            "suitBoundarySpacing=\(suitBoundarySpacing)",
+            "additionalSuitBoundarySpacing=\(additionalSuitBoundarySpacing)"
+        ].joined(separator: ";")
+    }
+
+    func additionalLeadingSpacing(
+        beforeCardAt index: Int,
+        in cardPresentations: [CardPresentation]
+    ) -> Double {
+        guard index > 0,
+              index < cardPresentations.count else {
+            return 0
+        }
+
+        return cardPresentations[index].suitSymbol == cardPresentations[index - 1].suitSymbol
+            ? 0
+            : additionalSuitBoundarySpacing
     }
 }
 

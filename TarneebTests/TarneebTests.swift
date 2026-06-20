@@ -147,6 +147,29 @@ final class TarneebTests: XCTestCase {
         XCTAssertEqual(GameEffectToken.tableTitleShadowBlurRadius.value, 4)
         XCTAssertEqual(GameEffectToken.bidButtonDisabledOpacity.value, 0.55)
         XCTAssertEqual(GameEffectToken.bidSuitSelectorDisabledOpacity.value, 0.55)
+        XCTAssertEqual(GameEffectToken.tableCenterSurfaceOpacity.value, 0.16)
+        XCTAssertEqual(GameEffectToken.tableInnerRingOpacity.value, 0.38)
+        XCTAssertEqual(GameEffectToken.tableRailHighlightOpacity.value, 0.42)
+        XCTAssertEqual(GameEffectToken.tableRailInnerBevelOpacity.value, 0.28)
+        XCTAssertEqual(GameEffectToken.tableRailShadowOpacity.value, 0.24)
+        XCTAssertEqual(GameEffectToken.tableRailShadowRadius.value, 6)
+        XCTAssertEqual(GameEffectToken.tablePlayAreaShadowOpacity.value, 0.16)
+        XCTAssertEqual(GameEffectToken.southHandRailBackgroundOpacity.value, 0.14)
+        XCTAssertEqual(GameEffectToken.southHandRailStrokeOpacity.value, 0.36)
+        XCTAssertEqual(GameEffectToken.stationBackgroundDefaultOpacity.value, 0.08)
+        XCTAssertEqual(GameEffectToken.stationBackgroundActiveOpacity.value, 0.24)
+        XCTAssertEqual(GameEffectToken.bidStationCueBackgroundOpacity.value, 0.34)
+        XCTAssertEqual(GameEffectToken.bidStationCueScale.value, 1.035)
+        XCTAssertEqual(GameEffectToken.bidStationCueShadowOpacity.value, 0.34)
+        XCTAssertEqual(GameEffectToken.bidStationCueShadowRadius.value, 7)
+        XCTAssertEqual(GameEffectToken.bidTurnPillBackgroundOpacity.value, 0.22)
+        XCTAssertEqual(GameEffectToken.bidCellDefaultBackgroundOpacity.value, 0.06)
+        XCTAssertEqual(GameEffectToken.bidCellActiveBackgroundOpacity.value, 0.10)
+        XCTAssertEqual(GameEffectToken.bidCellHighestBackgroundOpacity.value, 0.14)
+        XCTAssertEqual(GameEffectToken.bidActionTrayBackgroundOpacity.value, 0.10)
+        XCTAssertEqual(GameEffectToken.statusPillBorderOpacity.value, 0.55)
+        XCTAssertEqual(GameEffectToken.phaseStatusBackgroundOpacity.value, 0.72)
+        XCTAssertEqual(GameEffectToken.bottomControlSeparatorOpacity.value, 0.35)
     }
 
     func testUndealtDeckLayoutTokensAreAvailable() {
@@ -179,6 +202,7 @@ final class TarneebTests: XCTestCase {
             "layout.bidArea.cornerRadius",
             "layout.bidSelector.height",
             "layout.bidSelector.minimumWidth",
+            "layout.bidSelector.optionGap",
             "layout.bidSuitSelector.height",
             "layout.bidSuitSelector.minimumWidth",
             "layout.bidSuitSelector.optionMinimumWidth",
@@ -187,7 +211,8 @@ final class TarneebTests: XCTestCase {
             "layout.bidButton.minimumWidth",
             "layout.postBiddingSummary.padding",
             "layout.postBiddingSummary.rowGap",
-            "layout.postBiddingSummary.cornerRadius"
+            "layout.postBiddingSummary.cornerRadius",
+            "layout.postBiddingSummary.tableEdgeVerticalOffsetRatio"
         ]
         let bidAreaTokens = BidAreaTokenSet()
         let selectorTokens = BidSelectorTokenSet()
@@ -199,7 +224,8 @@ final class TarneebTests: XCTestCase {
         XCTAssertEqual(GameBidLayoutToken.bidTableRowGap.numericValue, 6)
         XCTAssertEqual(GameBidLayoutToken.bidAreaCornerRadius.numericValue, 10)
         XCTAssertEqual(GameBidLayoutToken.bidSelectorHeight.numericValue, 36)
-        XCTAssertEqual(GameBidLayoutToken.bidSelectorMinimumWidth.numericValue, 82)
+        XCTAssertEqual(GameBidLayoutToken.bidSelectorMinimumWidth.numericValue, 32)
+        XCTAssertEqual(GameBidLayoutToken.bidSelectorOptionGap.numericValue, 2)
         XCTAssertEqual(GameBidLayoutToken.bidSuitSelectorHeight.numericValue, 36)
         XCTAssertEqual(GameBidLayoutToken.bidSuitSelectorMinimumWidth.numericValue, 132)
         XCTAssertEqual(GameBidLayoutToken.bidSuitSelectorOptionMinimumWidth.numericValue, 36)
@@ -209,6 +235,7 @@ final class TarneebTests: XCTestCase {
         XCTAssertEqual(GameBidLayoutToken.postBiddingSummaryPadding.numericValue, 12)
         XCTAssertEqual(GameBidLayoutToken.postBiddingSummaryRowGap.numericValue, 6)
         XCTAssertEqual(GameBidLayoutToken.postBiddingSummaryCornerRadius.numericValue, 10)
+        XCTAssertEqual(GameBidLayoutToken.postBiddingSummaryTableEdgeVerticalOffsetRatio.numericValue, 0.35)
         XCTAssertEqual(bidAreaTokens.background, .bidAreaBackground)
         XCTAssertEqual(bidAreaTokens.border, .bidAreaBorder)
         XCTAssertEqual(bidAreaTokens.label, .bidAreaLabel)
@@ -222,12 +249,12 @@ final class TarneebTests: XCTestCase {
         XCTAssertEqual(selectorTokens.border, .bidSelectorBorder)
         XCTAssertEqual(selectorTokens.text, .bidSelectorText)
         XCTAssertEqual(selectorTokens.focusRing, .bidSelectorFocusRing)
-        XCTAssertEqual(suitSelectorTokens.background, .bidSuitSelectorBackground)
-        XCTAssertEqual(suitSelectorTokens.border, .bidSuitSelectorBorder)
-        XCTAssertEqual(suitSelectorTokens.text, .bidSuitSelectorText)
-        XCTAssertEqual(suitSelectorTokens.selectedBackground, .bidSuitSelectorSelectedBackground)
-        XCTAssertEqual(suitSelectorTokens.selectedText, .bidSuitSelectorSelectedText)
-        XCTAssertEqual(suitSelectorTokens.focusRing, .bidSuitSelectorFocusRing)
+        XCTAssertEqual(suitSelectorTokens.background, .cardBackground)
+        XCTAssertEqual(suitSelectorTokens.border, .cardBorder)
+        XCTAssertEqual(suitSelectorTokens.text, .cardSuitBlack)
+        XCTAssertEqual(suitSelectorTokens.selectedBackground, .cardBackground)
+        XCTAssertEqual(suitSelectorTokens.selectedText, .cardSuitBlack)
+        XCTAssertEqual(suitSelectorTokens.focusRing, .buttonNewGameBackground)
         XCTAssertEqual(suitSelectorTokens.disabledOpacity, .bidSuitSelectorDisabledOpacity)
         XCTAssertEqual(summaryTokens.background, .postBiddingSummaryBackground)
         XCTAssertEqual(summaryTokens.border, .postBiddingSummaryBorder)
@@ -238,7 +265,10 @@ final class TarneebTests: XCTestCase {
         XCTAssertEqual(summaryTokens.bidText.hexValue, GameColorToken.buttonNewGameBackground.hexValue)
         XCTAssertTrue(bidAreaTokens.accessibilityValue.contains("background=color.bidArea.background"))
         XCTAssertTrue(selectorTokens.accessibilityValue.contains("background=color.bidSelector.background"))
-        XCTAssertTrue(suitSelectorTokens.accessibilityValue.contains("background=color.bidSuitSelector.background"))
+        XCTAssertTrue(suitSelectorTokens.accessibilityValue.contains("background=color.card.background"))
+        XCTAssertTrue(suitSelectorTokens.accessibilityValue.contains("border=color.card.border"))
+        XCTAssertTrue(suitSelectorTokens.accessibilityValue.contains("selectedBackground=color.card.background"))
+        XCTAssertTrue(suitSelectorTokens.accessibilityValue.contains("focusRing=color.button.newGame.background"))
         XCTAssertTrue(summaryTokens.accessibilityValue.contains("background=color.postBiddingSummary.background"))
         XCTAssertFalse(bidAreaTokens.accessibilityValue.contains("#"))
         XCTAssertFalse(selectorTokens.accessibilityValue.contains("#"))
@@ -255,9 +285,11 @@ final class TarneebTests: XCTestCase {
             "animation.deal.southReveal.flip.duration",
             "animation.deal.southReveal.flip.stagger",
             "animation.bid.simulatedTurn.delay",
+            "animation.bid.stationCue.pulse.duration",
             "animation.bid.value.fadeOut.duration",
             "animation.bid.value.fadeIn.duration",
-            "animation.bid.area.fadeOut.duration"
+            "animation.bid.area.fadeOut.duration",
+            "animation.trick.playedCard.flight.duration"
         ]
 
         XCTAssertEqual(Set(GameAnimationToken.allCases.map(\.rawValue)), Set(requiredAnimationTokenKeys))
@@ -271,9 +303,11 @@ final class TarneebTests: XCTestCase {
         XCTAssertGreaterThan(GameAnimationToken.dealSouthRevealFlipDuration.nanoseconds, 0)
         XCTAssertGreaterThan(GameAnimationToken.dealSouthRevealFlipStagger.nanoseconds, 0)
         XCTAssertGreaterThan(GameAnimationToken.bidSimulatedTurnDelay.nanoseconds, 0)
+        XCTAssertGreaterThan(GameAnimationToken.bidStationCuePulseDuration.nanoseconds, 0)
         XCTAssertGreaterThan(GameAnimationToken.bidValueFadeOutDuration.nanoseconds, 0)
         XCTAssertGreaterThan(GameAnimationToken.bidValueFadeInDuration.nanoseconds, 0)
         XCTAssertGreaterThan(GameAnimationToken.bidAreaFadeOutDuration.nanoseconds, 0)
+        XCTAssertGreaterThan(GameAnimationToken.trickPlayedCardFlightDuration.nanoseconds, 0)
         XCTAssertEqual(GameAnimationToken.dealStackFlightDuration.seconds, 0.36)
         XCTAssertEqual(GameAnimationToken.dealStationExpansionDuration.seconds, 0.16)
         XCTAssertEqual(GameAnimationToken.dealStepPauseDuration.seconds, 0.06)
@@ -281,9 +315,11 @@ final class TarneebTests: XCTestCase {
         XCTAssertEqual(GameAnimationToken.dealSouthRevealFlipDuration.seconds, 0.18)
         XCTAssertEqual(GameAnimationToken.dealSouthRevealFlipStagger.seconds, 0.11)
         XCTAssertEqual(GameAnimationToken.bidSimulatedTurnDelay.seconds, 1.0)
+        XCTAssertEqual(GameAnimationToken.bidStationCuePulseDuration.seconds, 0.24)
         XCTAssertEqual(GameAnimationToken.bidValueFadeOutDuration.seconds, 0.5)
         XCTAssertEqual(GameAnimationToken.bidValueFadeInDuration.seconds, 0.5)
         XCTAssertEqual(GameAnimationToken.bidAreaFadeOutDuration.seconds, 1.0)
+        XCTAssertEqual(GameAnimationToken.trickPlayedCardFlightDuration.seconds, 0.30)
         XCTAssertEqual(GameAnimationToken.bidValueFadeOutDuration.seconds + GameAnimationToken.bidValueFadeInDuration.seconds, 1.0)
         XCTAssertEqual(
             GameAnimationToken.dealSouthRevealFlipStagger.seconds * 12
@@ -293,11 +329,9 @@ final class TarneebTests: XCTestCase {
         )
     }
 
-    func testDealerBadgeTokensMatchDealButtonAndWhiteText() {
+    func testDealerRingTokenMatchesDealButton() {
         XCTAssertEqual(GameColorToken.dealerBadgeBackground.hexValue, GameColorToken.buttonDealBackground.hexValue)
-        XCTAssertEqual(GameColorToken.dealerBadgeText.hexValue, GameColorToken.buttonDealText.hexValue)
         XCTAssertEqual(GameColorRole.dealerBadgeBackground.token, .dealerBadgeBackground)
-        XCTAssertEqual(GameColorRole.dealerBadgeText.token, .dealerBadgeText)
     }
 
     func testTableTitlePresentationUsesOnlyTokenizedVisualValues() {
@@ -2022,6 +2056,34 @@ final class TarneebTests: XCTestCase {
         XCTAssertEqual(unsortedHand.map(\.id), ["spades-A", "diamonds-2", "hearts-A", "clubs-K", "hearts-2", "spades-2", "diamonds-A", "clubs-2"])
     }
 
+    func testSouthHandPresentationUsesReadableSuitSeparatedGridAfterReveal() {
+        let hand = [
+            Card(suit: .hearts, rank: .two),
+            Card(suit: .hearts, rank: .ace),
+            Card(suit: .clubs, rank: .two),
+            Card(suit: .clubs, rank: .king),
+            Card(suit: .diamonds, rank: .two),
+            Card(suit: .diamonds, rank: .ace),
+            Card(suit: .spades, rank: .two),
+            Card(suit: .spades, rank: .ace)
+        ]
+        let cardPresentations = SouthHandPresentation.cardPresentations(from: hand)
+        let layout = SouthHandPresentation.readableLayout(cardCount: cardPresentations.count)
+
+        XCTAssertEqual(layout.cardSpacing, 4)
+        XCTAssertEqual(layout.suitBoundarySpacing, 8)
+        XCTAssertEqual(layout.additionalSuitBoundarySpacing, 4)
+        XCTAssertEqual(layout.additionalLeadingSpacing(beforeCardAt: 0, in: cardPresentations), 0)
+        XCTAssertEqual(layout.additionalLeadingSpacing(beforeCardAt: 1, in: cardPresentations), 0)
+        XCTAssertEqual(layout.additionalLeadingSpacing(beforeCardAt: 2, in: cardPresentations), 4)
+        XCTAssertEqual(layout.additionalLeadingSpacing(beforeCardAt: 3, in: cardPresentations), 0)
+        XCTAssertEqual(layout.additionalLeadingSpacing(beforeCardAt: 4, in: cardPresentations), 4)
+        XCTAssertEqual(layout.additionalLeadingSpacing(beforeCardAt: 6, in: cardPresentations), 4)
+        XCTAssertTrue(layout.accessibilityValue.contains("layout=suitSeparatedGrid"))
+        XCTAssertTrue(layout.accessibilityValue.contains("count=8"))
+        XCTAssertTrue(layout.accessibilityValue.contains("suitBoundarySpacing=8"))
+    }
+
     func testCardPresentationExposesTokenHooksWithoutConcreteColors() {
         let warmPresentation = CardPresentation(card: Card(suit: .hearts, rank: .ace))
         let neutralPresentation = CardPresentation(card: Card(suit: .spades, rank: .two))
@@ -2078,6 +2140,19 @@ final class TarneebTests: XCTestCase {
         XCTAssertTrue(hiddenHand.hiddenCards.allSatisfy { $0.accessibilityValue == CardSizeCategory.sharedBaseCard.rawValue })
         XCTAssertGreaterThan(hiddenHand.stackOffset, 0)
         XCTAssertLessThan(hiddenHand.stackWidth, hiddenHand.sizeConfiguration.baseCardWidth * 13)
+        XCTAssertEqual(hiddenHand.stackHeight, hiddenHand.sizeConfiguration.baseCardHeight + hiddenHand.sizeConfiguration.hiddenFanArcDepth)
+        XCTAssertTrue(hiddenHand.accessibilityValue.contains("layout=stackedFan"))
+        XCTAssertTrue(hiddenHand.accessibilityValue.contains("fanRotationStep=0.35"))
+        XCTAssertTrue(hiddenHand.accessibilityValue.contains("fanArcDepth=2.5"))
+
+        let firstCardTransform = hiddenHand.visualTransform(for: hiddenHand.hiddenCards[0])
+        let centerCardTransform = hiddenHand.visualTransform(for: hiddenHand.hiddenCards[6])
+        let lastCardTransform = hiddenHand.visualTransform(for: hiddenHand.hiddenCards[12])
+        XCTAssertLessThan(firstCardTransform.rotationDegrees, 0)
+        XCTAssertEqual(centerCardTransform.rotationDegrees, 0, accuracy: 0.01)
+        XCTAssertGreaterThan(lastCardTransform.rotationDegrees, 0)
+        XCTAssertGreaterThan(centerCardTransform.offsetY, firstCardTransform.offsetY)
+        XCTAssertGreaterThan(centerCardTransform.offsetY, lastCardTransform.offsetY)
 
         for hiddenCard in hiddenHand.hiddenCards {
             XCTAssertFalse(hiddenCard.id.contains("spades"))
@@ -2100,8 +2175,8 @@ final class TarneebTests: XCTestCase {
         XCTAssertEqual(initialStack.hiddenCards.map(\.assetName), Array(repeating: "card_back", count: 52))
         XCTAssertEqual(initialStack.stackWidth, initialStack.sizeConfiguration.baseCardWidth)
         XCTAssertEqual(initialStack.stackHeight, initialStack.sizeConfiguration.baseCardHeight)
-        XCTAssertEqual(initialStack.layout.placementLabel, "veryCenter")
-        XCTAssertEqual(initialStack.layout.anchorLabel, "center")
+        XCTAssertEqual(initialStack.layout.placementLabel, "dealerStation")
+        XCTAssertEqual(initialStack.layout.anchorLabel, "stationCenter")
         XCTAssertEqual(initialStack.layout.anchorXToken, .undealtDeckAnchorX)
         XCTAssertEqual(initialStack.layout.anchorYToken, .undealtDeckAnchorY)
         XCTAssertEqual(initialStack.layout.centerOffsetXToken, .undealtDeckCenterOffsetX)
@@ -2120,7 +2195,7 @@ final class TarneebTests: XCTestCase {
         XCTAssertEqual(initialStack.layout.stackOffsetX, 0)
         XCTAssertEqual(initialStack.layout.stackOffsetY, 0)
         XCTAssertEqual(initialStack.layout.edgeBuffer, 12)
-        XCTAssertTrue(initialStack.layout.titleOverlapAllowed)
+        XCTAssertFalse(initialStack.layout.titleOverlapAllowed)
         XCTAssertEqual(firstCardTransform.offsetX, 0)
         XCTAssertEqual(firstCardTransform.offsetY, 0)
         XCTAssertEqual(firstCardTransform.rotationDegrees, 0)
@@ -2130,8 +2205,10 @@ final class TarneebTests: XCTestCase {
         XCTAssertTrue(initialStack.accessibilityValue.contains("count=52"))
         XCTAssertTrue(initialStack.accessibilityValue.contains("asset=card_back"))
         XCTAssertTrue(initialStack.accessibilityValue.contains("layout=squaredStack"))
-        XCTAssertTrue(initialStack.accessibilityValue.contains("placement=veryCenter"))
-        XCTAssertTrue(initialStack.accessibilityValue.contains("anchor=center"))
+        XCTAssertTrue(initialStack.accessibilityValue.contains("source=dealerStation"))
+        XCTAssertTrue(initialStack.accessibilityValue.contains("dealerSeat=south"))
+        XCTAssertTrue(initialStack.accessibilityValue.contains("placement=dealerStation"))
+        XCTAssertTrue(initialStack.accessibilityValue.contains("anchor=stationCenter"))
         XCTAssertTrue(initialStack.accessibilityValue.contains("anchorX=layout.undealtDeck.anchor.x"))
         XCTAssertTrue(initialStack.accessibilityValue.contains("anchorXValue=0.5"))
         XCTAssertTrue(initialStack.accessibilityValue.contains("anchorY=layout.undealtDeck.anchor.y"))
@@ -2148,7 +2225,7 @@ final class TarneebTests: XCTestCase {
         XCTAssertTrue(initialStack.accessibilityValue.contains("stackOffsetYValue=0.0"))
         XCTAssertTrue(initialStack.accessibilityValue.contains("edgeBuffer=layout.undealtDeck.edgeBuffer.min"))
         XCTAssertTrue(initialStack.accessibilityValue.contains("edgeBufferValue=12.0"))
-        XCTAssertTrue(initialStack.accessibilityValue.contains("titleOverlapAllowed=true"))
+        XCTAssertTrue(initialStack.accessibilityValue.contains("titleOverlapAllowed=false"))
         XCTAssertFalse(initialStack.accessibilityValue.contains("rank"))
         XCTAssertFalse(initialStack.accessibilityValue.contains("suit"))
 
@@ -2156,11 +2233,11 @@ final class TarneebTests: XCTestCase {
         XCTAssertEqual(dealtStack.hiddenCardCount, 0)
     }
 
-    func testCenteredDeckLayoutProvidesVeryCenterSquaredTableAnchor() {
+    func testCenteredDeckLayoutProvidesDealerStationSquaredStackAnchor() {
         let layout = CenteredDeckLayoutPresentation(sizeConfiguration: .sharedBase)
 
-        XCTAssertEqual(layout.placementLabel, "veryCenter")
-        XCTAssertEqual(layout.anchorLabel, "center")
+        XCTAssertEqual(layout.placementLabel, "dealerStation")
+        XCTAssertEqual(layout.anchorLabel, "stationCenter")
         XCTAssertEqual(layout.anchorX, 0.5)
         XCTAssertEqual(layout.anchorY, 0.5)
         XCTAssertEqual(layout.centerOffsetX, 0)
@@ -2171,7 +2248,7 @@ final class TarneebTests: XCTestCase {
         XCTAssertGreaterThan(layout.edgeBuffer, 0)
         XCTAssertEqual(layout.offset(forTableDiameter: 200).x, 0)
         XCTAssertEqual(layout.offset(forTableDiameter: 200).y, 0)
-        XCTAssertTrue(layout.titleOverlapAllowed)
+        XCTAssertFalse(layout.titleOverlapAllowed)
     }
 
     func testDealAnimationPresentationStartsAtDealerRightAndMovesCounterclockwiseInThirteenCardStacks() throws {
@@ -2199,6 +2276,7 @@ final class TarneebTests: XCTestCase {
         XCTAssertTrue(southDealerAnimation.accessibilityValue.contains("dealerSeat=south"))
         XCTAssertTrue(southDealerAnimation.accessibilityValue.contains("start=dealerRight"))
         XCTAssertTrue(southDealerAnimation.accessibilityValue.contains("direction=counterclockwise"))
+        XCTAssertTrue(southDealerAnimation.accessibilityValue.contains("origin=dealerStation"))
         XCTAssertTrue(southDealerAnimation.accessibilityValue.contains("targetOrder=east,north,west,south"))
         XCTAssertTrue(southDealerAnimation.accessibilityValue.contains("flightDuration=animation.deal.stack.flight.duration"))
         XCTAssertTrue(southDealerAnimation.accessibilityValue.contains("southRevealTotalDuration=animation.deal.southReveal.total.duration"))
@@ -2206,13 +2284,15 @@ final class TarneebTests: XCTestCase {
         XCTAssertTrue(southDealerAnimation.accessibilityValue.contains("southRevealFlipStagger=animation.deal.southReveal.flip.stagger"))
 
         XCTAssertEqual(movingStack.targetSeat, .east)
+        XCTAssertEqual(movingStack.sourceSeat, .south)
         XCTAssertEqual(movingStack.hiddenCardCount, 13)
         XCTAssertEqual(movingStack.hiddenCards.map(\.assetName), Array(repeating: "card_back", count: 13))
         XCTAssertEqual(movingStack.stackWidth, movingStack.sizeConfiguration.baseCardWidth)
         XCTAssertEqual(movingStack.stackHeight, movingStack.sizeConfiguration.baseCardHeight)
         XCTAssertTrue(movingStack.accessibilityValue.contains("count=13"))
-        XCTAssertTrue(movingStack.accessibilityValue.contains("from=center"))
-        XCTAssertTrue(movingStack.accessibilityValue.contains("origin=centerDeck"))
+        XCTAssertTrue(movingStack.accessibilityValue.contains("from=dealerStation"))
+        XCTAssertTrue(movingStack.accessibilityValue.contains("origin=dealerStation"))
+        XCTAssertTrue(movingStack.accessibilityValue.contains("source=south"))
         XCTAssertTrue(movingStack.accessibilityValue.contains("destination=playerStation"))
         XCTAssertTrue(movingStack.accessibilityValue.contains("renderLayer=tableSceneOverlay"))
         XCTAssertTrue(movingStack.accessibilityValue.contains("target=east"))
@@ -2221,8 +2301,9 @@ final class TarneebTests: XCTestCase {
         XCTAssertFalse(movingStack.accessibilityValue.contains("suit"))
     }
 
-    func testDealAnimationPathStartsEveryStackAtCenterDeckBeforeMovingToTargetStation() {
+    func testDealAnimationPathStartsEveryStackAtDealerStationBeforeMovingToTargetStation() {
         let compactPath = DealAnimationPathPresentation(
+            dealerSeat: .south,
             tableDiameter: 196,
             compactStationSide: 112,
             southStationHeight: 112,
@@ -2230,24 +2311,40 @@ final class TarneebTests: XCTestCase {
             verticalSpacing: 10
         )
         let southRevealedPath = DealAnimationPathPresentation(
+            dealerSeat: .south,
             tableDiameter: 196,
             compactStationSide: 112,
             southStationHeight: 142,
             horizontalSpacing: 6,
             verticalSpacing: 10
         )
+        let westDealerPath = DealAnimationPathPresentation(
+            dealerSeat: .west,
+            tableDiameter: 196,
+            compactStationSide: 112,
+            southStationHeight: 112,
+            horizontalSpacing: 6,
+            verticalSpacing: 10
+        )
 
-        XCTAssertEqual(compactPath.deckCenterOffsetFromSceneCenter, DealAnimationOffset(x: 0, y: 0))
-        XCTAssertEqual(southRevealedPath.deckCenterOffsetFromSceneCenter, DealAnimationOffset(x: 0, y: -15))
+        XCTAssertEqual(compactPath.tableCenterOffsetFromSceneCenter, DealAnimationOffset(x: 0, y: 0))
+        XCTAssertEqual(compactPath.sourceDeckOffsetFromSceneCenter, DealAnimationOffset(x: 0, y: 164))
+        XCTAssertEqual(southRevealedPath.tableCenterOffsetFromSceneCenter, DealAnimationOffset(x: 0, y: -15))
+        XCTAssertEqual(southRevealedPath.sourceDeckOffsetFromSceneCenter, DealAnimationOffset(x: 0, y: 149))
+        XCTAssertEqual(westDealerPath.sourceDeckOffsetFromSceneCenter, DealAnimationOffset(x: -160, y: 0))
 
         for seat in Seat.dealerRotationOrder {
             XCTAssertEqual(
                 compactPath.offset(to: seat, stackAtTarget: false),
-                compactPath.deckCenterOffsetFromSceneCenter
+                compactPath.sourceDeckOffsetFromSceneCenter
             )
             XCTAssertEqual(
                 southRevealedPath.offset(to: seat, stackAtTarget: false),
-                southRevealedPath.deckCenterOffsetFromSceneCenter
+                southRevealedPath.sourceDeckOffsetFromSceneCenter
+            )
+            XCTAssertEqual(
+                westDealerPath.offset(to: seat, stackAtTarget: false),
+                westDealerPath.sourceDeckOffsetFromSceneCenter
             )
         }
 
@@ -2262,30 +2359,85 @@ final class TarneebTests: XCTestCase {
         XCTAssertEqual(southRevealedPath.offset(to: .south, stackAtTarget: true), DealAnimationOffset(x: 0, y: 149))
     }
 
-    func testDealerStationPresentationShowsBadgeOnCurrentDealerWithoutChangingOutline() {
+    func testDealerStationPresentationShowsPillBesideCurrentDealerBeforeBidding() {
         let dealerStation = DealerStationPresentation(seat: .north, phase: .notStarted, dealerSeat: .north)
         let otherStation = DealerStationPresentation(seat: .south, phase: .notStarted, dealerSeat: .north)
         let dealtStation = DealerStationPresentation(seat: .north, phase: .dealt, dealerSeat: .north)
+        let activeStation = DealerStationPresentation(seat: .east, phase: .dealt, dealerSeat: .north, activeSeat: .east)
+        let activeDealerStation = DealerStationPresentation(seat: .north, phase: .dealt, dealerSeat: .north, activeSeat: .north)
+        let cuedStation = DealerStationPresentation(
+            seat: .west,
+            phase: .dealt,
+            dealerSeat: .north,
+            activeSeat: .east,
+            bidCueSeat: .west,
+            isBidCuePulsed: true
+        )
 
-        XCTAssertTrue(dealerStation.showsDealerBadge)
+        XCTAssertTrue(dealerStation.showsDealerPill)
         XCTAssertEqual(dealerStation.outlineColorRole, .stationOutline)
         XCTAssertEqual(dealerStation.outlineToken, .stationOutline)
-        XCTAssertEqual(dealerStation.badgeBackgroundToken, .dealerBadgeBackground)
-        XCTAssertEqual(dealerStation.badgeTextToken, .dealerBadgeText)
-        XCTAssertTrue(dealerStation.accessibilityValue.contains("dealerBadgeVisible=true"))
-        XCTAssertTrue(dealerStation.accessibilityValue.contains("badgeShape=circle"))
-        XCTAssertTrue(dealerStation.accessibilityValue.contains("badgePlacement=upper-left"))
-        XCTAssertTrue(dealerStation.accessibilityValue.contains("badgeBackground=color.dealerBadge.background"))
-        XCTAssertTrue(dealerStation.accessibilityValue.contains("badgeTextColor=color.dealerBadge.text"))
+        XCTAssertEqual(dealerStation.outlineLineWidth, 1)
+        XCTAssertFalse(dealerStation.isActiveTurn)
+        XCTAssertFalse(dealerStation.isBidMotionCueActive)
+        XCTAssertEqual(dealerStation.stationBackgroundOpacityToken, .stationBackgroundDefaultOpacity)
+        XCTAssertEqual(dealerStation.stationBackgroundOpacity, 0.08)
+        XCTAssertEqual(dealerStation.stationScale, 1)
+        XCTAssertEqual(dealerStation.stationShadowOpacity, 0)
+        XCTAssertEqual(dealerStation.dealerPillBackgroundToken, .dealerBadgeBackground)
+        XCTAssertEqual(dealerStation.dealerPillTextToken, .dealerBadgeText)
+        XCTAssertTrue(dealerStation.accessibilityValue.contains("dealerIndicator=pill"))
+        XCTAssertTrue(dealerStation.accessibilityValue.contains("dealerPillVisible=true"))
+        XCTAssertTrue(dealerStation.accessibilityValue.contains("dealerPillPlacement=besideName"))
+        XCTAssertTrue(dealerStation.accessibilityValue.contains("dealerPillText=D"))
+        XCTAssertTrue(dealerStation.accessibilityValue.contains("dealerPillBackground=color.dealerBadge.background"))
+        XCTAssertTrue(dealerStation.accessibilityValue.contains("dealerPillTextColor=color.dealerBadge.text"))
+        XCTAssertTrue(dealerStation.accessibilityValue.contains("activeTurn=false"))
+        XCTAssertTrue(dealerStation.accessibilityValue.contains("bidMotionCueActive=false"))
+        XCTAssertTrue(dealerStation.accessibilityValue.contains("stationBackgroundOpacity=effect.station.background.default.opacity"))
         XCTAssertTrue(dealerStation.accessibilityValue.contains("outline=color.station.outline"))
 
-        XCTAssertFalse(otherStation.showsDealerBadge)
+        XCTAssertFalse(otherStation.showsDealerPill)
         XCTAssertEqual(otherStation.outlineColorRole, .stationOutline)
         XCTAssertEqual(otherStation.outlineToken, .stationOutline)
 
-        XCTAssertTrue(dealtStation.showsDealerBadge)
+        XCTAssertFalse(dealtStation.showsDealerPill)
         XCTAssertEqual(dealtStation.outlineColorRole, .stationOutline)
         XCTAssertEqual(dealtStation.outlineToken, .stationOutline)
+
+        XCTAssertFalse(activeStation.showsDealerPill)
+        XCTAssertTrue(activeStation.isActiveTurn)
+        XCTAssertEqual(activeStation.outlineColorRole, .stationOutlineActive)
+        XCTAssertEqual(activeStation.outlineToken, .stationOutlineActive)
+        XCTAssertEqual(activeStation.outlineLineWidth, 2)
+        XCTAssertEqual(activeStation.stationBackgroundOpacityToken, .stationBackgroundActiveOpacity)
+        XCTAssertEqual(activeStation.stationBackgroundOpacity, 0.24)
+        XCTAssertTrue(activeStation.accessibilityValue.contains("activeTurn=true"))
+        XCTAssertTrue(activeStation.accessibilityValue.contains("outline=color.station.outline.active"))
+
+        XCTAssertFalse(activeDealerStation.showsDealerPill)
+        XCTAssertTrue(activeDealerStation.isActiveTurn)
+        XCTAssertEqual(activeDealerStation.outlineColorRole, .stationOutlineActive)
+        XCTAssertEqual(activeDealerStation.outlineToken, .stationOutlineActive)
+        XCTAssertTrue(activeDealerStation.accessibilityValue.contains("dealerPillVisible=false"))
+        XCTAssertTrue(activeDealerStation.accessibilityValue.contains("outline=color.station.outline.active"))
+
+        XCTAssertFalse(cuedStation.isActiveTurn)
+        XCTAssertTrue(cuedStation.isBidMotionCueActive)
+        XCTAssertTrue(cuedStation.isBidMotionCuePulsed)
+        XCTAssertEqual(cuedStation.outlineColorRole, .stationOutlineActive)
+        XCTAssertEqual(cuedStation.outlineLineWidth, 3)
+        XCTAssertEqual(cuedStation.stationBackgroundOpacityToken, .bidStationCueBackgroundOpacity)
+        XCTAssertEqual(cuedStation.stationBackgroundOpacity, 0.34)
+        XCTAssertEqual(cuedStation.stationScale, 1.035)
+        XCTAssertEqual(cuedStation.stationShadowOpacity, 0.34)
+        XCTAssertEqual(cuedStation.stationShadowRadius, 7)
+        XCTAssertTrue(cuedStation.accessibilityValue.contains("bidMotionCueActive=true"))
+        XCTAssertTrue(cuedStation.accessibilityValue.contains("bidMotionCuePulsed=true"))
+        XCTAssertTrue(cuedStation.accessibilityValue.contains("bidMotionCueSeat=west"))
+        XCTAssertTrue(cuedStation.accessibilityValue.contains("outlineLineWidth=3.0"))
+        XCTAssertTrue(cuedStation.accessibilityValue.contains("stationCuePulse=animation.bid.stationCue.pulse.duration"))
+        XCTAssertTrue(cuedStation.accessibilityValue.contains("stationCuePulseSeconds=0.24"))
     }
 
     func testBidAreaPresentationMapsBiddingState() throws {
@@ -2315,6 +2467,7 @@ final class TarneebTests: XCTestCase {
         XCTAssertEqual(presentation.entries.map(\.seatLabel), ["South", "East", "North", "West"])
         XCTAssertEqual(presentation.entries.map(\.valueLabel), ["--", "7", "Pass", "10"])
         XCTAssertEqual(presentation.entries.map(\.isSelectable), [true, false, false, false])
+        XCTAssertEqual(presentation.entries.map(\.isActiveTurn), [true, false, false, false])
         XCTAssertEqual(presentation.entries.map(\.isCurrentHighestBid), [false, false, false, true])
         XCTAssertEqual(
             presentation.entries.map(\.valueColorToken),
@@ -2338,7 +2491,7 @@ final class TarneebTests: XCTestCase {
         XCTAssertTrue(presentation.southBidButtonEnabled)
         XCTAssertEqual(presentation.areaTokens.background, .bidAreaBackground)
         XCTAssertEqual(presentation.selectorTokens.background, .bidSelectorBackground)
-        XCTAssertEqual(presentation.suitSelectorTokens.background, .bidSuitSelectorBackground)
+        XCTAssertEqual(presentation.suitSelectorTokens.background, .cardBackground)
         XCTAssertTrue(presentation.accessibilityValue.contains("label=Bidding"))
         XCTAssertTrue(presentation.accessibilityValue.contains("rows=south,east,north,west"))
         XCTAssertTrue(presentation.accessibilityValue.contains("values=south:--,east:7,north:Pass,west:10"))
@@ -2357,10 +2510,14 @@ final class TarneebTests: XCTestCase {
         XCTAssertTrue(presentation.accessibilityValue.contains("southBidButtonEnabled=true"))
         XCTAssertTrue(presentation.accessibilityValue.contains("areaTokens=background=color.bidArea.background"))
         XCTAssertTrue(presentation.accessibilityValue.contains("selectorTokens=background=color.bidSelector.background"))
-        XCTAssertTrue(presentation.accessibilityValue.contains("suitSelectorTokens=background=color.bidSuitSelector.background"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("suitSelectorTokens=background=color.card.background"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("selectedBackground=color.card.background"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("focusRing=color.button.newGame.background"))
         XCTAssertTrue(presentation.accessibilityValue.contains("bidButtonTokens=background=color.button.bid.background"))
         XCTAssertTrue(presentation.accessibilityValue.contains("simulatedBidDelay=animation.bid.simulatedTurn.delay"))
         XCTAssertTrue(presentation.accessibilityValue.contains("simulatedBidDelaySeconds=1.0"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("stationCuePulse=animation.bid.stationCue.pulse.duration"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("stationCuePulseSeconds=0.24"))
         XCTAssertTrue(presentation.accessibilityValue.contains("fadeOut=animation.bid.value.fadeOut.duration"))
         XCTAssertTrue(presentation.accessibilityValue.contains("fadeTotalSeconds=1.0"))
         XCTAssertTrue(presentation.accessibilityValue.contains("areaFadeOut=animation.bid.area.fadeOut.duration"))
@@ -2499,19 +2656,28 @@ final class TarneebTests: XCTestCase {
         ))
 
         XCTAssertEqual(presentation.teamLabel, "East-West")
+        XCTAssertEqual(presentation.highBidderLabel, "West")
         XCTAssertEqual(presentation.bidValueLabel, "10")
         XCTAssertEqual(presentation.tarneebLabel, "Tarneeb")
+        XCTAssertEqual(presentation.tarneebSuit, .clubs)
         XCTAssertEqual(presentation.tarneebSymbol, "♣")
         XCTAssertEqual(presentation.tarneebSymbolColorToken, .cardSuitBlack)
         XCTAssertEqual(presentation.tarneebSymbolBackgroundColorToken, .cardBackground)
         XCTAssertEqual(presentation.tarneebSymbolBorderColorToken, .buttonNewGameBackground)
+        XCTAssertEqual(presentation.tarneebSymbolChipTokens.background, .cardBackground)
+        XCTAssertEqual(presentation.tarneebSymbolChipTokens.border, .cardBorder)
+        XCTAssertEqual(presentation.tarneebSymbolChipTokens.focusRing, .buttonNewGameBackground)
         XCTAssertEqual(presentation.tokens.background, .postBiddingSummaryBackground)
-        XCTAssertTrue(presentation.accessibilityValue.contains("team=East-West"))
-        XCTAssertTrue(presentation.accessibilityValue.contains("bid=10"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("display=tarneebOnlyRibbon"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("tarneebLabel=Tarneeb"))
+        XCTAssertFalse(presentation.accessibilityValue.contains("highBidder=West"))
+        XCTAssertFalse(presentation.accessibilityValue.contains("bid=10"))
         XCTAssertTrue(presentation.accessibilityValue.contains("tarneebSymbol=♣"))
         XCTAssertTrue(presentation.accessibilityValue.contains("tarneebSymbolColor=color.card.suit.black"))
         XCTAssertTrue(presentation.accessibilityValue.contains("tarneebSymbolBackground=color.card.background"))
         XCTAssertTrue(presentation.accessibilityValue.contains("tarneebSymbolBorder=color.button.newGame.background"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("tarneebSymbolChipTokens=background=color.card.background"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("focusRing=color.button.newGame.background"))
         XCTAssertTrue(presentation.accessibilityValue.contains("background=color.postBiddingSummary.background"))
 
         let warmSummary = PostBiddingSummary(
@@ -2546,6 +2712,7 @@ final class TarneebTests: XCTestCase {
         ))
 
         XCTAssertEqual(presentation.teamLabel, "North-South")
+        XCTAssertEqual(presentation.highBidderLabel, "South")
         XCTAssertEqual(presentation.bidValueLabel, "10")
         XCTAssertEqual(presentation.tarneebLabel, "Tarneeb")
         XCTAssertEqual(presentation.selectedSuit, .spades)
@@ -2553,7 +2720,7 @@ final class TarneebTests: XCTestCase {
         XCTAssertTrue(presentation.submitEnabled)
         XCTAssertEqual(presentation.suitOptionsLabel, "spades,clubs,hearts,diamonds")
         XCTAssertTrue(presentation.accessibilityValue.contains("visible=true"))
-        XCTAssertTrue(presentation.accessibilityValue.contains("team=North-South"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("highBidder=South"))
         XCTAssertTrue(presentation.accessibilityValue.contains("bid=10"))
         XCTAssertTrue(presentation.accessibilityValue.contains("selected=spades"))
         XCTAssertTrue(presentation.accessibilityValue.contains("submitEnabled=true"))
@@ -2565,7 +2732,7 @@ final class TarneebTests: XCTestCase {
         XCTAssertNil(SouthTarneebSelectionPresentation(phase: .dealt, biddingStatus: .complete, highestBidSeat: .south, highestBidValue: .ten, summary: nil, isBiddingAreaFadingOut: true, selectedSuit: nil))
     }
 
-    func testTableLayoutPresentationExposesDiameterStationPlacementsAndCenteredDeckAnchor() {
+    func testTableLayoutPresentationExposesDiameterStationPlacementsAndDealerStationDeckAnchor() {
         let layout = TableLayoutPresentation(screenWidth: 390)
 
         XCTAssertEqual(layout.tableDiameter, 195)
@@ -2573,9 +2740,9 @@ final class TarneebTests: XCTestCase {
         XCTAssertEqual(layout.stationPlacement(for: .west), .leftOfTable)
         XCTAssertEqual(layout.stationPlacement(for: .south), .belowTable)
         XCTAssertEqual(layout.stationPlacement(for: .east), .rightOfTable)
-        XCTAssertEqual(layout.undealtDeckLayout().placementLabel, "veryCenter")
-        XCTAssertEqual(layout.undealtDeckLayout().anchorLabel, "center")
-        XCTAssertTrue(layout.undealtDeckLayout().titleOverlapAllowed)
+        XCTAssertEqual(layout.undealtDeckLayout().placementLabel, "dealerStation")
+        XCTAssertEqual(layout.undealtDeckLayout().anchorLabel, "stationCenter")
+        XCTAssertFalse(layout.undealtDeckLayout().titleOverlapAllowed)
     }
 
     func testCardBackAssetCatalogExposesExpectedCardBackImage() throws {
@@ -2698,7 +2865,10 @@ final class TarneebTests: XCTestCase {
             dealService: QueuedDealService(),
             dealerSelector: QueuedDealerSelector(seats: [.west])
         )
-        let undealtDeckStack = UndealtDeckStackPresentation(phase: presentation.gameState.phase)
+        let undealtDeckStack = UndealtDeckStackPresentation(
+            phase: presentation.gameState.phase,
+            dealerSeat: presentation.gameState.dealerSeat
+        )
         let dealerStation = DealerStationPresentation(
             seat: presentation.gameState.dealerSeat,
             phase: presentation.gameState.phase,
@@ -2713,9 +2883,10 @@ final class TarneebTests: XCTestCase {
         XCTAssertEqual(presentation.gameState.players.flatMap(\.hand).count, 0)
         XCTAssertTrue(presentation.gameState.bids.isEmpty)
         XCTAssertEqual(undealtDeckStack.hiddenCardCount, 52)
-        XCTAssertEqual(undealtDeckStack.layout.placementLabel, "veryCenter")
-        XCTAssertTrue(undealtDeckStack.layout.titleOverlapAllowed)
-        XCTAssertTrue(dealerStation.showsDealerBadge)
+        XCTAssertEqual(undealtDeckStack.dealerSeat, .west)
+        XCTAssertEqual(undealtDeckStack.layout.placementLabel, "dealerStation")
+        XCTAssertFalse(undealtDeckStack.layout.titleOverlapAllowed)
+        XCTAssertTrue(dealerStation.showsDealerPill)
         XCTAssertEqual(dealerStation.outlineToken, .stationOutline)
         XCTAssertEqual(tableTitle.text, "طرنيب")
         XCTAssertNil(BidAreaPresentation(phase: presentation.gameState.phase, biddingState: presentation.gameState.biddingState))
