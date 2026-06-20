@@ -11,9 +11,11 @@ South stack visible as fanned backs until reveal time, reveals South with a
 backs-first 1.5-second left-to-right flip into imported xCards face artwork,
 logs each player's hand for debugging, runs a simplified
 bidding round for all four players, and fades the bidding area away.
-Numeric bidding completion then shows the high-bidding player, bid value, and
-preferred Tarneeb suit symbol; all-pass completion before any numeric bid starts
-a fresh automatic deal with the dealer advanced counterclockwise. It also
+Numeric bidding completion then shows a compact Tarneeb-only ribbon with the
+preferred suit symbol while the high-bidding player and bid remain visible on
+the high bidder's station and available in summary metadata; all-pass completion
+before any numeric bid starts a fresh automatic deal with the dealer advanced
+counterclockwise. It also
 supports counterclockwise dealer rotation for replacement deals and allows a
 new-game reset. South chooses a bid during South's bidding turn; if South ends
 as the numeric high bidder, South sets the Tarneeb suit in a short post-bidding
@@ -114,14 +116,13 @@ counterclockwise dealer rotation, and the 13-card stack deal animation:
   `Bidding complete`, the South `Bid` button disappears completely, and the
   `Bidding` area fades out over one second before being removed.
 - If bidding completes with a numeric high bid by East, North, or West, a
-  compact one-line `Contract` summary appears after the fade-out in the format
-  `Contract [High Bidder]: [Bid value] Tarneeb: [suit]`, using the high
-  bidder's player label and preferred suit symbol. The line aligns `Contract`
-  to the left, `[High Bidder]: [Bid value]` in the center, and `Tarneeb:
-  [suit]` to the right. If South has the numeric high bid, a
-  post-bidding `Contract` suit-setting panel appears first with
-  white-background suit chips and a `Set` button; once South sets the suit, the
-  final summary appears.
+  compact Tarneeb-only ribbon appears after the fade-out. It shows the
+  `Tarneeb` label and the high bidder's preferred suit symbol in a white chip;
+  the high bidder and bid value remain visible through the station bid surface
+  and summary metadata. If South has the numeric high bid, a post-bidding
+  `Contract` suit-setting panel appears first with player, bid, white-background
+  suit chips, and a `Set` button; once South sets the suit, the final Tarneeb
+  ribbon appears.
 - If all four players pass before any numeric bid is accepted, no post-bidding
   summary appears. After the terminal bidding fade, the hand is abandoned and a
   fresh deal starts automatically with the dealer advanced to the previous
@@ -248,9 +249,10 @@ counterclockwise dealer rotation, and the 13-card stack deal animation:
    `Bidding` area begins a one-second fade-out.
 27. When the bidding-area fade-out completes, SwiftUI removes the `Bidding` area
    from layout. If East, North, or West has the numeric high bid, presentation
-   mapping displays the post-bidding summary with the high-bidding player, bid
-   value, and `Tarneeb` suit symbol read from the high bidder's accepted bid
-   record. If South has the numeric high bid and no suit has been set yet,
+   mapping displays the Tarneeb-only post-bidding ribbon with the suit symbol
+   read from the high bidder's accepted bid record. The high bidder and bid
+   value remain visible through station bid state and summary metadata. If
+   South has the numeric high bid and no suit has been set yet,
    SwiftUI displays a post-bidding South suit-setting panel with suit chips and
    a `Set` button; tapping `Set` stores the selected suit and then displays the
    final summary. If all players passed with no numeric high bid, no high-bidding
@@ -291,7 +293,7 @@ counterclockwise dealer rotation, and the 13-card stack deal animation:
 | South bid selector | Renders only on South's active turn as bid chips with `Pass` and currently legal numeric values through 13. |
 | Post-bidding South Tarneeb suit selector | Renders only after bidding when South is the numeric high bidder and the final summary is waiting on South's suit choice; offers `♠`, `♣`, `♥`, and `♦` with a `Set` button. |
 | South bid button | Renders under the South bid value while bidding is in progress, disabled except for valid South submissions, and hidden after bidding completes. |
-| Post-bidding summary view | Renders the terminal `Contract` surface with high-bidding player, bid value, and `Tarneeb` suit symbol after the `Bidding` area fade-out completes when a numeric high bid exists. |
+| Post-bidding summary view | Renders the terminal Tarneeb-only ribbon with `Tarneeb` label and preferred suit symbol after the `Bidding` area fade-out completes when a numeric high bid exists. |
 | Bottom controls view | Renders the compact status pill (`Deal complete` after South reveal and before bidding completes, `Bidding complete` after bidding completes) and the bottom `New Game` and `Deal` buttons in all MVP states. |
 | Game state owner | Handles the visible `Deal` and `New Game` buttons, owns dealer selection/rotation, and publishes renderable state. |
 | Deal service | Performs player setup, deck creation, shuffle, chunk assignment, and validation. |
@@ -552,7 +554,7 @@ intermediate replacement-dealer preview state.
 | `highestBidSeat` | Empty until a numeric bid is accepted; otherwise the seat with the current highest numeric bid. |
 | `highestBidValue` | Empty until a numeric bid is accepted; otherwise one numeric bid from 7 through 13. |
 | `bidRecommendations` | Optional metadata keyed by seat, including the recommended bid, preferred Tarneeb suit for numeric recommendations, confidence, selected suit, per-suit `expectedTricks`, per-suit `safeBidCeiling`, and any high-bid gate that capped the recommendation. |
-| `postBiddingSummary` | Optional terminal summary containing team label, bid value, preferred Tarneeb suit from the high bidder's accepted bid record, and suit symbol when a numeric high bid exists. |
+| `postBiddingSummary` | Optional terminal summary data containing high bidder, bid value, preferred Tarneeb suit from the high bidder's accepted bid record, and suit symbol when a numeric high bid exists; the final visible ribbon shows only the Tarneeb label and suit symbol. |
 | `biddingCompletionOutcome` | Empty while bidding is active; `numericHighBid` when bidding ends with a numeric highest bidder; `allPassRedeal` when all four players pass before any numeric bid is accepted. |
 | `biddingStatus` | Suggested values are `notStarted`, `inProgress`, and `complete`; this is bidding state, not a new game phase. |
 | `biddingAreaPresentationState` | Suggested presentation-only values are `hidden`, `visible`, and `fadingOut`; used to coordinate the one-second terminal fade before summary display or all-pass automatic redeal. |
@@ -737,7 +739,7 @@ current dealer and the pending completed deal.
 | `southRevealRevealedCount` | 0 through 13; determines how many South cards render face-up during the left-to-right flip. |
 | `southRevealTotalDuration` | Uses `animation.deal.southReveal.total.duration` and must be 1.5 seconds from first card flip start to final card flip completion. |
 | `timingTokens` | Use `animation.deal.*` timing tokens from `design-tokens.md`. |
-| `accessibilityValue` | Should expose count, hidden-card asset, center-deck origin, player-station destination, target seat, direction, target order, South interim-back visibility, South reveal state, South revealed-card count, and South reveal total duration for UI tests. |
+| `accessibilityValue` | Should expose count, hidden-card asset, dealer-station origin, player-station destination, target seat, direction, target order, South interim-back visibility, South reveal state, South revealed-card count, and South reveal total duration for UI tests. |
 
 When a moving stack arrives, West, North, and East may reveal final hidden-card
 presentations from `pendingDealtState`. If South receives its stack before all
@@ -862,16 +864,16 @@ shown only after the `Bidding` area fade-out completes.
 | Field | Requirement |
 | --- | --- |
 | `isVisible` | True only after terminal bidding fade-out completes and a numeric high bid exists; false for all-pass automatic redeals. |
-| `highBidderLabel` | `South`, `East`, `North`, or `West`. |
-| `bidValueText` | Numeric high bid value from `7` through `13`. |
+| `highBidderLabel` | `South`, `East`, `North`, or `West`; retained as metadata and station state, not repeated in the final ribbon. |
+| `bidValueText` | Numeric high bid value from `7` through `13`; retained as metadata and station state, not repeated in the final ribbon. |
 | `tarneebLabel` | Visible label `Tarneeb`. |
 | `tarneebSymbol` | One of `♠`, `♣`, `♥`, or `♦`, derived from the high bidder's preferred trump/Tarneeb suit stored on the accepted bid record. |
 | `containerRole` | `postBiddingSummaryBackground` with `postBiddingSummaryBorder`. |
 | `labelTextRole` | `postBiddingSummaryLabelText`. |
-| `teamTextRole` | `postBiddingSummaryTeamText`. |
-| `bidTextRole` | `postBiddingSummaryBidText`. |
+| `teamTextRole` | Used by the South post-bidding `Contract` suit-setting panel, not by the final Tarneeb-only ribbon. |
+| `bidTextRole` | Used by the South post-bidding `Contract` suit-setting panel and station bid state, not by the final Tarneeb-only ribbon. |
 | `tarneebTextRole` | `postBiddingSummaryTarneebText`. |
-| `accessibilityValue` | Should expose team label, bid value, and Tarneeb symbol for UI tests. |
+| `accessibilityValue` | Should expose Tarneeb label, suit symbol, and token roles for UI tests; high bidder and bid value can be verified through station bid state or summary metadata. |
 
 The summary is a compact result display under the South station. It must not
 look or behave like a suit picker: no segmented control, menu, buttons, or card
@@ -1502,9 +1504,10 @@ Bidding terminal rules:
 5. Hide the South `Bid` button completely.
 6. Fade the full `Bidding` area out over one second.
 7. After the fade-out completes, remove the `Bidding` area from layout.
-8. If a numeric high bid exists, show the post-bidding summary with the
-   high-bidding player, high bid value, and `Tarneeb` suit symbol from the high
-   bidder's accepted bid record.
+8. If a numeric high bid exists, show the post-bidding Tarneeb ribbon with only
+   the `Tarneeb` label and suit symbol from the high bidder's accepted bid
+   record; the high bidder and high bid stay visible on the high bidder's
+   station and remain available in summary metadata.
 9. If no numeric high bid exists, show no high-bidding player or Tarneeb summary
    and start a fresh automatic deal after the fade-out completes.
 10. The automatic deal rotates `dealerSeat` counterclockwise to the previous
@@ -1690,9 +1693,10 @@ Required elements:
   numeric bid remains yellow; superseded previous high bids transition to white.
 - When bidding completes, the full `Bidding` area fades out over one second and
   is removed from layout.
-- If East, North, or West has the numeric high bid, a post-bidding summary
-  appears after the fade-out with the high-bidding player label, the bid value,
-  and `Tarneeb` with the preferred suit symbol in a compact white chip.
+- If East, North, or West has the numeric high bid, a post-bidding Tarneeb ribbon
+  appears after the fade-out with only the `Tarneeb` label and preferred suit
+  symbol in a compact white chip; the high bidder and bid remain visible on the
+  winning station's bid chip and available in metadata.
 - If South has the numeric high bid, a post-bidding South suit-setting panel
   appears after the fade-out. It uses white-background suit chips with
   black Spades/Clubs and red Hearts/Diamonds, a disabled-until-selected `Set`
@@ -1848,10 +1852,10 @@ The post-bidding summary must:
   high bid exists.
 - Sit in the same under-South region previously occupied by the bidding area.
 - Use `color.postBiddingSummary.*` and `layout.postBiddingSummary.*` tokens.
-- Display the actual high-bidding player as `South`, `East`, `North`, or
-  `West`.
-- Display the high bid value from 7 through 13.
 - Display a `Tarneeb` label with one suit symbol: `♠`, `♣`, `♥`, or `♦`.
+- Avoid repeating the actual high-bidding player and high bid value in the
+  final ribbon; those remain available through station bid state and summary
+  metadata.
 - Render the suit symbol in the same font as the bid value, inside a compact
   white chip with just enough padding to separate it from the dark table
   surface.
@@ -2048,8 +2052,9 @@ Display invariants:
   hidden after the fade-out completes.
 - The post-bidding summary is hidden before bidding completes and while the
   `Bidding` area is fading out.
-- When a numeric high bid exists, the post-bidding summary displays the correct
-  high-bidding player label, bid value, and Tarneeb suit symbol.
+- When a numeric high bid exists, the post-bidding summary metadata stores the
+  correct high-bidding player label and bid value, while the visible ribbon
+  displays only the Tarneeb label and suit symbol.
 - When no numeric high bid exists, the post-bidding summary is hidden.
 - When no numeric high bid exists because all four players passed, the next
   visible completed hand comes from an automatic fresh deal with the dealer
@@ -2287,7 +2292,7 @@ Display invariants:
 | Bidding completes but status remains `Deal complete` | Invalid MVP 008 display; update the status label to `Bidding complete`. |
 | Bidding completes but the `Bidding` area stays visible after the fade duration | Invalid MVP 008 display; remove the `Bidding` area after the one-second fade-out. |
 | Post-bidding summary appears before the `Bidding` area fade completes | Invalid MVP 008 display; wait until the terminal fade-out completes. |
-| Numeric high bid exists but post-bidding summary is absent | Invalid MVP 008 display; show the high-bidding player, bid value, and `Tarneeb` suit symbol. |
+| Numeric high bid exists but post-bidding summary is absent | Invalid MVP 008 display; show the Tarneeb-only ribbon with the preferred suit symbol and keep the high bidder/bid available through station state and summary metadata. |
 | All players pass with no numeric high bid | Hide the `Bidding` area after the fade-out, do not show a high-bidding player or Tarneeb summary, advance the dealer counterclockwise, and start a fresh automatic deal. |
 | All-pass automatic redeal reuses the abandoned hand or stale bid values | Invalid MVP 008 state; create and shuffle a fresh deck, replace hands and bid state, log the new hands, and initialize the new station bid chips to `--`. |
 | All-pass automatic redeal does not advance dealer | Invalid MVP 008 state; rotate dealer to the previous dealer's right using South -> East -> North -> West -> South order. |
@@ -2342,7 +2347,7 @@ practical.
 | Bidding terminal rules | A bid of `13` ends bidding and sets others to `Pass`; bidding also ends when only the highest bidder remains non-pass or when all players pass before any numeric bid; terminal state drives `Bidding complete`, hides the South `Bid` button, fades the `Bidding` area out, then either displays the numeric high-bid summary or starts the all-pass automatic redeal. | PRD-016, PRD-018 |
 | South bid presentation | South shows `--` until active, exposes legal bid chips plus `Pass`, keeps the South `Bid` button visible-disabled during in-progress non-South turns, enables it for active-turn `Pass` or legal numeric submissions, commits only when `Bid` is tapped, hides the button when bidding completes, and never shows an in-progress suit selector. | PRD-016 |
 | Bid token boundary | Bidding panel, post-bidding summary, bid selector, South post-bidding Tarneeb suit selector, South `Bid`/`Set` buttons, pending value, current-highest value, final summary suit chip, bid fade/color presentation, and bidding-area fade expose semantic roles or token keys instead of concrete color values. | PRD-016, PRD-018, NFR-003, NFR-005 |
-| Post-bidding summary | Compact `Contract` summary derives the actual high-bidding player label, high bid value, and Tarneeb suit symbol from the highest bidder's accepted bid record after the terminal fade completes and, for a South high bid, only after South taps `Set`; the final Tarneeb symbol appears in a compact white chip with black/red suit coloring, and all-pass terminal bidding keeps the summary hidden. | PRD-018, NFR-003 |
+| Post-bidding summary | Compact Tarneeb-only ribbon derives the final suit symbol from the highest bidder's accepted bid record after the terminal fade completes and, for a South high bid, only after South taps `Set`; the high-bidding player label and bid value remain in station state and summary metadata, the final Tarneeb symbol appears in a compact white chip with black/red suit coloring, and all-pass terminal bidding keeps the summary hidden. | PRD-018, NFR-003 |
 | All-pass automatic redeal | Four passes before any numeric bid abandon the hand, advance dealer counterclockwise, create and validate a fresh deal, log the new hands, and start a fresh bidding round initialized to `--`. | PRD-016, PRD-018, PRD-019 |
 | Hand logging | Completed deals, including all-pass automatic redeals, log one readable 13-card hand entry for South, East, North, and West through a replaceable logging destination. | PRD-019, NFR-003 |
 | Hidden hand presentation | Simulated hands expose hidden count/back presentation but no rank or suit values. | PRD-007 |
@@ -2362,7 +2367,7 @@ UI tests should verify user-facing behavior and layout-critical elements.
 | Central table geometry | Circular table is visible and its diameter is half the screen width within a defined test tolerance. | PRD-010 |
 | Table title placement | `طرنيب` appears centered on the card table and not as a top page title. | PRD-001, PRD-010 |
 | Undealt deck stack | Stack represents 52 hidden cards, sits inside the selected dealer station, uses the tokenized squared-stack geometry, stays inside the station buffer, does not obscure the title before deal, and reveals no ranks or suits. | PRD-010, PRD-014 |
-| Station layout | North above, West left, South below, East right; stations read as rounded squares around the table; only the current dealer shows the circular badge. | PRD-002, PRD-011, PRD-014 |
+| Station layout | North above, West left, South below, East right; stations read as rounded squares around the table; only the current dealer shows the small beside-name `D` pill before bidding. | PRD-002, PRD-011, PRD-014 |
 | Deal action | Tapping `Deal` keeps South card faces hidden while stacks are dealt from the dealer station, keeps South's received stack visible as fanned backs if it arrives before the fourth movement, removes the undealt deck stack after the fourth movement, reveals South with 13 backs and a 1.5-second left-to-right flip, hides the dealer pill once bidding starts while retaining dealer metadata, then displays `Deal complete` and shows the `Bidding` area with active-bidder emphasis. | PRD-005, PRD-006, PRD-008, PRD-010, PRD-014, PRD-016 |
 | Deal animation | After tapping `Deal`, a transient 13-card hidden stack appears from the dealer station, exposes dealer-relative counterclockwise target order metadata, keeps South ranks/suits hidden until all hands are dealt, keeps South's received stack visible as fanned backs when applicable, then resolves through the 1.5-second South backs/flip reveal to the completed deal state. | PRD-005, PRD-015 |
 | South expansion | After all hands are dealt, South station expands below the card table with 13 backs, flips those cards face-up left-to-right over 1.5 seconds, and does not cover the bottom control area. | PRD-006, PRD-011, PRD-012 |
@@ -2373,7 +2378,7 @@ UI tests should verify user-facing behavior and layout-critical elements.
 | Simulated bid values | East, North, and West resolve non-interactive values from hand-strength recommendations after at least one second, showing `Pass` when a numeric recommendation is not higher than the current high bid or fails the partner-raise service guard, and defaulting to `Pass` when partner is currently highest unless the stronger-trump raise rule is satisfied. | PRD-016, PRD-017 |
 | Bid fade/color animation | Bid entries use a one-second fade/color transition when displayed values change, keep the current highest numeric bid yellow, and transition superseded previous high bids to white. | PRD-016 |
 | Bidding area terminal fade | When bidding completes, the `Bidding` area fades out over one second and is removed from layout. | PRD-018 |
-| Post-bidding summary | After the terminal fade, a numeric high bid displays a compact one-line `Contract [High Bidder]: [Bid value] Tarneeb: [suit]` surface using the high-bidding player label and preferred suit symbol stored on the accepted bid record; the line aligns `Contract` left, bidder and bid centered, and `Tarneeb` with suit right. If South is the high bidder, the post-bidding suit-setting panel appears first with white suit chips and a `Set` button, then the final summary appears. All-pass completion shows no summary. | PRD-018 |
+| Post-bidding summary | After the terminal fade, a numeric high bid displays a compact Tarneeb-only ribbon using the preferred suit symbol stored on the accepted bid record; the high-bidding player and bid remain visible on the winning station's bid chip and available in summary metadata. If South is the high bidder, the post-bidding `Contract` suit-setting panel appears first with white suit chips and a `Set` button, then the Tarneeb-only ribbon appears. All-pass completion shows no summary. | PRD-018 |
 | All-pass automatic redeal | After four passes before any numeric bid, the summary remains hidden, dealer metadata advances counterclockwise, a fresh deal animation runs automatically, new hands are logged, and the fresh station bid chips begin at `--`. | PRD-016, PRD-018, PRD-019 |
 | Replacement deal | Tapping `Deal` after completion rotates dealer, replaces the previous completed deal, bid state, and post-bidding summary with another valid displayed deal initialized to `--`, and keeps old labels absent. | PRD-009, PRD-012, PRD-014, PRD-016, PRD-018 |
 | New Game reset | Tapping `New Game` after completion clears dealt cards, bidding UI, and post-bidding summary, selects a dealer, hides status text, restores the squared undealt deck stack inside the selected dealer station, shows the dealer pill, and leaves `Deal` ready for a new first deal. | PRD-013, PRD-014, PRD-016, PRD-018 |
@@ -2466,11 +2471,12 @@ Manual visual QA should verify:
   numeric bid yellow, and transition superseded previous high bids to white.
 - When bidding completes, the `Bidding` area fades out over one second and is
   removed from layout.
-- When bidding completes with a numeric high bid, the post-bidding summary shows
-  the high-bidding player label, the high bid value, and `Tarneeb` with one of
-  `♠`, `♣`, `♥`, or `♦` from the high bidder's accepted bid record; the suit
-  symbol appears in a compact white chip with black/red suit coloring and waits
-  for South's post-bidding `Set` action when South is the high bidder.
+- When bidding completes with a numeric high bid, the post-bidding summary
+  metadata stores the high-bidding player label and high bid value, while the
+  visible ribbon shows `Tarneeb` with one of `♠`, `♣`, `♥`, or `♦` from the high
+  bidder's accepted bid record; the suit symbol appears in a compact white chip
+  with black/red suit coloring and waits for South's post-bidding `Set` action
+  when South is the high bidder.
 - When all players pass before any numeric bid, no post-bidding summary appears,
   the dealer advances counterclockwise, a fresh deal starts automatically, and
   the next station bid chips begin with all entries as `--`.
@@ -2527,7 +2533,7 @@ Before marking MVP 008 done:
 | PRD-014 Dealer Selection and Rotation | Dealer selection abstraction, dealer pill presentation, dealer-station squared deck stack placement, replacement rotation, all-pass automatic-redeal rotation, unit/UI dealer tests. |
 | PRD-016 Bidding Round | Bid state model, bidding service, bidding presentation, bidding area UI, South bid selector/button, South post-bidding Tarneeb suit-setting panel, simulated recommendation resolution, all-pass automatic-redeal outcome, bid fade/color animation, terminal bidding-area fade, bid tests. |
 | PRD-017 Automated Simulated Bidding | Automated bid evaluator, per-suit `expectedTricks` diagnostics, conservative `safeBidCeiling` selection, high-bid structural gates, conditional side-honor treatment, short-suit eligibility, regression fixtures as generalized evaluator examples, simulated recommendation flow, service-level one-trick partner-raise rejection, accepted bid preferred-suit/confidence storage, partner-context pass/raise rules, deterministic recommendation tests, and deterministic simulation reporting for bid distribution tuning. |
-| PRD-018 Post-Bidding Summary | Post-bidding summary model, summary presentation, team/bid/Tarneeb symbol mapping, terminal bidding-area fade, all-pass no-summary automatic redeal behavior, reset/replacement clearing behavior, UI tests. |
+| PRD-018 Post-Bidding Summary | Post-bidding summary model, Tarneeb-only ribbon presentation, high-bidder/bid metadata mapping, terminal bidding-area fade, all-pass no-summary automatic redeal behavior, reset/replacement clearing behavior, UI tests. |
 | PRD-019 Deal Hand Console Logging | Deal hand logging, hand log sink, console-only diagnostic behavior, all-pass automatic redeal hand logging, replaceable logging destination tests. |
 | NFR-001 Platform | App shell and orientation policy, portrait UI tests. |
 | NFR-002 Responsiveness | Data flow, responsiveness UI tests, full verification. |

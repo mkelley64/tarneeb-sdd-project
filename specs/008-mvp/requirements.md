@@ -2,7 +2,7 @@
 
 ## 1. Purpose
 
-Build an iOS application MVP for the card game Tarneeb that allows one human player to start a game by dealing cards and then enter a simple bidding round. The other three players are simulated seats. This MVP ends after a valid deal is completed, the bidding round resolves with a numeric high bid, the bidding area fades away, any required South Tarneeb suit selection is resolved, and a post-bidding summary displays the high-bidding player, bid value, and preferred Tarneeb suit symbol, while allowing the player to request a replacement deal or reset the screen to a launch state. If all four players pass before any numeric bid is accepted, the hand is abandoned and a new deal starts automatically with the dealer advanced counterclockwise to the previous dealer's right. If South wins the bidding with a numeric bid, South chooses the Tarneeb suit after the bidding area fades and before the final summary appears. Post-summary editable Trump/Tarneeb suit selection, trick play, scoring, multiplayer, persistence, and advanced gameplay AI beyond bidding personality are not included.
+Build an iOS application MVP for the card game Tarneeb that allows one human player to start a game by dealing cards and then enter a simple bidding round. The other three players are simulated seats. This MVP ends after a valid deal is completed, the bidding round resolves with a numeric high bid, the bidding area fades away, any required South Tarneeb suit selection is resolved, and a compact post-bidding Tarneeb ribbon displays the preferred Tarneeb suit symbol, while the high bidder and high bid remain visible on the player-station bid surface. The player may then request a replacement deal or reset the screen to a launch state. If all four players pass before any numeric bid is accepted, the hand is abandoned and a new deal starts automatically with the dealer advanced counterclockwise to the previous dealer's right. If South wins the bidding with a numeric bid, South chooses the Tarneeb suit after the bidding area fades and before the final Tarneeb ribbon appears. Post-summary editable Trump/Tarneeb suit selection, trick play, scoring, multiplayer, persistence, and advanced gameplay AI beyond bidding personality are not included.
 
 This MVP 008 revision carries forward the MVP 002 card readability and station sizing requirements, the MVP 003 portrait card-table changes, and the MVP 004 dealer selection, dealer indication, dealer-station squared undealt deck placement, counterclockwise dealer rotation, and sequential deal animation. It adds a simplified Tarneeb bidding round after the deal, including player stations that act as information surfaces for each seat's current bid/pass state, a bordered `Bidding` action area under the South player station, sequential counterclockwise bidding, a South player bid-chip selector when it is South's turn, a South `Bid` button that remains visible during in-progress bidding and is disabled unless it is South's turn with a valid submission, a post-bidding South Tarneeb suit-setting panel with suit chips and a `Set` button only when South has the numeric high bid, automated simulated bid choices based on each simulated player's dealt hand, the current bidding context, and Phase 3 personality adjustments applied to the normal hand-strength estimate, delayed South-card reveal so South's card faces remain hidden until all hands are dealt, South's received stack remains visible as fanned card backs until reveal time, and South's cards then flip face-up left-to-right over 1.5 seconds using xCards face artwork with native card corners and complete scale variants, a one-second fade from the bidding area to either a post-bidding summary for numeric high bids, a South suit-setting panel when South's high bid still needs a suit, or an automatic redeal for all-pass bidding rounds, and console logging of each player's hand after each completed deal.
 
@@ -52,7 +52,7 @@ Reference: https://blog.jawaker.com/en/tarneeb-rules-en/
 - When cards are dealt, South's received 13-card stack should remain visible as a slightly fanned stack of card backs if it arrives before the full deal is complete; the South station should expand below the card table only after all four hands have been dealt, first displaying 13 card backs and then flipping them face-up left-to-right over 1.5 seconds.
 - When the game begins, the deck should be represented as a squared stack of 52 hidden cards inside the current dealer's player station.
 - When the cards are dealt, the undealt deck stack should disappear after the fourth 13-card stack has left the dealer station.
-- The Arabic title `طرنيب` should be centered on the card table; before the deal, it may be visually obscured by the initial deck stack.
+- The Arabic title `طرنيب` should be centered on the card table and must not be visually obscured by the initial deck stack because the deck stack sits inside the current dealer's player station.
 - The `طرنيب` title should use the tokenized table-title style defined in `design-tokens.md`, including the specified Arabic rounded font, 26pt size, tracking range, text color/opacity, and subtle shadow.
 - Initial and replacement deal actions should both be labeled `Deal`.
 - The `Deal` button should be at the very bottom of the screen.
@@ -117,8 +117,8 @@ Reference: https://blog.jawaker.com/en/tarneeb-rules-en/
 - `Pass` values and numeric values that are no longer the current highest bid should display in white after any transition completes.
 - When the bidding round is complete, the status label above the bottom control row should update from `Deal complete` to `Bidding complete`.
 - When the bidding round is complete, the `Bidding` area should fade out over one second and then disappear.
-- When the bidding round is complete with a numeric high bid, a post-bidding summary should appear after the fade-out completes.
-- The post-bidding summary should show the actual high-bidding player as `South`, `East`, `North`, or `West`, the high bid value, and a `Tarneeb` label containing the symbol for the high bidder's preferred suit. The suit symbol should display in a compact white chip, using black for Spades/Clubs and red for Hearts/Diamonds.
+- When the bidding round is complete with a numeric high bid, a compact post-bidding Tarneeb ribbon should appear after the fade-out completes.
+- The final post-bidding Tarneeb ribbon should show only a `Tarneeb` label and the symbol for the high bidder's preferred suit in a compact white chip, using black for Spades/Clubs and red for Hearts/Diamonds. The actual high-bidding player and high bid value remain available from the high bidder's station bid chip and internal summary metadata rather than being repeated in the ribbon.
 - The South `Bid` button should disappear with the `Bidding` area when bidding completes.
 - After every completed deal, the app should log each player's full 13-card hand to the console for debugging.
 - This MVP requires basic card-strength-based bid recommendations for simulated players, post-bidding South Tarneeb suit setting only when South wins the bidding, and a displayed preferred Tarneeb suit summary after bidding, but does not require changing the Tarneeb suit after the final summary, trick play, scoring, learning-based AI, opponent modeling, or Monte Carlo-style search.
@@ -139,7 +139,7 @@ Reference: https://blog.jawaker.com/en/tarneeb-rules-en/
 - Player stations should act as information surfaces during bidding, showing the seat label, active-turn emphasis when applicable, and a compact bid/pass chip for that seat; the pre-bidding dealer pill may disappear once bidding starts.
 - The `Bidding` area should show the current bidding turn in a compact status indicator and avoid duplicating the four-player bid list that is already visible on the stations.
 - The South in-progress bid controls should sit in a contained action tray under the current-turn indicator, with all bid chips fitting on one compact line on supported screens and the existing `Bid` button state behavior preserved.
-- The post-bidding South suit-setting panel should read as a single `Contract` result surface, and the final post-bidding summary should fit on one line in the format `Contract [High Bidder]: [Bid value] Tarneeb: [suit]` without adding new gameplay controls, with `Contract` aligned left, `[High Bidder]: [Bid value]` centered, and `Tarneeb: [suit]` aligned right.
+- The post-bidding South suit-setting panel should read as a single `Contract` result surface with player, bid, Tarneeb suit chips, and a `Set` button. The final post-bidding summary should be a smaller Tarneeb-only ribbon without the word `Contract`, high-bidder text, or bid-value text.
 - The bottom status/control area should visually separate itself from the felt surface and present `Deal complete` or `Bidding complete` as a compact status pill above the `New Game` and `Deal` actions.
 
 ## 4. MVP Scope
@@ -195,7 +195,7 @@ Reference: https://blog.jawaker.com/en/tarneeb-rules-en/
 - Enable the South `Bid` button only while it is South's turn with a valid selected bid value; show it disabled otherwise.
 - Hide the South `Bid` button completely when bidding is complete.
 - Hide the full `Bidding` area with a one-second fade transition when bidding is complete.
-- Display a compact `Contract` post-bidding summary after the `Bidding` area fade completes and any required South suit-setting step is complete, grouping the high-bidding player, high bid value, and `Tarneeb` suit symbol when a numeric high bid exists.
+- Display a compact Tarneeb-only post-bidding ribbon after the `Bidding` area fade completes and any required South suit-setting step is complete, showing the `Tarneeb` label and preferred suit symbol when a numeric high bid exists.
 - Replace the South bid-chip selector with the selected bid value after the human player taps `Bid`.
 - Animate bid value changes with a one-second fade and color transition.
 - Keep the current highest numeric bid displayed in the same yellow used for the `New Game` button, and transition any superseded previous high bid from yellow to white when a higher bid is accepted.
@@ -414,10 +414,10 @@ As a human player, I want the screen to include a central card table so the seat
 - Given the circular card table is displayed, then its center area reserves four subtle seat-matched target slots for future trick-play cards.
 - Given the center target slots are displayed, then they are non-interactive in MVP 008 and expose tokenized station-to-center played-card flight metadata for future trick-play animation.
 - Given the initial table is displayed, then the Arabic title `طرنيب` appears centered on the card table.
-- Given the initial deck stack is displayed, then its center point aligns with the center point of the circular card table within layout tolerance.
-- Given the initial deck stack is displayed, then it remains inside the circular card table with an appropriate buffer from the table edge.
+- Given the initial deck stack is displayed, then its center point aligns with the center point of the current dealer's player station within layout tolerance.
+- Given the initial deck stack is displayed, then it remains inside the current dealer's player station with an appropriate buffer from the station edge.
 - Given the initial table is displayed, then a squared stack of 52 hidden cards appears inside the current dealer's player station.
-- Given the initial deck stack is displayed with the `طرنيب` title, then the deck may visually overlap or obscure the title before the deal.
+- Given the initial deck stack is displayed with the `طرنيب` title, then the deck must not visually overlap or obscure the title before the deal.
 - Given the initial deck stack is displayed, then it does not reveal any card ranks or suits.
 - Given the deal completes, then the undealt deck stack disappears.
 
@@ -544,11 +544,11 @@ As a human player, I want to enter my bid after the deal and see automated simul
 - Given the bidding round reaches any terminal state, then the status label changes to `Bidding complete`.
 - Given the bidding round reaches any terminal state, then the `Bidding` area begins a one-second fade-out transition.
 - Given the `Bidding` area fade-out completes, then the full `Bidding` area and South `Bid` button disappear completely.
-- Given the bidding round reaches a terminal state with a numeric highest bid, then a post-bidding summary appears after the `Bidding` area fade-out completes.
-- Given the post-bidding summary appears, then it is laid out on one line in the format `Contract [High Bidder]: [Bid value] Tarneeb: [suit]`, with `Contract` aligned left, `[High Bidder]: [Bid value]` centered, and `Tarneeb: [suit]` aligned right.
-- Given the post-bidding summary appears, then it displays the actual high-bidding player as `South`, `East`, `North`, or `West`.
-- Given the post-bidding summary appears, then it displays the highest bid value.
-- Given the post-bidding summary appears, then it displays a `Tarneeb` label with the high bidder's preferred suit symbol in a compact white chip.
+- Given the bidding round reaches a terminal state with a numeric highest bid, then a compact post-bidding Tarneeb ribbon appears after the `Bidding` area fade-out completes.
+- Given the post-bidding Tarneeb ribbon appears, then it is laid out on one compact line containing only a `Tarneeb` label and the preferred suit chip.
+- Given the post-bidding Tarneeb ribbon appears, then it does not repeat the actual high-bidding player or highest bid value.
+- Given the post-bidding Tarneeb ribbon appears, then the high bidder's station bid chip continues to show the winning bid value.
+- Given the post-bidding Tarneeb ribbon appears, then it displays the high bidder's preferred suit symbol in a compact white chip.
 - Given the preferred suit is spades, clubs, hearts, or diamonds, then the summary symbol is `♠`, `♣`, `♥`, or `♦` respectively.
 - Given the preferred suit is spades or clubs, then the summary symbol is black.
 - Given the preferred suit is hearts or diamonds, then the summary symbol is red.
@@ -830,16 +830,15 @@ As a human player, I want simulated players to make plausible Tarneeb bids based
 
 ### PRD-018: Post-Bidding Summary
 
-As a human player, I want the completed bidding area to clear away and show the high-bidding player, bid, and Tarneeb suit symbol so I can understand the auction result.
+As a human player, I want the completed bidding area to clear away and show the chosen Tarneeb suit while the winning bid remains visible on the high bidder's player station.
 
 #### Acceptance Criteria
 
 - Given the bidding round reaches a terminal state, then the visible `Bidding` area fades out over one second.
 - Given the one-second fade-out completes, then the `Bidding` area is no longer visible.
-- Given the one-second fade-out completes and a numeric high bid exists, then a post-bidding summary is displayed.
-- Given the post-bidding summary displays, then it displays the actual high-bidding player as `South`, `East`, `North`, or `West`.
-- Given the post-bidding summary displays a high-bidding player, then it also displays the high bid value.
-- Given the post-bidding summary displays a high-bidding player, then it also displays a `Tarneeb` label with the preferred suit symbol for the highest bidder.
+- Given the one-second fade-out completes and a numeric high bid exists, then a compact post-bidding Tarneeb ribbon is displayed.
+- Given the post-bidding Tarneeb ribbon displays, then it displays a `Tarneeb` label with the preferred suit symbol for the highest bidder.
+- Given the post-bidding Tarneeb ribbon displays, then it does not repeat the high-bidding player label or bid value because those remain visible on the player-station bid surface.
 - Given the preferred suit is spades, then the `Tarneeb` label includes `♠`.
 - Given the preferred suit is clubs, then the `Tarneeb` label includes `♣`.
 - Given the preferred suit is hearts, then the `Tarneeb` label includes `♥`.
@@ -901,7 +900,7 @@ The game state must contain:
 - `highestBidSeat`: the seat with the current highest numeric bid, if any numeric bid has been accepted
 - `highestBidValue`: the current highest numeric bid from 7 through 13, if any numeric bid has been accepted
 - `bidRecommendations`: optional internal recommendation metadata keyed by seat, including the recommended bid, preferred Tarneeb suit, and confidence
-- `postBiddingSummary`: optional terminal summary containing the high-bidding player label, high bid value, and preferred Tarneeb suit symbol when a numeric high bid exists
+- `postBiddingSummary`: optional terminal summary data containing the high-bidding player label, high bid value, and preferred Tarneeb suit symbol when a numeric high bid exists; the final visible ribbon displays only the Tarneeb label and suit symbol
 
 Each bid state must be one of:
 
@@ -924,7 +923,7 @@ Each simulated bid recommendation should contain:
 - `preferredTarneebSuit`: one of `spades`, `clubs`, `hearts`, or `diamonds` when the recommendation is numeric; empty when the recommendation is `Pass`
 - `confidence`: a value from 0 through 1
 
-Each post-bidding summary should contain:
+Each post-bidding summary data record should contain:
 
 - `highBidderSeat`: the seat that made the accepted high bid
 - `highBidderLabel`: `South`, `East`, `North`, or `West`
@@ -1052,8 +1051,8 @@ Recommended deterministic dealing algorithm after shuffle:
 - The status label must display `Deal complete` after the deal completes and before bidding completes.
 - The status label must display `Bidding complete` after the bidding round reaches a terminal state.
 - When bidding completes, the `Bidding` area must fade out over one second before it is removed.
-- After the `Bidding` area is removed, a post-bidding summary must appear when a numeric high bid exists.
-- The post-bidding summary must display the high-bidding player, high bid value, and `Tarneeb` suit symbol.
+- After the `Bidding` area is removed, a compact post-bidding Tarneeb ribbon must appear when a numeric high bid exists.
+- The post-bidding Tarneeb ribbon must display only the `Tarneeb` label and preferred suit symbol; the high-bidding player and high bid value remain visible in station bid state and available in summary metadata.
 - The post-bidding summary must be visually separate from the South hand and bottom controls.
 - If all four players pass before any numeric bid is accepted, no post-bidding summary should appear and the next deal should start automatically after the terminal bidding transition.
 - Tapping `New Game` must restore the launch state without immediately dealing.
@@ -1125,8 +1124,8 @@ Bidding progression:
 - When a higher numeric bid is accepted, the previously highest numeric bid must transition from yellow to white while the new highest numeric bid remains yellow.
 - When bidding reaches a terminal state, the `Bidding` area must fade out over one second.
 - The post-bidding summary must appear only after the one-second `Bidding` area fade-out completes.
-- The post-bidding summary must use the highest bidder's partnership to derive the team label.
-- The post-bidding summary must use the highest bidder's preferred trump/Tarneeb suit stored alongside the accepted bid to derive the suit symbol.
+- The post-bidding summary data must retain the highest bidder and bid value for metadata and tests.
+- The visible post-bidding Tarneeb ribbon must use the highest bidder's preferred trump/Tarneeb suit stored alongside the accepted bid to derive the suit symbol.
 - If no stored preferred Tarneeb suit exists for a numeric highest bid, the state is invalid for MVP 008 because every accepted numeric bid must store a preferred suit.
 - If no numeric highest bid exists because all four players passed, the post-bidding summary must remain hidden and the automatic redeal path must run instead.
 
@@ -1370,7 +1369,7 @@ After dealing, the screen must include:
 - The current highest numeric bid displayed in the same yellow used for the `New Game` button, with any superseded previous high bid transitioning from yellow to white when a higher numeric bid is accepted.
 - A one-second fade-out transition that hides the full `Bidding` area when bidding completes.
 - A post-bidding summary displayed after the `Bidding` area fade-out completes when a numeric high bid exists.
-- The post-bidding summary displays the actual high-bidding player, the high bid value, and a `Tarneeb` label with `♠`, `♣`, `♥`, or `♦` in a compact white chip using the proper black/red suit color.
+- The post-bidding Tarneeb ribbon displays a `Tarneeb` label with `♠`, `♣`, `♥`, or `♦` in a compact white chip using the proper black/red suit color; it does not repeat the high-bidding player or bid value.
 - If South is the highest bidder, the post-bidding summary appears only after South selects a Tarneeb suit and taps `Set`.
 - No post-bidding summary when all four players pass before any numeric bid is accepted; instead, a fresh deal starts automatically with the dealer advanced counterclockwise.
 - West, North, and East simulated players with 13 hidden card backs each.
@@ -1425,7 +1424,7 @@ The MVP must not show:
 - Deal hand console logging should use a replaceable or injectable logging destination so tests can capture logged hands without reading the Xcode console.
 - The bottom `Deal`, `New Game`, `Deal complete`, and `Bidding complete` controls or labels should be exposed in a way that UI tests can verify their relative placement and reset behavior.
 - The `Bidding` area, station bid chips, South bid chips, post-bidding South Tarneeb suit selector, South `Bid` button, and post-bidding `Set` button should be exposed in a way that UI tests can verify visibility, allowed values, enabled/disabled active-turn behavior, selected bid and suit updates, simulated-bid timing, fade/color timing, terminal fade-out, and terminal button disappearance.
-- The post-bidding summary should be exposed in a way that UI tests can verify the high-bidding player, bid value, and Tarneeb suit symbol.
+- The post-bidding summary should be exposed in a way that UI tests can verify the visible Tarneeb label and suit symbol, with high-bidding player and bid value verified through station bid state or summary metadata rather than visible ribbon text.
 - South reveal state should be exposed in a way that UI tests can verify South card faces remain hidden until all four hands are dealt, South's received stack remains visible as fanned card backs before final reveal, South backs appear before faces, the reveal proceeds left-to-right over 1.5 seconds, and `Deal complete`/`Bidding` wait until the reveal finishes.
 
 ### NFR-004: Reliability
@@ -1604,7 +1603,7 @@ The MVP must not show:
 - If bidding completes by `13`, all-pass, or only-highest-bidder-remains terminal state, the status label must display `Bidding complete`.
 - If bidding completes by `13`, all-pass, or only-highest-bidder-remains terminal state, the `Bidding` area must fade out over one second before disappearing.
 - If bidding completes by `13`, all-pass, or only-highest-bidder-remains terminal state, the South `Bid` button must disappear completely with the `Bidding` area.
-- If bidding completes with a numeric high bid, the post-bidding summary must display the correct high-bidding player label, numeric bid, and Tarneeb suit symbol.
+- If bidding completes with a numeric high bid, the post-bidding Tarneeb ribbon must display the correct Tarneeb suit symbol while the high-bidding player label and numeric bid remain available through station bid state and summary metadata.
 - If bidding completes with no numeric high bid, no high-bidding player or Tarneeb suit symbol may be displayed.
 - If a numeric bid is accepted, the resolved bid state must store the preferred trump/Tarneeb suit alongside the bid value.
 - If a bid resolves to `Pass` or remains pending, the bid state must not store a preferred trump/Tarneeb suit.
@@ -1776,8 +1775,8 @@ The MVP must not show:
 53. `testPassedPlayerCannotReenterBidding`
     - Resolve a simulated or South bid as `Pass`, later accept a higher bid by another player, and verify the passed player is not offered another turn.
 
-54. `testPostBiddingSummaryUsesHighBidderPlayerAndBid`
-    - Resolve bidding with South, East, North, and West as highest bidder and verify the terminal summary displays the actual high-bidding player label.
+54. `testPostBiddingSummaryStoresHighBidderPlayerAndBid`
+    - Resolve bidding with South, East, North, and West as highest bidder and verify the terminal summary metadata stores the actual high-bidding player label and bid while the visible final ribbon remains Tarneeb-only.
 
 55. `testPostBiddingSummaryUsesPreferredSuitSymbol`
     - Resolve bidding with stored preferred suits for spades, clubs, hearts, and diamonds and verify the summary uses `♠`, `♣`, `♥`, and `♦`.
@@ -2168,8 +2167,8 @@ The MVP must not show:
 29. `testBiddingAreaFadesOutAfterCompletion`
     - Complete bidding through a deterministic sequence and verify the `Bidding` area is removed after the one-second fade-out.
 
-30. `testPostBiddingSummaryDisplaysHighBidderBidAndTarneeb`
-    - Complete bidding with a numeric high bid and verify the summary displays the high-bidding player label, the bid value, and the expected `Tarneeb` suit symbol in a compact white chip with black/red suit coloring.
+30. `testPostBiddingSummaryDisplaysTarneebRibbon`
+    - Complete bidding with a numeric high bid and verify the final ribbon displays the expected `Tarneeb` suit symbol in a compact white chip with black/red suit coloring, while the high bidder and bid remain available through station bid state or summary metadata.
 
 30a. `testSouthPostBiddingSuitSelectionAppearsWhenSouthWins`
     - Complete bidding with South as the numeric high bidder, verify the post-bidding suit-setting panel appears after the `Bidding` area fades, verify its suit chips use white backgrounds with black spades/clubs and red hearts/diamonds, verify the button is labeled `Set`, and verify tapping `Set` stores the selected suit and shows the final summary.
@@ -2242,7 +2241,7 @@ The MVP must not show:
 31. Verify the status label updates from `Deal complete` to `Bidding complete` when the bidding round completes.
 32. Verify the `Bidding` area fades out over one second after bidding completes.
 33. Verify the South `Bid` button disappears completely with the `Bidding` area when the bidding round completes.
-34. Verify the post-bidding summary displays the high-bidding player label, the bid value, and `Tarneeb` with the preferred suit symbol in a compact white chip using black for Spades/Clubs and red for Hearts/Diamonds.
+34. Verify the post-bidding Tarneeb ribbon displays `Tarneeb` with the preferred suit symbol in a compact white chip using black for Spades/Clubs and red for Hearts/Diamonds, without repeating the high-bidding player or bid value.
 35. Verify an all-pass bidding round shows no post-bidding summary, advances the dealer counterclockwise to the previous dealer's right, hides the dealer pill during the fresh bidding round, and starts a fresh deal automatically.
 36. Verify the post-bidding South suit-setting panel appears only when South wins numerically, uses a `Set` button, and disappears after the final summary is shown.
 37. Verify each player's full hand is logged to the console after a completed deal, including any all-pass automatic redeal.
@@ -2290,7 +2289,7 @@ The MVP 008 revision is complete when:
 - If any player bids `13`, all other bid values become `Pass` and bidding ends.
 - When bidding ends, the status label updates from `Deal complete` to `Bidding complete`.
 - When bidding ends, the `Bidding` area fades out over one second and then disappears.
-- When bidding ends with a numeric high bid by East, North, or West, the post-bidding summary displays the high-bidding player label, the high bid value, and `Tarneeb` with the preferred suit symbol.
+- When bidding ends with a numeric high bid by East, North, or West, the final post-bidding ribbon displays `Tarneeb` with the preferred suit symbol while the high bidder's station bid chip continues to show the winning bid.
 - When bidding ends with South as the numeric high bidder, a post-bidding suit-setting panel appears first with suit chips and a `Set` button, then the final post-bidding summary appears after South sets the suit.
 - When all four players pass before any numeric bid is accepted, no post-bidding summary appears and a fresh deal starts automatically with the dealer advanced counterclockwise to the previous dealer's right.
 - When bidding ends, the South `Bid` button disappears completely with the `Bidding` area.

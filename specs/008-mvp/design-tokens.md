@@ -176,9 +176,9 @@ Avoiding absolute black creates a softer premium appearance while maintaining ex
 |---|---|---|
 | `color.postBiddingSummary.background` | `#123A2A` | Compact summary surface shown after the `Bidding` area fades away |
 | `color.postBiddingSummary.border` | `#E8DFC866` | Border for the post-bidding result summary |
-| `color.postBiddingSummary.label.text` | `#D9D9D9` | Labels such as team, bid, and `Tarneeb` |
-| `color.postBiddingSummary.team.text` | `#FFFFFF` | High-bidding team value text |
-| `color.postBiddingSummary.bid.text` | `#FFB300` | High bid value text; must match `color.button.newGame.background` |
+| `color.postBiddingSummary.label.text` | `#D9D9D9` | Labels such as `Tarneeb`; also available for the South post-bidding `Contract` suit-setting panel |
+| `color.postBiddingSummary.team.text` | `#FFFFFF` | High-bidding player value text for the South post-bidding `Contract` suit-setting panel or metadata surfaces, not repeated in the final Tarneeb ribbon |
+| `color.postBiddingSummary.bid.text` | `#FFB300` | High bid value text for the South post-bidding `Contract` suit-setting panel or station metadata; must match `color.button.newGame.background` |
 | `color.postBiddingSummary.tarneeb.text` | `#FFFFFF` | Tarneeb label/fallback symbol text; final suit symbols use card suit color tokens |
 
 ### Post-Bidding Summary Usage
@@ -186,9 +186,9 @@ Avoiding absolute black creates a softer premium appearance while maintaining ex
 - The post-bidding summary appears only after the one-second bidding-panel fade-out completes.
 - The summary is shown only when bidding completes with a numeric high bid.
 - All-pass terminal bidding must not use post-bidding summary color or layout tokens because no summary is shown before the automatic redeal.
-- The summary must display the high-bidding player, high bid value, and a `Tarneeb` label with the preferred suit symbol.
-- The summary should read as a compact one-line `Contract [High Bidder]: [Bid value] Tarneeb: [suit]` surface with `Contract` aligned left, bidder and bid centered, and `Tarneeb` with the suit chip aligned right; the South post-bidding suit-setting panel remains a compact `Contract` surface for choosing the suit.
-- The high bid value uses the same amber as the current-highest bid and `New Game` button.
+- The final summary ribbon must display only a `Tarneeb` label with the preferred suit symbol; the high-bidding player and high bid value remain visible on the winning station and available in summary metadata.
+- The South post-bidding suit-setting panel remains a compact `Contract` surface for choosing the suit when South is the numeric high bidder, using the bidder/bid/Tarneeb token roles above.
+- The high bid value, where shown in the station bid chip or South `Contract` panel, uses the same amber as the current-highest bid and `New Game` button.
 - The preferred suit symbol uses the high bidder's accepted bid record as its
   source. The final symbol is displayed in a compact white chip using
   `color.card.background` for the chip fill, `color.button.newGame.background`
