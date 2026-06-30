@@ -41,6 +41,13 @@ final class TarneebTests: XCTestCase {
             "color.postBiddingSummary.team.text",
             "color.postBiddingSummary.bid.text",
             "color.postBiddingSummary.tarneeb.text",
+            "color.trickPlay.slot.background",
+            "color.trickPlay.slot.border",
+            "color.trickPlay.activeSeat.outline",
+            "color.trickPlay.legalCard.outline",
+            "color.trickPlay.winnerHighlight.border",
+            "color.trickPlay.count.background",
+            "color.trickPlay.count.text",
             "color.bidSelector.background",
             "color.bidSelector.border",
             "color.bidSelector.text",
@@ -53,6 +60,7 @@ final class TarneebTests: XCTestCase {
             "color.bidSuitSelector.focusRing",
             "color.tableTitle.text",
             "effect.tableTitle.shadow.color",
+            "effect.tableTitle.highlight.color",
             "color.button.deal.background",
             "color.button.deal.background.pressed",
             "color.button.deal.text",
@@ -106,6 +114,13 @@ final class TarneebTests: XCTestCase {
             .postBiddingSummaryTeamText: .postBiddingSummaryTeamText,
             .postBiddingSummaryBidText: .postBiddingSummaryBidText,
             .postBiddingSummaryTarneebText: .postBiddingSummaryTarneebText,
+            .trickPlaySlotBackground: .trickPlaySlotBackground,
+            .trickPlaySlotBorder: .trickPlaySlotBorder,
+            .trickPlayActiveSeatOutline: .trickPlayActiveSeatOutline,
+            .trickPlayLegalCardOutline: .trickPlayLegalCardOutline,
+            .trickPlayWinnerHighlightBorder: .trickPlayWinnerHighlightBorder,
+            .trickPlayCountBackground: .trickPlayCountBackground,
+            .trickPlayCountText: .trickPlayCountText,
             .bidSelectorBackground: .bidSelectorBackground,
             .bidSelectorBorder: .bidSelectorBorder,
             .bidSelectorText: .bidSelectorText,
@@ -118,6 +133,7 @@ final class TarneebTests: XCTestCase {
             .bidSuitSelectorFocusRing: .bidSuitSelectorFocusRing,
             .tableTitleText: .tableTitleText,
             .tableTitleShadow: .tableTitleShadow,
+            .tableTitleHighlight: .tableTitleHighlight,
             .dealActionBackground: .buttonDealBackground,
             .dealActionPressedBackground: .buttonDealBackgroundPressed,
             .dealActionText: .buttonDealText,
@@ -140,11 +156,16 @@ final class TarneebTests: XCTestCase {
         XCTAssertEqual(GameTypographyToken.tableTitleFontSize.numericValue, 26)
         XCTAssertEqual(GameTypographyToken.tableTitleTrackingMinimum.numericValue, 2)
         XCTAssertEqual(GameTypographyToken.tableTitleTrackingMaximum.numericValue, 4)
-        XCTAssertEqual(GameColorToken.tableTitleText.hexValue, "#E8DFC8")
+        XCTAssertEqual(GameColorToken.tableTitleText.hexValue, "#BBAA7E")
         XCTAssertEqual(GameColorToken.tableTitleShadow.hexValue, "#000000")
-        XCTAssertEqual(GameEffectToken.tableTitleTextOpacity.value, 0.92)
-        XCTAssertEqual(GameEffectToken.tableTitleShadowOpacity.value, 0.25)
-        XCTAssertEqual(GameEffectToken.tableTitleShadowBlurRadius.value, 4)
+        XCTAssertEqual(GameColorToken.tableTitleHighlight.hexValue, "#F2E8CE")
+        XCTAssertEqual(GameEffectToken.tableTitleTextOpacity.value, 0.72)
+        XCTAssertEqual(GameEffectToken.tableTitleShadowOpacity.value, 0.38)
+        XCTAssertEqual(GameEffectToken.tableTitleShadowBlurRadius.value, 1.2)
+        XCTAssertEqual(GameEffectToken.tableTitleShadowOffsetY.value, 1)
+        XCTAssertEqual(GameEffectToken.tableTitleHighlightOpacity.value, 0.18)
+        XCTAssertEqual(GameEffectToken.tableTitleHighlightBlurRadius.value, 0.8)
+        XCTAssertEqual(GameEffectToken.tableTitleHighlightOffsetY.value, -1)
         XCTAssertEqual(GameEffectToken.bidButtonDisabledOpacity.value, 0.55)
         XCTAssertEqual(GameEffectToken.bidSuitSelectorDisabledOpacity.value, 0.55)
         XCTAssertEqual(GameEffectToken.tableCenterSurfaceOpacity.value, 0.16)
@@ -154,6 +175,12 @@ final class TarneebTests: XCTestCase {
         XCTAssertEqual(GameEffectToken.tableRailShadowOpacity.value, 0.24)
         XCTAssertEqual(GameEffectToken.tableRailShadowRadius.value, 6)
         XCTAssertEqual(GameEffectToken.tablePlayAreaShadowOpacity.value, 0.16)
+        XCTAssertEqual(GameEffectToken.trickPlaySlotBackgroundOpacity.value, 0.34)
+        XCTAssertEqual(GameEffectToken.trickPlaySlotBorderOpacity.value, 0.42)
+        XCTAssertEqual(GameEffectToken.trickPlayPlayedCardShadowOpacity.value, 0.28)
+        XCTAssertEqual(GameEffectToken.trickPlayLegalCardOutlineOpacity.value, 0.95)
+        XCTAssertEqual(GameEffectToken.trickPlayUnavailableSouthCardOpacity.value, 0.55)
+        XCTAssertEqual(GameEffectToken.trickPlayWinnerHighlightOpacity.value, 0.30)
         XCTAssertEqual(GameEffectToken.southHandRailBackgroundOpacity.value, 0.14)
         XCTAssertEqual(GameEffectToken.southHandRailStrokeOpacity.value, 0.36)
         XCTAssertEqual(GameEffectToken.stationBackgroundDefaultOpacity.value, 0.08)
@@ -212,7 +239,8 @@ final class TarneebTests: XCTestCase {
             "layout.postBiddingSummary.padding",
             "layout.postBiddingSummary.rowGap",
             "layout.postBiddingSummary.cornerRadius",
-            "layout.postBiddingSummary.tableEdgeVerticalOffsetRatio"
+            "layout.postBiddingSummary.outsideTableHorizontalOffsetRatio",
+            "layout.postBiddingSummary.outsideTableVerticalOffsetRatio"
         ]
         let bidAreaTokens = BidAreaTokenSet()
         let selectorTokens = BidSelectorTokenSet()
@@ -235,7 +263,8 @@ final class TarneebTests: XCTestCase {
         XCTAssertEqual(GameBidLayoutToken.postBiddingSummaryPadding.numericValue, 12)
         XCTAssertEqual(GameBidLayoutToken.postBiddingSummaryRowGap.numericValue, 6)
         XCTAssertEqual(GameBidLayoutToken.postBiddingSummaryCornerRadius.numericValue, 10)
-        XCTAssertEqual(GameBidLayoutToken.postBiddingSummaryTableEdgeVerticalOffsetRatio.numericValue, 0.35)
+        XCTAssertEqual(GameBidLayoutToken.postBiddingSummaryOutsideTableHorizontalOffsetRatio.numericValue, 0.62)
+        XCTAssertEqual(GameBidLayoutToken.postBiddingSummaryOutsideTableVerticalOffsetRatio.numericValue, 0.70)
         XCTAssertEqual(bidAreaTokens.background, .bidAreaBackground)
         XCTAssertEqual(bidAreaTokens.border, .bidAreaBorder)
         XCTAssertEqual(bidAreaTokens.label, .bidAreaLabel)
@@ -270,10 +299,55 @@ final class TarneebTests: XCTestCase {
         XCTAssertTrue(suitSelectorTokens.accessibilityValue.contains("selectedBackground=color.card.background"))
         XCTAssertTrue(suitSelectorTokens.accessibilityValue.contains("focusRing=color.button.newGame.background"))
         XCTAssertTrue(summaryTokens.accessibilityValue.contains("background=color.postBiddingSummary.background"))
+        XCTAssertTrue(summaryTokens.accessibilityValue.contains("outsideTableHorizontalOffset=layout.postBiddingSummary.outsideTableHorizontalOffsetRatio"))
+        XCTAssertTrue(summaryTokens.accessibilityValue.contains("outsideTableVerticalOffset=layout.postBiddingSummary.outsideTableVerticalOffsetRatio"))
         XCTAssertFalse(bidAreaTokens.accessibilityValue.contains("#"))
         XCTAssertFalse(selectorTokens.accessibilityValue.contains("#"))
         XCTAssertFalse(suitSelectorTokens.accessibilityValue.contains("#"))
         XCTAssertFalse(summaryTokens.accessibilityValue.contains("#"))
+    }
+
+    func testTrickPlayTokensAreAvailable() {
+        let requiredLayoutTokenKeys = [
+            "layout.trickPlay.slot.width",
+            "layout.trickPlay.slot.height",
+            "layout.trickPlay.slot.gap",
+            "layout.trickPlay.slot.cornerRadius",
+            "layout.trickPlay.counter.minimumWidth",
+            "layout.trickPlay.counter.height",
+            "layout.trickPlay.counter.headerOffset",
+            "layout.trickPlay.counter.stationEdgeOffset"
+        ]
+        let tokens = TrickPlayTokenSet()
+
+        XCTAssertEqual(Set(GameTrickLayoutToken.allCases.map(\.rawValue)), Set(requiredLayoutTokenKeys))
+        XCTAssertEqual(GameTrickLayoutToken.playAreaSlotWidth.numericValue, 42)
+        XCTAssertEqual(GameTrickLayoutToken.playAreaSlotHeight.numericValue, 58)
+        XCTAssertEqual(GameTrickLayoutToken.playAreaSlotGap.numericValue, 6)
+        XCTAssertEqual(GameTrickLayoutToken.playAreaSlotCornerRadius.numericValue, 6)
+        XCTAssertEqual(GameTrickLayoutToken.trickCounterMinimumWidth.numericValue, 34)
+        XCTAssertEqual(GameTrickLayoutToken.trickCounterHeight.numericValue, 18)
+        XCTAssertEqual(GameTrickLayoutToken.trickCounterHeaderOffset.numericValue, 4)
+        XCTAssertEqual(GameTrickLayoutToken.trickCounterStationEdgeOffset.numericValue, 8)
+        XCTAssertEqual(tokens.slotBackground, .trickPlaySlotBackground)
+        XCTAssertEqual(tokens.slotBorder, .trickPlaySlotBorder)
+        XCTAssertEqual(tokens.activeSeatOutline, .trickPlayActiveSeatOutline)
+        XCTAssertEqual(tokens.legalCardOutline, .trickPlayLegalCardOutline)
+        XCTAssertEqual(tokens.winnerHighlightBorder, .trickPlayWinnerHighlightBorder)
+        XCTAssertEqual(tokens.countBackground, .trickPlayCountBackground)
+        XCTAssertEqual(tokens.countText, .trickPlayCountText)
+        XCTAssertEqual(tokens.countBackgroundOpacity, .trickPlayCountBackgroundOpacity)
+        XCTAssertEqual(tokens.counterStationEdgeOffset, .trickCounterStationEdgeOffset)
+        XCTAssertEqual(tokens.playedCardFlight, .trickPlayedCardFlightDuration)
+        XCTAssertEqual(tokens.clearPause, .trickClearPauseDuration)
+        XCTAssertEqual(tokens.clearFade, .trickClearFadeDuration)
+        XCTAssertTrue(tokens.accessibilityValue.contains("slotBackground=color.trickPlay.slot.background"))
+        XCTAssertTrue(tokens.accessibilityValue.contains("countBackgroundOpacity=effect.trickPlay.count.background.opacity"))
+        XCTAssertTrue(tokens.accessibilityValue.contains("counterHeaderOffset=layout.trickPlay.counter.headerOffset"))
+        XCTAssertTrue(tokens.accessibilityValue.contains("counterStationEdgeOffset=layout.trickPlay.counter.stationEdgeOffset"))
+        XCTAssertTrue(tokens.accessibilityValue.contains("playedCardFlight=animation.trick.playedCard.flight.duration"))
+        XCTAssertTrue(tokens.accessibilityValue.contains("clearPause=animation.trick.clear.pause.duration"))
+        XCTAssertFalse(tokens.accessibilityValue.contains("#"))
     }
 
     func testDealAnimationTokensAreAvailable() {
@@ -289,7 +363,9 @@ final class TarneebTests: XCTestCase {
             "animation.bid.value.fadeOut.duration",
             "animation.bid.value.fadeIn.duration",
             "animation.bid.area.fadeOut.duration",
-            "animation.trick.playedCard.flight.duration"
+            "animation.trick.playedCard.flight.duration",
+            "animation.trick.clear.pause.duration",
+            "animation.trick.clear.fade.duration"
         ]
 
         XCTAssertEqual(Set(GameAnimationToken.allCases.map(\.rawValue)), Set(requiredAnimationTokenKeys))
@@ -308,6 +384,8 @@ final class TarneebTests: XCTestCase {
         XCTAssertGreaterThan(GameAnimationToken.bidValueFadeInDuration.nanoseconds, 0)
         XCTAssertGreaterThan(GameAnimationToken.bidAreaFadeOutDuration.nanoseconds, 0)
         XCTAssertGreaterThan(GameAnimationToken.trickPlayedCardFlightDuration.nanoseconds, 0)
+        XCTAssertGreaterThan(GameAnimationToken.trickClearPauseDuration.nanoseconds, 0)
+        XCTAssertGreaterThan(GameAnimationToken.trickClearFadeDuration.nanoseconds, 0)
         XCTAssertEqual(GameAnimationToken.dealStackFlightDuration.seconds, 0.36)
         XCTAssertEqual(GameAnimationToken.dealStationExpansionDuration.seconds, 0.16)
         XCTAssertEqual(GameAnimationToken.dealStepPauseDuration.seconds, 0.06)
@@ -320,6 +398,8 @@ final class TarneebTests: XCTestCase {
         XCTAssertEqual(GameAnimationToken.bidValueFadeInDuration.seconds, 0.5)
         XCTAssertEqual(GameAnimationToken.bidAreaFadeOutDuration.seconds, 1.0)
         XCTAssertEqual(GameAnimationToken.trickPlayedCardFlightDuration.seconds, 0.30)
+        XCTAssertEqual(GameAnimationToken.trickClearPauseDuration.seconds, 0.75)
+        XCTAssertEqual(GameAnimationToken.trickClearFadeDuration.seconds, 0.20)
         XCTAssertEqual(GameAnimationToken.bidValueFadeOutDuration.seconds + GameAnimationToken.bidValueFadeInDuration.seconds, 1.0)
         XCTAssertEqual(
             GameAnimationToken.dealSouthRevealFlipStagger.seconds * 12
@@ -349,6 +429,12 @@ final class TarneebTests: XCTestCase {
         XCTAssertEqual(presentation.shadowColorRole.token, .tableTitleShadow)
         XCTAssertEqual(presentation.shadowOpacityToken, .tableTitleShadowOpacity)
         XCTAssertEqual(presentation.shadowBlurRadiusToken, .tableTitleShadowBlurRadius)
+        XCTAssertEqual(presentation.shadowOffsetYToken, .tableTitleShadowOffsetY)
+        XCTAssertEqual(presentation.highlightColorRole.token, .tableTitleHighlight)
+        XCTAssertEqual(presentation.highlightOpacityToken, .tableTitleHighlightOpacity)
+        XCTAssertEqual(presentation.highlightBlurRadiusToken, .tableTitleHighlightBlurRadius)
+        XCTAssertEqual(presentation.highlightOffsetYToken, .tableTitleHighlightOffsetY)
+        XCTAssertEqual(presentation.style, "embossedFelt")
         XCTAssertTrue(presentation.usesShadow)
         XCTAssertTrue(presentation.accessibilityValue.contains("font=typography.tableTitle.font"))
         XCTAssertTrue(presentation.accessibilityValue.contains("fontName=SF Arabic Rounded Bold"))
@@ -356,10 +442,17 @@ final class TarneebTests: XCTestCase {
         XCTAssertTrue(presentation.accessibilityValue.contains("pointSize=26.0"))
         XCTAssertTrue(presentation.accessibilityValue.contains("textColor=color.tableTitle.text"))
         XCTAssertTrue(presentation.accessibilityValue.contains("textOpacity=effect.tableTitle.text.opacity"))
-        XCTAssertTrue(presentation.accessibilityValue.contains("textOpacityValue=0.92"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("textOpacityValue=0.72"))
         XCTAssertTrue(presentation.accessibilityValue.contains("shadowColor=effect.tableTitle.shadow.color"))
         XCTAssertTrue(presentation.accessibilityValue.contains("usesShadow=true"))
-        XCTAssertTrue(presentation.accessibilityValue.contains("shadowOpacityValue=0.25"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("shadowOpacityValue=0.38"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("shadowOffsetY=effect.tableTitle.shadow.offset.y"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("highlightColor=effect.tableTitle.highlight.color"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("highlightOpacity=effect.tableTitle.highlight.opacity"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("highlightOpacityValue=0.18"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("highlightBlur=effect.tableTitle.highlight.blurRadius"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("highlightOffsetY=effect.tableTitle.highlight.offset.y"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("style=embossedFelt"))
         XCTAssertFalse(presentation.accessibilityValue.contains("#"))
     }
 
@@ -579,13 +672,14 @@ final class TarneebTests: XCTestCase {
     func testGameStateOnlyUsesMVPPhasesAndInitialStateHasEmptySeats() {
         let state = GameState.initial(dealerSeat: .east)
 
-        XCTAssertEqual(GamePhase.allCases.map(\.rawValue), ["notStarted", "dealt"])
+        XCTAssertEqual(GamePhase.allCases.map(\.rawValue), ["notStarted", "dealt", "trickPlay", "handComplete"])
         XCTAssertEqual(state.phase, .notStarted)
         XCTAssertEqual(state.players.count, 4)
         XCTAssertTrue(state.players.allSatisfy(\.hand.isEmpty))
         XCTAssertEqual(state.dealerSeat, .east)
         XCTAssertNil(state.deck)
         XCTAssertTrue(state.bids.isEmpty)
+        XCTAssertNil(state.trickPlayState)
     }
 
     func testRandomDealerSelectorCanSelectAnySeatThroughInjectedRandomIndex() {
@@ -694,6 +788,7 @@ final class TarneebTests: XCTestCase {
         XCTAssertNil(state.highestBidSeat)
         XCTAssertNil(state.highestBidValue)
         XCTAssertEqual(state.biddingStatus, .inProgress)
+        XCTAssertNil(state.trickPlayState)
         XCTAssertEqual(state.players.map(\.hand.count), [13, 13, 13, 13])
         XCTAssertEqual(dealtCards.count, 52)
         XCTAssertEqual(Set(dealtCards), Set(DeckFactory.makeCanonicalDeck()))
@@ -1004,6 +1099,125 @@ final class TarneebTests: XCTestCase {
 
         let afterRejectedSouthBid = service.submitSouthBid(.thirteen, selectedTarneebSuit: .hearts, in: afterWestPass)
         XCTAssertEqual(afterRejectedSouthBid, afterWestPass)
+    }
+
+    func testTrickPlayStartsFromNumericContractWithHighBidderLeading() throws {
+        let dealtState = try makeRoundRobinCompletedDeal(dealerSeat: .south)
+        let contractState = try makeContractState(
+            from: dealtState,
+            highBidderSeat: .west,
+            bidValue: .nine,
+            tarneebSuit: .hearts
+        )
+
+        let trickState = contractState.startingTrickPlayIfReady()
+
+        XCTAssertEqual(trickState.phase, .trickPlay)
+        XCTAssertEqual(trickState.currentTrickTurnSeat, .west)
+        XCTAssertEqual(trickState.trickPlayState?.declarerSeat, .west)
+        XCTAssertEqual(trickState.trickPlayState?.leaderSeat, .west)
+        XCTAssertEqual(trickState.trickPlayState?.tarneebSuit, .hearts)
+        XCTAssertEqual(trickState.players.map(\.hand.count), [13, 13, 13, 13])
+    }
+
+    func testTrickPlayRequiresFollowSuitWhenPossibleAndRejectsIllegalSouthPlay() throws {
+        let dealtState = try makeRoundRobinCompletedDeal(dealerSeat: .south)
+        let contractState = try makeContractState(
+            from: dealtState,
+            highBidderSeat: .east,
+            bidValue: .eight,
+            tarneebSuit: .hearts
+        )
+        let eastLead = Card(suit: .spades, rank: .three)
+        var players = contractState.players
+        let eastIndex = try XCTUnwrap(players.firstIndex { $0.seat == .east })
+        let eastLeadIndex = try XCTUnwrap(players[eastIndex].hand.firstIndex(of: eastLead))
+        players[eastIndex].hand.remove(at: eastLeadIndex)
+        let trickPlayState = TrickPlayState(
+            declarerSeat: .east,
+            tarneebSuit: .hearts,
+            leaderSeat: .east,
+            currentTurnSeat: .south,
+            currentTrick: [PlayedCard(seat: .east, card: eastLead)]
+        )
+        let state = try XCTUnwrap(GameState(
+            phase: .trickPlay,
+            players: players,
+            dealerSeat: contractState.dealerSeat,
+            deck: [],
+            biddingState: contractState.biddingState,
+            postBiddingSummary: contractState.postBiddingSummary,
+            trickPlayState: trickPlayState
+        ))
+        let legalSouthCards = TrickPlayService().legalCards(for: .south, in: state)
+        let illegalSouthCard = try XCTUnwrap(player(in: state, seat: .south).hand.first { $0.suit != .spades })
+
+        XCTAssertFalse(legalSouthCards.isEmpty)
+        XCTAssertTrue(legalSouthCards.allSatisfy { $0.suit == .spades })
+
+        let rejectedState = TrickPlayService().playSouthCard(illegalSouthCard, in: state)
+        XCTAssertEqual(rejectedState, state)
+    }
+
+    func testTrickPlayRemovesPlayedCardAndAdvancesCounterclockwise() throws {
+        let dealtState = try makeRoundRobinCompletedDeal(dealerSeat: .south)
+        let contractState = try makeContractState(
+            from: dealtState,
+            highBidderSeat: .south,
+            bidValue: .seven,
+            tarneebSuit: .hearts
+        )
+        let trickState = contractState.startingTrickPlayIfReady()
+        let southCard = try XCTUnwrap(player(in: trickState, seat: .south).hand.first)
+        let playedState = TrickPlayService().playSouthCard(southCard, in: trickState)
+
+        XCTAssertEqual(try player(in: playedState, seat: .south).hand.count, 12)
+        XCTAssertFalse(try player(in: playedState, seat: .south).hand.contains(southCard))
+        XCTAssertEqual(playedState.trickPlayState?.playedCard(for: .south)?.card, southCard)
+        XCTAssertEqual(playedState.currentTrickTurnSeat, .east)
+    }
+
+    func testTrickWinnerUsesTarneebBeforeLedSuitAndClearStartsNextLeader() throws {
+        let playedCards = [
+            PlayedCard(seat: .south, card: Card(suit: .clubs, rank: .ace)),
+            PlayedCard(seat: .east, card: Card(suit: .clubs, rank: .king)),
+            PlayedCard(seat: .north, card: Card(suit: .hearts, rank: .two)),
+            PlayedCard(seat: .west, card: Card(suit: .clubs, rank: .queen))
+        ]
+
+        XCTAssertEqual(
+            TrickPlayRules.winner(for: playedCards, ledSuit: .clubs, tarneebSuit: .hearts),
+            .north
+        )
+
+        var trickPlayState = TrickPlayState(declarerSeat: .south, tarneebSuit: .hearts)
+        for playedCard in playedCards {
+            trickPlayState.appendPlayedCard(playedCard)
+        }
+
+        XCTAssertEqual(trickPlayState.pendingCompletedTrick?.winnerSeat, .north)
+        XCTAssertNil(trickPlayState.currentTurnSeat)
+        XCTAssertEqual(trickPlayState.individualTrickCount(for: .north), 1)
+        XCTAssertEqual(trickPlayState.individualTrickCount(for: .south), 0)
+        XCTAssertEqual(trickPlayState.partnershipTrickCount(for: .north), 1)
+        XCTAssertEqual(trickPlayState.partnershipTrickCount(for: .south), 1)
+
+        trickPlayState.clearPendingCompletedTrick()
+
+        XCTAssertEqual(trickPlayState.completedTrickCount, 1)
+        XCTAssertEqual(trickPlayState.currentTurnSeat, .north)
+        XCTAssertEqual(trickPlayState.leaderSeat, .north)
+        XCTAssertEqual(trickPlayState.currentTrick, [])
+        XCTAssertEqual(trickPlayState.individualTrickCount(for: .north), 1)
+        XCTAssertEqual(trickPlayState.individualTrickCount(for: .south), 0)
+        XCTAssertEqual(trickPlayState.partnershipTrickCount(for: .south), 1)
+
+        let presentation = try XCTUnwrap(TrickPlayPresentation(phase: .trickPlay, trickPlayState: trickPlayState))
+        XCTAssertEqual(presentation.individualTrickCount(for: .north), 1)
+        XCTAssertEqual(presentation.individualTrickCount(for: .south), 0)
+        XCTAssertEqual(presentation.northSouthTrickCount, 1)
+        XCTAssertTrue(presentation.accessibilityValue.contains("individualTricks=south:0,west:0,north:1,east:0"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("northSouthTricks=1"))
     }
 
     func testAutomatedBidRecommenderUsesHandStrengthPreferredSuitAndConfidence() {
@@ -2668,10 +2882,12 @@ final class TarneebTests: XCTestCase {
         XCTAssertEqual(presentation.tarneebSymbolChipTokens.border, .cardBorder)
         XCTAssertEqual(presentation.tarneebSymbolChipTokens.focusRing, .buttonNewGameBackground)
         XCTAssertEqual(presentation.tokens.background, .postBiddingSummaryBackground)
-        XCTAssertTrue(presentation.accessibilityValue.contains("display=tarneebOnlyRibbon"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("placement=outsideTableUpperLeft"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("display=contractBox"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("highBidder=West"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("bid=10"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("team=East-West"))
         XCTAssertTrue(presentation.accessibilityValue.contains("tarneebLabel=Tarneeb"))
-        XCTAssertFalse(presentation.accessibilityValue.contains("highBidder=West"))
-        XCTAssertFalse(presentation.accessibilityValue.contains("bid=10"))
         XCTAssertTrue(presentation.accessibilityValue.contains("tarneebSymbol=♣"))
         XCTAssertTrue(presentation.accessibilityValue.contains("tarneebSymbolColor=color.card.suit.black"))
         XCTAssertTrue(presentation.accessibilityValue.contains("tarneebSymbolBackground=color.card.background"))
@@ -3267,6 +3483,72 @@ final class TarneebTests: XCTestCase {
             ).deal(dealerSeat: dealerSeat),
             file: file,
             line: line
+        )
+    }
+
+    private func makeRoundRobinCompletedDeal(
+        dealerSeat: Seat = .south,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) throws -> GameState {
+        var players = Player.initialPlayers()
+        let deck = DeckFactory.makeCanonicalDeck()
+
+        for (index, card) in deck.enumerated() {
+            let seat = Seat.dealOrder[index % Seat.dealOrder.count]
+            guard let playerIndex = players.firstIndex(where: { $0.seat == seat }) else {
+                XCTFail("Missing player for \(seat.rawValue)", file: file, line: line)
+                continue
+            }
+
+            players[playerIndex].hand.append(card)
+        }
+
+        return try XCTUnwrap(
+            GameState(
+                phase: .dealt,
+                players: players,
+                dealerSeat: dealerSeat,
+                deck: [],
+                biddingState: .started(dealerSeat: dealerSeat)
+            ),
+            file: file,
+            line: line
+        )
+    }
+
+    private func makeContractState(
+        from dealtState: GameState,
+        highBidderSeat: Seat,
+        bidValue: BidValue,
+        tarneebSuit: Suit,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) throws -> GameState {
+        let biddingState = BiddingState(
+            bids: Dictionary(uniqueKeysWithValues: Seat.allCases.map { seat in
+                (seat, seat == highBidderSeat ? .resolved(bidValue) : .resolved(.pass))
+            }),
+            bidRecommendations: [
+                highBidderSeat: BidRecommendation(
+                    bid: bidValue,
+                    preferredTarneebSuit: tarneebSuit,
+                    confidence: 1
+                )
+            ],
+            currentTurnSeat: nil,
+            highestBidSeat: highBidderSeat,
+            highestBidValue: bidValue,
+            status: .complete
+        )
+
+        return dealtState.replacingBiddingState(
+            biddingState,
+            postBiddingSummary: PostBiddingSummary(
+                highBidderSeat: highBidderSeat,
+                bidValue: bidValue,
+                tarneebSuit: tarneebSuit
+            )
         )
     }
 

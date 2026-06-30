@@ -32,6 +32,13 @@ enum GameColorToken: String, CaseIterable, Equatable, Hashable {
     case postBiddingSummaryTeamText = "color.postBiddingSummary.team.text"
     case postBiddingSummaryBidText = "color.postBiddingSummary.bid.text"
     case postBiddingSummaryTarneebText = "color.postBiddingSummary.tarneeb.text"
+    case trickPlaySlotBackground = "color.trickPlay.slot.background"
+    case trickPlaySlotBorder = "color.trickPlay.slot.border"
+    case trickPlayActiveSeatOutline = "color.trickPlay.activeSeat.outline"
+    case trickPlayLegalCardOutline = "color.trickPlay.legalCard.outline"
+    case trickPlayWinnerHighlightBorder = "color.trickPlay.winnerHighlight.border"
+    case trickPlayCountBackground = "color.trickPlay.count.background"
+    case trickPlayCountText = "color.trickPlay.count.text"
     case bidSelectorBackground = "color.bidSelector.background"
     case bidSelectorBorder = "color.bidSelector.border"
     case bidSelectorText = "color.bidSelector.text"
@@ -44,6 +51,7 @@ enum GameColorToken: String, CaseIterable, Equatable, Hashable {
     case bidSuitSelectorFocusRing = "color.bidSuitSelector.focusRing"
     case tableTitleText = "color.tableTitle.text"
     case tableTitleShadow = "effect.tableTitle.shadow.color"
+    case tableTitleHighlight = "effect.tableTitle.highlight.color"
     case buttonDealBackground = "color.button.deal.background"
     case buttonDealBackgroundPressed = "color.button.deal.background.pressed"
     case buttonDealText = "color.button.deal.text"
@@ -124,6 +132,20 @@ enum GameColorToken: String, CaseIterable, Equatable, Hashable {
             return "#FFB300"
         case .postBiddingSummaryTarneebText:
             return "#FFFFFF"
+        case .trickPlaySlotBackground:
+            return "#123A2A"
+        case .trickPlaySlotBorder:
+            return "#E8DFC866"
+        case .trickPlayActiveSeatOutline:
+            return "#FFB300"
+        case .trickPlayLegalCardOutline:
+            return "#FFB300"
+        case .trickPlayWinnerHighlightBorder:
+            return "#FFD166"
+        case .trickPlayCountBackground:
+            return "#123A2A"
+        case .trickPlayCountText:
+            return "#FFFFFF"
         case .bidSelectorBackground:
             return "#FDFDFB"
         case .bidSelectorBorder:
@@ -145,9 +167,11 @@ enum GameColorToken: String, CaseIterable, Equatable, Hashable {
         case .bidSuitSelectorFocusRing:
             return "#1976D2"
         case .tableTitleText:
-            return "#E8DFC8"
+            return "#BBAA7E"
         case .tableTitleShadow:
             return "#000000"
+        case .tableTitleHighlight:
+            return "#F2E8CE"
         case .buttonDealBackground:
             return "#1976D2"
         case .buttonDealBackgroundPressed:
@@ -208,6 +232,13 @@ enum GameColorRole: String, CaseIterable, Equatable, Hashable {
     case postBiddingSummaryTeamText
     case postBiddingSummaryBidText
     case postBiddingSummaryTarneebText
+    case trickPlaySlotBackground
+    case trickPlaySlotBorder
+    case trickPlayActiveSeatOutline
+    case trickPlayLegalCardOutline
+    case trickPlayWinnerHighlightBorder
+    case trickPlayCountBackground
+    case trickPlayCountText
     case bidSelectorBackground
     case bidSelectorBorder
     case bidSelectorText
@@ -220,6 +251,7 @@ enum GameColorRole: String, CaseIterable, Equatable, Hashable {
     case bidSuitSelectorFocusRing
     case tableTitleText
     case tableTitleShadow
+    case tableTitleHighlight
     case dealActionBackground
     case dealActionPressedBackground
     case dealActionText
@@ -298,6 +330,20 @@ enum GameColorRole: String, CaseIterable, Equatable, Hashable {
             return .postBiddingSummaryBidText
         case .postBiddingSummaryTarneebText:
             return .postBiddingSummaryTarneebText
+        case .trickPlaySlotBackground:
+            return .trickPlaySlotBackground
+        case .trickPlaySlotBorder:
+            return .trickPlaySlotBorder
+        case .trickPlayActiveSeatOutline:
+            return .trickPlayActiveSeatOutline
+        case .trickPlayLegalCardOutline:
+            return .trickPlayLegalCardOutline
+        case .trickPlayWinnerHighlightBorder:
+            return .trickPlayWinnerHighlightBorder
+        case .trickPlayCountBackground:
+            return .trickPlayCountBackground
+        case .trickPlayCountText:
+            return .trickPlayCountText
         case .bidSelectorBackground:
             return .bidSelectorBackground
         case .bidSelectorBorder:
@@ -322,6 +368,8 @@ enum GameColorRole: String, CaseIterable, Equatable, Hashable {
             return .tableTitleText
         case .tableTitleShadow:
             return .tableTitleShadow
+        case .tableTitleHighlight:
+            return .tableTitleHighlight
         case .dealActionBackground:
             return .buttonDealBackground
         case .dealActionPressedBackground:
@@ -381,6 +429,10 @@ enum GameEffectToken: String, CaseIterable, Equatable, Hashable {
     case tableTitleTextOpacity = "effect.tableTitle.text.opacity"
     case tableTitleShadowOpacity = "effect.tableTitle.shadow.opacity"
     case tableTitleShadowBlurRadius = "effect.tableTitle.shadow.blurRadius"
+    case tableTitleShadowOffsetY = "effect.tableTitle.shadow.offset.y"
+    case tableTitleHighlightOpacity = "effect.tableTitle.highlight.opacity"
+    case tableTitleHighlightBlurRadius = "effect.tableTitle.highlight.blurRadius"
+    case tableTitleHighlightOffsetY = "effect.tableTitle.highlight.offset.y"
     case bidButtonDisabledOpacity = "effect.bidButton.disabled.opacity"
     case bidSuitSelectorDisabledOpacity = "effect.bidSuitSelector.disabled.opacity"
     case tableCenterSurfaceOpacity = "effect.table.centerSurface.opacity"
@@ -390,6 +442,13 @@ enum GameEffectToken: String, CaseIterable, Equatable, Hashable {
     case tableRailShadowOpacity = "effect.table.rail.shadow.opacity"
     case tableRailShadowRadius = "effect.table.rail.shadow.radius"
     case tablePlayAreaShadowOpacity = "effect.table.playArea.shadow.opacity"
+    case trickPlaySlotBackgroundOpacity = "effect.trickPlay.slot.background.opacity"
+    case trickPlaySlotBorderOpacity = "effect.trickPlay.slot.border.opacity"
+    case trickPlayPlayedCardShadowOpacity = "effect.trickPlay.playedCard.shadow.opacity"
+    case trickPlayLegalCardOutlineOpacity = "effect.trickPlay.legalCard.outline.opacity"
+    case trickPlayUnavailableSouthCardOpacity = "effect.trickPlay.southCard.unavailable.opacity"
+    case trickPlayWinnerHighlightOpacity = "effect.trickPlay.winnerHighlight.opacity"
+    case trickPlayCountBackgroundOpacity = "effect.trickPlay.count.background.opacity"
     case southHandRailBackgroundOpacity = "effect.southHand.rail.background.opacity"
     case southHandRailStrokeOpacity = "effect.southHand.rail.stroke.opacity"
     case stationBackgroundDefaultOpacity = "effect.station.background.default.opacity"
@@ -410,11 +469,19 @@ enum GameEffectToken: String, CaseIterable, Equatable, Hashable {
     var value: Double {
         switch self {
         case .tableTitleTextOpacity:
-            return 0.92
+            return 0.72
         case .tableTitleShadowOpacity:
-            return 0.25
+            return 0.38
         case .tableTitleShadowBlurRadius:
-            return 4
+            return 1.2
+        case .tableTitleShadowOffsetY:
+            return 1
+        case .tableTitleHighlightOpacity:
+            return 0.18
+        case .tableTitleHighlightBlurRadius:
+            return 0.8
+        case .tableTitleHighlightOffsetY:
+            return -1
         case .bidButtonDisabledOpacity:
             return 0.55
         case .bidSuitSelectorDisabledOpacity:
@@ -433,6 +500,20 @@ enum GameEffectToken: String, CaseIterable, Equatable, Hashable {
             return 6
         case .tablePlayAreaShadowOpacity:
             return 0.16
+        case .trickPlaySlotBackgroundOpacity:
+            return 0.34
+        case .trickPlaySlotBorderOpacity:
+            return 0.42
+        case .trickPlayPlayedCardShadowOpacity:
+            return 0.28
+        case .trickPlayLegalCardOutlineOpacity:
+            return 0.95
+        case .trickPlayUnavailableSouthCardOpacity:
+            return 0.55
+        case .trickPlayWinnerHighlightOpacity:
+            return 0.30
+        case .trickPlayCountBackgroundOpacity:
+            return 0.68
         case .southHandRailBackgroundOpacity:
             return 0.14
         case .southHandRailStrokeOpacity:
@@ -482,6 +563,8 @@ enum GameAnimationToken: String, CaseIterable, Equatable, Hashable {
     case bidValueFadeInDuration = "animation.bid.value.fadeIn.duration"
     case bidAreaFadeOutDuration = "animation.bid.area.fadeOut.duration"
     case trickPlayedCardFlightDuration = "animation.trick.playedCard.flight.duration"
+    case trickClearPauseDuration = "animation.trick.clear.pause.duration"
+    case trickClearFadeDuration = "animation.trick.clear.fade.duration"
 
     var seconds: Double {
         switch self {
@@ -509,6 +592,10 @@ enum GameAnimationToken: String, CaseIterable, Equatable, Hashable {
             return 1.0
         case .trickPlayedCardFlightDuration:
             return 0.30
+        case .trickClearPauseDuration:
+            return 0.75
+        case .trickClearFadeDuration:
+            return 0.20
         }
     }
 
@@ -565,7 +652,8 @@ enum GameBidLayoutToken: String, CaseIterable, Equatable, Hashable {
     case postBiddingSummaryPadding = "layout.postBiddingSummary.padding"
     case postBiddingSummaryRowGap = "layout.postBiddingSummary.rowGap"
     case postBiddingSummaryCornerRadius = "layout.postBiddingSummary.cornerRadius"
-    case postBiddingSummaryTableEdgeVerticalOffsetRatio = "layout.postBiddingSummary.tableEdgeVerticalOffsetRatio"
+    case postBiddingSummaryOutsideTableHorizontalOffsetRatio = "layout.postBiddingSummary.outsideTableHorizontalOffsetRatio"
+    case postBiddingSummaryOutsideTableVerticalOffsetRatio = "layout.postBiddingSummary.outsideTableVerticalOffsetRatio"
 
     var numericValue: Double {
         switch self {
@@ -599,8 +687,42 @@ enum GameBidLayoutToken: String, CaseIterable, Equatable, Hashable {
             return 6
         case .postBiddingSummaryCornerRadius:
             return 10
-        case .postBiddingSummaryTableEdgeVerticalOffsetRatio:
-            return 0.35
+        case .postBiddingSummaryOutsideTableHorizontalOffsetRatio:
+            return 0.62
+        case .postBiddingSummaryOutsideTableVerticalOffsetRatio:
+            return 0.70
+        }
+    }
+}
+
+enum GameTrickLayoutToken: String, CaseIterable, Equatable, Hashable {
+    case playAreaSlotWidth = "layout.trickPlay.slot.width"
+    case playAreaSlotHeight = "layout.trickPlay.slot.height"
+    case playAreaSlotGap = "layout.trickPlay.slot.gap"
+    case playAreaSlotCornerRadius = "layout.trickPlay.slot.cornerRadius"
+    case trickCounterMinimumWidth = "layout.trickPlay.counter.minimumWidth"
+    case trickCounterHeight = "layout.trickPlay.counter.height"
+    case trickCounterHeaderOffset = "layout.trickPlay.counter.headerOffset"
+    case trickCounterStationEdgeOffset = "layout.trickPlay.counter.stationEdgeOffset"
+
+    var numericValue: Double {
+        switch self {
+        case .playAreaSlotWidth:
+            return 42
+        case .playAreaSlotHeight:
+            return 58
+        case .playAreaSlotGap:
+            return 6
+        case .playAreaSlotCornerRadius:
+            return 6
+        case .trickCounterMinimumWidth:
+            return 34
+        case .trickCounterHeight:
+            return 18
+        case .trickCounterHeaderOffset:
+            return 4
+        case .trickCounterStationEdgeOffset:
+            return 8
         }
     }
 }
@@ -771,6 +893,8 @@ struct PostBiddingSummaryTokenSet: Equatable {
     let padding = GameBidLayoutToken.postBiddingSummaryPadding
     let rowGap = GameBidLayoutToken.postBiddingSummaryRowGap
     let cornerRadius = GameBidLayoutToken.postBiddingSummaryCornerRadius
+    let outsideTableHorizontalOffset = GameBidLayoutToken.postBiddingSummaryOutsideTableHorizontalOffsetRatio
+    let outsideTableVerticalOffset = GameBidLayoutToken.postBiddingSummaryOutsideTableVerticalOffsetRatio
 
     var accessibilityValue: String {
         [
@@ -782,7 +906,70 @@ struct PostBiddingSummaryTokenSet: Equatable {
             "tarneebText=\(tarneebText.rawValue)",
             "padding=\(padding.rawValue)",
             "rowGap=\(rowGap.rawValue)",
-            "cornerRadius=\(cornerRadius.rawValue)"
+            "cornerRadius=\(cornerRadius.rawValue)",
+            "outsideTableHorizontalOffset=\(outsideTableHorizontalOffset.rawValue)",
+            "outsideTableVerticalOffset=\(outsideTableVerticalOffset.rawValue)"
+        ].joined(separator: ";")
+    }
+}
+
+struct TrickPlayTokenSet: Equatable {
+    let slotBackground = GameColorToken.trickPlaySlotBackground
+    let slotBorder = GameColorToken.trickPlaySlotBorder
+    let activeSeatOutline = GameColorToken.trickPlayActiveSeatOutline
+    let legalCardOutline = GameColorToken.trickPlayLegalCardOutline
+    let winnerHighlightBorder = GameColorToken.trickPlayWinnerHighlightBorder
+    let countBackground = GameColorToken.trickPlayCountBackground
+    let countText = GameColorToken.trickPlayCountText
+    let slotBackgroundOpacity = GameEffectToken.trickPlaySlotBackgroundOpacity
+    let slotBorderOpacity = GameEffectToken.trickPlaySlotBorderOpacity
+    let playedCardShadowOpacity = GameEffectToken.trickPlayPlayedCardShadowOpacity
+    let legalCardOutlineOpacity = GameEffectToken.trickPlayLegalCardOutlineOpacity
+    let unavailableSouthCardOpacity = GameEffectToken.trickPlayUnavailableSouthCardOpacity
+    let winnerHighlightOpacity = GameEffectToken.trickPlayWinnerHighlightOpacity
+    let countBackgroundOpacity = GameEffectToken.trickPlayCountBackgroundOpacity
+    let slotWidth = GameTrickLayoutToken.playAreaSlotWidth
+    let slotHeight = GameTrickLayoutToken.playAreaSlotHeight
+    let slotGap = GameTrickLayoutToken.playAreaSlotGap
+    let slotCornerRadius = GameTrickLayoutToken.playAreaSlotCornerRadius
+    let counterMinimumWidth = GameTrickLayoutToken.trickCounterMinimumWidth
+    let counterHeight = GameTrickLayoutToken.trickCounterHeight
+    let counterHeaderOffset = GameTrickLayoutToken.trickCounterHeaderOffset
+    let counterStationEdgeOffset = GameTrickLayoutToken.trickCounterStationEdgeOffset
+    let playedCardFlight = GameAnimationToken.trickPlayedCardFlightDuration
+    let clearPause = GameAnimationToken.trickClearPauseDuration
+    let clearFade = GameAnimationToken.trickClearFadeDuration
+
+    var accessibilityValue: String {
+        [
+            "slotBackground=\(slotBackground.rawValue)",
+            "slotBorder=\(slotBorder.rawValue)",
+            "activeSeatOutline=\(activeSeatOutline.rawValue)",
+            "legalCardOutline=\(legalCardOutline.rawValue)",
+            "winnerHighlightBorder=\(winnerHighlightBorder.rawValue)",
+            "countBackground=\(countBackground.rawValue)",
+            "countText=\(countText.rawValue)",
+            "slotBackgroundOpacity=\(slotBackgroundOpacity.rawValue)",
+            "slotBorderOpacity=\(slotBorderOpacity.rawValue)",
+            "playedCardShadowOpacity=\(playedCardShadowOpacity.rawValue)",
+            "legalCardOutlineOpacity=\(legalCardOutlineOpacity.rawValue)",
+            "unavailableSouthCardOpacity=\(unavailableSouthCardOpacity.rawValue)",
+            "winnerHighlightOpacity=\(winnerHighlightOpacity.rawValue)",
+            "countBackgroundOpacity=\(countBackgroundOpacity.rawValue)",
+            "slotWidth=\(slotWidth.rawValue)",
+            "slotHeight=\(slotHeight.rawValue)",
+            "slotGap=\(slotGap.rawValue)",
+            "slotCornerRadius=\(slotCornerRadius.rawValue)",
+            "counterMinimumWidth=\(counterMinimumWidth.rawValue)",
+            "counterHeight=\(counterHeight.rawValue)",
+            "counterHeaderOffset=\(counterHeaderOffset.rawValue)",
+            "counterStationEdgeOffset=\(counterStationEdgeOffset.rawValue)",
+            "playedCardFlight=\(playedCardFlight.rawValue)",
+            "playedCardFlightSeconds=\(playedCardFlight.seconds)",
+            "clearPause=\(clearPause.rawValue)",
+            "clearPauseSeconds=\(clearPause.seconds)",
+            "clearFade=\(clearFade.rawValue)",
+            "clearFadeSeconds=\(clearFade.seconds)"
         ].joined(separator: ";")
     }
 }
@@ -1007,7 +1194,7 @@ struct PostBiddingSummaryPresentation: Equatable {
         summary: PostBiddingSummary?,
         isBiddingAreaFadingOut: Bool
     ) {
-        guard phase == .dealt,
+        guard phase == .dealt || phase == .trickPlay || phase == .handComplete,
               biddingStatus == .complete,
               !isBiddingAreaFadingOut,
               let summary else {
@@ -1033,8 +1220,11 @@ struct PostBiddingSummaryPresentation: Equatable {
     var accessibilityValue: String {
         [
             "visible=true",
-            "placement=tableEdgeRibbon",
-            "display=tarneebOnlyRibbon",
+            "placement=outsideTableUpperLeft",
+            "display=contractBox",
+            "highBidder=\(highBidderLabel)",
+            "bid=\(bidValueLabel)",
+            "team=\(teamLabel)",
             "tarneebLabel=\(tarneebLabel)",
             "tarneebSymbol=\(tarneebSymbol)",
             "tarneebSymbolColor=\(tarneebSymbolColorToken.rawValue)",
@@ -1110,6 +1300,115 @@ struct SouthTarneebSelectionPresentation: Equatable {
     }
 }
 
+struct PlayedCardPresentation: Equatable, Identifiable {
+    let playedCard: PlayedCard
+    let card: Card
+    let cardPresentation: CardPresentation
+    let isWinningCard: Bool
+    let tokens = TrickPlayTokenSet()
+
+    init(
+        playedCard: PlayedCard,
+        pendingWinnerSeat: Seat?,
+        sizeConfiguration: CardSizeConfiguration = .sharedBase
+    ) {
+        self.playedCard = playedCard
+        self.card = playedCard.card
+        self.cardPresentation = CardPresentation(card: playedCard.card, sizeConfiguration: sizeConfiguration)
+        self.isWinningCard = pendingWinnerSeat == playedCard.seat
+    }
+
+    var id: String {
+        playedCard.id
+    }
+
+    var seat: Seat {
+        playedCard.seat
+    }
+
+    var accessibilityValue: String {
+        [
+            "seat=\(seat.rawValue)",
+            "card=\(cardPresentation.displayLabel)",
+            "asset=\(cardPresentation.faceAssetName)",
+            "winning=\(isWinningCard)",
+            "tokens=\(tokens.accessibilityValue)"
+        ].joined(separator: ";")
+    }
+}
+
+struct TrickPlayPresentation: Equatable {
+    let currentTurnSeat: Seat?
+    let declarerSeat: Seat
+    let tarneebSuit: Suit
+    let currentTrickCards: [PlayedCardPresentation]
+    let pendingWinnerSeat: Seat?
+    let individualTrickCounts: [Seat: Int]
+    let northSouthTrickCount: Int
+    let eastWestTrickCount: Int
+    let completedTrickCount: Int
+    let isHandComplete: Bool
+    let tokens = TrickPlayTokenSet()
+
+    init?(
+        phase: GamePhase,
+        trickPlayState: TrickPlayState?,
+        sizeConfiguration: CardSizeConfiguration = .sharedBase
+    ) {
+        guard (phase == .trickPlay || phase == .handComplete),
+              let trickPlayState else {
+            return nil
+        }
+
+        let pendingWinnerSeat = trickPlayState.pendingCompletedTrick?.winnerSeat
+        self.currentTurnSeat = trickPlayState.currentTurnSeat
+        self.declarerSeat = trickPlayState.declarerSeat
+        self.tarneebSuit = trickPlayState.tarneebSuit
+        self.pendingWinnerSeat = pendingWinnerSeat
+        self.currentTrickCards = trickPlayState.currentTrick.map {
+            PlayedCardPresentation(
+                playedCard: $0,
+                pendingWinnerSeat: pendingWinnerSeat,
+                sizeConfiguration: sizeConfiguration
+            )
+        }
+        self.individualTrickCounts = Dictionary(
+            uniqueKeysWithValues: Seat.allCases.map { seat in
+                (seat, trickPlayState.individualTrickCount(for: seat))
+            }
+        )
+        self.northSouthTrickCount = trickPlayState.partnershipTrickCount(for: .south)
+        self.eastWestTrickCount = trickPlayState.partnershipTrickCount(for: .east)
+        self.completedTrickCount = trickPlayState.completedTrickCount
+        self.isHandComplete = trickPlayState.isHandComplete
+    }
+
+    func playedCard(for seat: Seat) -> PlayedCardPresentation? {
+        currentTrickCards.first { $0.seat == seat }
+    }
+
+    func individualTrickCount(for seat: Seat) -> Int {
+        individualTrickCounts[seat] ?? 0
+    }
+
+    var accessibilityValue: String {
+        [
+            "active=true",
+            "declarer=\(declarerSeat.rawValue)",
+            "currentTurn=\(currentTurnSeat?.rawValue ?? "none")",
+            "tarneebSuit=\(tarneebSuit.rawValue)",
+            "pendingWinner=\(pendingWinnerSeat?.rawValue ?? "none")",
+            "currentTrickCards=\(currentTrickCards.map { "\($0.seat.rawValue):\($0.cardPresentation.displayLabel)" }.joined(separator: ","))",
+            "individualTricks=\(Seat.allCases.map { "\($0.rawValue):\(individualTrickCount(for: $0))" }.joined(separator: ","))",
+            "northSouthTricks=\(northSouthTrickCount)",
+            "eastWestTricks=\(eastWestTrickCount)",
+            "completedTricks=\(completedTrickCount)",
+            "handComplete=\(isHandComplete)",
+            "tokens=\(tokens.accessibilityValue)"
+        ].joined(separator: ";")
+    }
+}
+
 struct TableTitlePresentation: Equatable {
     let text = "طرنيب"
     let fontToken = GameTypographyToken.tableTitleFont
@@ -1122,7 +1421,13 @@ struct TableTitlePresentation: Equatable {
     let shadowColorRole = GameColorRole.tableTitleShadow
     let shadowOpacityToken = GameEffectToken.tableTitleShadowOpacity
     let shadowBlurRadiusToken = GameEffectToken.tableTitleShadowBlurRadius
+    let shadowOffsetYToken = GameEffectToken.tableTitleShadowOffsetY
+    let highlightColorRole = GameColorRole.tableTitleHighlight
+    let highlightOpacityToken = GameEffectToken.tableTitleHighlightOpacity
+    let highlightBlurRadiusToken = GameEffectToken.tableTitleHighlightBlurRadius
+    let highlightOffsetYToken = GameEffectToken.tableTitleHighlightOffsetY
     let usesShadow: Bool
+    let style = "embossedFelt"
 
     init(
         tracking: Double = GameTypographyToken.tableTitleTrackingMinimum.numericValue ?? 2,
@@ -1158,12 +1463,20 @@ struct TableTitlePresentation: Equatable {
             "usesShadow=\(usesShadow)",
             "shadowOpacity=\(shadowOpacityToken.rawValue)",
             "shadowOpacityValue=\(shadowOpacityToken.value)",
-            "shadowBlur=\(shadowBlurRadiusToken.rawValue)"
+            "shadowBlur=\(shadowBlurRadiusToken.rawValue)",
+            "shadowOffsetY=\(shadowOffsetYToken.rawValue)",
+            "highlightColor=\(highlightColorRole.token.rawValue)",
+            "highlightOpacity=\(highlightOpacityToken.rawValue)",
+            "highlightOpacityValue=\(highlightOpacityToken.value)",
+            "highlightBlur=\(highlightBlurRadiusToken.rawValue)",
+            "highlightOffsetY=\(highlightOffsetYToken.rawValue)",
+            "style=\(style)"
         ].joined(separator: ";")
     }
 }
 
 struct CardPresentation: Equatable {
+    let card: Card
     let cardID: String
     let displayLabel: String
     let faceAssetName: String
@@ -1176,6 +1489,7 @@ struct CardPresentation: Equatable {
     let sizeConfiguration: CardSizeConfiguration
 
     init(card: Card, sizeConfiguration: CardSizeConfiguration = .sharedBase) {
+        self.card = card
         self.cardID = card.id
         self.rankText = card.rank.displayLabel
         self.suitSymbol = card.suit.displaySymbol

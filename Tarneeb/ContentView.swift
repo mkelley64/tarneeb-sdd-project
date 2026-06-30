@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct ContentView: View {
     @State private var presentationState: TarneebPresentationState
@@ -7,10 +8,15 @@ struct ContentView: View {
     @State private var dealAnimation: DealAnimationPlayback?
     @State private var lastDealAnimationPresentation: DealAnimationPresentation?
     @State private var simulatedBiddingTask: Task<Void, Never>?
+    @State private var simulatedTrickTask: Task<Void, Never>?
     @State private var biddingAreaFadeTask: Task<Void, Never>?
+    @State private var trickClearTask: Task<Void, Never>?
     @State private var isBiddingAreaFadingOut = false
+    @State private var isCurrentTrickFadingOut = false
     @State private var automatedBidCueSeat: Seat?
     @State private var isAutomatedBidCuePulsed = false
+    @State private var automatedTrickCueSeat: Seat?
+    @State private var isAutomatedTrickCuePulsed = false
     @State private var southDraftBid: BidValue = .pass
     @State private var southDraftTarneebSuit: Suit?
 
@@ -70,10 +76,15 @@ struct ContentView: View {
             isBiddingAreaFadingOut: isBiddingAreaFadingOut,
             selectedSuit: southDraftTarneebSuit
         )
+        let trickPlayPresentation = TrickPlayPresentation(
+            phase: gameState.phase,
+            trickPlayState: gameState.trickPlayState,
+            sizeConfiguration: cardSizeConfiguration
+        )
         let bidEntriesAccessibilityValue = bidPresentation?.entries
             .map { "\($0.seat.rawValue):\($0.valueLabel)" }
             .joined(separator: ",") ?? "none"
-        let tableSceneAccessibilityValue = "table=\(GameColorRole.tableSurface.token.rawValue);label=\(GameColorRole.textPrimary.token.rawValue);station=\(GameColorRole.stationOutline.token.rawValue);dealer=\(gameState.dealerSeat.rawValue);diameter=\(Int(metrics.tableDiameter.rounded()));bidAreaVisible=\(String(bidPresentation != nil));bidAreaFading=\(String(isBiddingAreaFadingOut));postBiddingSummaryVisible=\(String(postBiddingSummaryPresentation != nil));southTarneebSelectionVisible=\(String(southTarneebSelectionPresentation != nil));bids=\(bidEntriesAccessibilityValue);summary=\(postBiddingSummaryPresentation?.highBidderLabel ?? "none");\(dealAnimationAccessibilityValue)"
+        let tableSceneAccessibilityValue = "table=\(GameColorRole.tableSurface.token.rawValue);label=\(GameColorRole.textPrimary.token.rawValue);station=\(GameColorRole.stationOutline.token.rawValue);dealer=\(gameState.dealerSeat.rawValue);diameter=\(Int(metrics.tableDiameter.rounded()));bidAreaVisible=\(String(bidPresentation != nil));bidAreaFading=\(String(isBiddingAreaFadingOut));postBiddingSummaryVisible=\(String(postBiddingSummaryPresentation != nil));southTarneebSelectionVisible=\(String(southTarneebSelectionPresentation != nil));trickPlayVisible=\(String(trickPlayPresentation != nil));trickCurrentTurn=\(trickPlayPresentation?.currentTurnSeat?.rawValue ?? "none");bids=\(bidEntriesAccessibilityValue);summary=\(postBiddingSummaryPresentation?.highBidderLabel ?? "none");\(dealAnimationAccessibilityValue)"
 
         return ZStack {
             VStack(spacing: metrics.verticalSpacing) {
@@ -84,7 +95,8 @@ struct ContentView: View {
 
                     circularCardTable(
                         metrics: metrics,
-                        postBiddingSummaryPresentation: postBiddingSummaryPresentation
+                        postBiddingSummaryPresentation: postBiddingSummaryPresentation,
+                        trickPlayPresentation: trickPlayPresentation
                     )
 
                     playerStation(for: displayPlayer(for: .east), metrics: metrics)
@@ -119,7 +131,8 @@ struct ContentView: View {
 
     private func circularCardTable(
         metrics: TableLayoutMetrics,
-        postBiddingSummaryPresentation: PostBiddingSummaryPresentation?
+        postBiddingSummaryPresentation: PostBiddingSummaryPresentation?,
+        trickPlayPresentation: TrickPlayPresentation?
     ) -> some View {
         return ZStack {
             tableRailSurface(metrics: metrics)
@@ -132,21 +145,26 @@ struct ContentView: View {
                 .stroke(GameColorRole.tableHighlight.token.swiftUIColor.opacity(GameEffectToken.tableInnerRingOpacity.value), lineWidth: 1)
                 .padding(metrics.tableInnerRingInset)
 
-            tablePlayArea(metrics: metrics)
+            tablePlayArea(metrics: metrics, trickPlayPresentation: trickPlayPresentation)
 
             tableTitleView()
                 .offset(y: -metrics.tableTitleVerticalOffset)
 
             if let postBiddingSummaryPresentation {
                 postBiddingSummaryView(postBiddingSummaryPresentation)
-                    .offset(y: metrics.contractRibbonVerticalOffset)
+                    .offset(
+                        x: -metrics.postBiddingSummaryOutsideTableOffsetX,
+                        y: -metrics.postBiddingSummaryOutsideTableOffsetY
+                    )
             }
         }
         .frame(width: metrics.tableDiameter, height: metrics.tableDiameter)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("tarneeb-card-table")
         .accessibilityValue(
-            "shape=circle;diameter=\(Int(metrics.tableDiameter.rounded()));surface=\(GameColorRole.tableSurfaceSecondary.token.rawValue);highlight=\(GameColorRole.tableHighlight.token.rawValue);dealer=\(gameState.dealerSeat.rawValue);depth=railAndInnerBevel;railHighlightOpacity=\(GameEffectToken.tableRailHighlightOpacity.rawValue);railInnerBevelOpacity=\(GameEffectToken.tableRailInnerBevelOpacity.rawValue);railShadowOpacity=\(GameEffectToken.tableRailShadowOpacity.rawValue);railShadowRadius=\(GameEffectToken.tableRailShadowRadius.rawValue);playArea=reservedForTrickPlay;playAreaSlots=4;titlePlacement=top;\(dealAnimationAccessibilityValue)"
+            Text(
+                verbatim: "shape=circle;diameter=\(Int(metrics.tableDiameter.rounded()));surface=\(GameColorRole.tableSurfaceSecondary.token.rawValue);highlight=\(GameColorRole.tableHighlight.token.rawValue);dealer=\(gameState.dealerSeat.rawValue);depth=railAndInnerBevel;railHighlightOpacity=\(GameEffectToken.tableRailHighlightOpacity.rawValue);railInnerBevelOpacity=\(GameEffectToken.tableRailInnerBevelOpacity.rawValue);railShadowOpacity=\(GameEffectToken.tableRailShadowOpacity.rawValue);railShadowRadius=\(GameEffectToken.tableRailShadowRadius.rawValue);playArea=reservedForTrickPlay;playAreaSlots=4;trickPlayActive=\(trickPlayPresentation != nil);titlePlacement=top;\(dealAnimationAccessibilityValue)"
+            )
         )
     }
 
@@ -183,8 +201,14 @@ struct ContentView: View {
             )
     }
 
-    private func tablePlayArea(metrics: TableLayoutMetrics) -> some View {
-        ZStack {
+    private func tablePlayArea(
+        metrics: TableLayoutMetrics,
+        trickPlayPresentation: TrickPlayPresentation?
+    ) -> some View {
+        let tokens = TrickPlayTokenSet()
+        let trickAccessibilityValue = trickPlayPresentation?.accessibilityValue ?? "active=false"
+
+        return ZStack {
             RoundedRectangle(cornerRadius: metrics.playAreaCornerRadius)
                 .fill(GameColorRole.tableSurface.token.swiftUIColor.opacity(GameEffectToken.tableCenterSurfaceOpacity.value))
                 .overlay(
@@ -196,7 +220,12 @@ struct ContentView: View {
                 )
 
             ForEach(Seat.allCases, id: \.self) { seat in
-                tablePlayAreaSlot(metrics: metrics, seat: seat)
+                tablePlayAreaSlot(
+                    metrics: metrics,
+                    seat: seat,
+                    playedCardPresentation: trickPlayPresentation?.playedCard(for: seat),
+                    tokens: tokens
+                )
             }
         }
         .frame(width: metrics.playAreaWidth, height: metrics.playAreaHeight)
@@ -210,21 +239,80 @@ struct ContentView: View {
         .accessibilityIdentifier("tarneeb-play-area")
         .accessibilityValue(
             Text(
-                verbatim: "reservedFor=trickPlay;centerReserved=true;slots=south,west,north,east;slotCount=4;surface=\(GameColorRole.tableSurface.token.rawValue);border=\(GameColorRole.tableHighlight.token.rawValue);slotBorder=\(GameColorRole.cardBorder.token.rawValue);surfaceOpacity=\(GameEffectToken.tableCenterSurfaceOpacity.rawValue);borderOpacity=\(GameEffectToken.tableInnerRingOpacity.rawValue);shadowOpacity=\(GameEffectToken.tablePlayAreaShadowOpacity.rawValue);layout=tableCenter;playedCardMotion=stationToCenter;playedCardTargets=south,west,north,east;playedCardTargetLayout=matchingSeatSlots;playedCardFlight=\(GameAnimationToken.trickPlayedCardFlightDuration.rawValue);playedCardFlightSeconds=\(GameAnimationToken.trickPlayedCardFlightDuration.seconds)"
+                verbatim: "reservedFor=trickPlay;centerReserved=true;slots=south,west,north,east;slotCount=4;surface=\(GameColorRole.tableSurface.token.rawValue);border=\(GameColorRole.tableHighlight.token.rawValue);slotBorder=\(tokens.slotBorder.rawValue);surfaceOpacity=\(GameEffectToken.tableCenterSurfaceOpacity.rawValue);borderOpacity=\(GameEffectToken.tableInnerRingOpacity.rawValue);shadowOpacity=\(GameEffectToken.tablePlayAreaShadowOpacity.rawValue);layout=tableCenter;playedCardMotion=stationToCenter;playedCardTargets=south,west,north,east;playedCardTargetLayout=matchingSeatSlots;playedCardFlight=\(tokens.playedCardFlight.rawValue);playedCardFlightSeconds=\(tokens.playedCardFlight.seconds);\(trickAccessibilityValue);tokens=\(tokens.accessibilityValue)"
+            )
+        )
+        .onDrop(of: [UTType.plainText], isTargeted: nil) { providers in
+            handleSouthCardDrop(providers)
+        }
+    }
+
+    private func tablePlayAreaSlot(
+        metrics: TableLayoutMetrics,
+        seat: Seat,
+        playedCardPresentation: PlayedCardPresentation?,
+        tokens: TrickPlayTokenSet
+    ) -> some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: metrics.playAreaSlotCornerRadius)
+                .fill(tokens.slotBackground.swiftUIColor.opacity(tokens.slotBackgroundOpacity.value))
+                .overlay(
+                    RoundedRectangle(cornerRadius: metrics.playAreaSlotCornerRadius)
+                        .stroke(
+                            tokens.slotBorder.swiftUIColor.opacity(tokens.slotBorderOpacity.value),
+                            style: StrokeStyle(lineWidth: 1, dash: [4, 3])
+                        )
+                )
+
+            if let playedCardPresentation {
+                playedCardView(playedCardPresentation)
+                    .opacity(isCurrentTrickFadingOut ? 0 : 1)
+                    .transition(.opacity.combined(with: .scale(scale: 0.94)))
+            }
+        }
+        .frame(width: metrics.playAreaSlotWidth, height: metrics.playAreaSlotHeight)
+        .rotationEffect(.degrees(playAreaSlotRotation(for: seat)))
+        .offset(playAreaSlotOffset(for: seat, metrics: metrics))
+        .animation(
+            .easeInOut(duration: GameAnimationToken.trickPlayedCardFlightDuration.seconds),
+            value: playedCardPresentation?.id
+        )
+        .animation(
+            .easeInOut(duration: GameAnimationToken.trickClearFadeDuration.seconds),
+            value: isCurrentTrickFadingOut
+        )
+        .accessibilityElement(children: .ignore)
+        .accessibilityIdentifier("tarneeb-play-area-slot-\(seat.rawValue)")
+        .accessibilityLabel(Text(verbatim: "\(seat.displayLabel) trick slot"))
+        .accessibilityValue(
+            Text(
+                verbatim: "seat=\(seat.rawValue);occupied=\(playedCardPresentation != nil);card=\(playedCardPresentation?.cardPresentation.displayLabel ?? "none");winner=\(playedCardPresentation?.isWinningCard == true);fading=\(isCurrentTrickFadingOut);rotationDegrees=\(Int(playAreaSlotRotation(for: seat)));\(playedCardPresentation?.accessibilityValue ?? tokens.accessibilityValue)"
             )
         )
     }
 
-    private func tablePlayAreaSlot(metrics: TableLayoutMetrics, seat: Seat) -> some View {
-        RoundedRectangle(cornerRadius: metrics.playAreaSlotCornerRadius)
-            .stroke(
-                GameColorRole.cardBorder.token.swiftUIColor.opacity(GameEffectToken.tableInnerRingOpacity.value),
-                style: StrokeStyle(lineWidth: 1, dash: [4, 3])
+    private func playedCardView(_ presentation: PlayedCardPresentation) -> some View {
+        cardFaceView(presentation.cardPresentation)
+            .overlay(
+                RoundedRectangle(cornerRadius: CGFloat(cardSizeConfiguration.cornerRadius))
+                    .stroke(
+                        presentation.tokens.winnerHighlightBorder.swiftUIColor.opacity(
+                            presentation.isWinningCard
+                                ? presentation.tokens.winnerHighlightOpacity.value
+                                : 0
+                        ),
+                        lineWidth: presentation.isWinningCard ? 2 : 0
+                    )
             )
-            .frame(width: metrics.playAreaSlotWidth, height: metrics.playAreaSlotHeight)
-            .rotationEffect(.degrees(playAreaSlotRotation(for: seat)))
-            .offset(playAreaSlotOffset(for: seat, metrics: metrics))
-            .accessibilityHidden(true)
+            .shadow(
+                color: GameColorRole.cardShadow.token.swiftUIColor.opacity(
+                    presentation.tokens.playedCardShadowOpacity.value
+                ),
+                radius: 2,
+                y: 1
+            )
+            .accessibilityIdentifier("tarneeb-played-card-\(presentation.seat.rawValue)")
+            .accessibilityValue(Text(verbatim: presentation.accessibilityValue))
     }
 
     private func playAreaSlotOffset(for seat: Seat, metrics: TableLayoutMetrics) -> CGSize {
@@ -245,11 +333,11 @@ struct ContentView: View {
         case .south:
             return 0
         case .west:
-            return 90
+            return 0
         case .north:
             return 180
         case .east:
-            return -90
+            return 0
         }
     }
 
@@ -261,10 +349,20 @@ struct ContentView: View {
                 tableTitle.textColorRole.token.swiftUIColor.opacity(tableTitle.textOpacityToken.value)
             )
             .shadow(
+                color: tableTitle.highlightColorRole.token.swiftUIColor.opacity(
+                    tableTitle.usesShadow ? tableTitle.highlightOpacityToken.value : 0
+                ),
+                radius: tableTitle.usesShadow ? CGFloat(tableTitle.highlightBlurRadiusToken.value) : 0,
+                x: 0,
+                y: tableTitle.usesShadow ? CGFloat(tableTitle.highlightOffsetYToken.value) : 0
+            )
+            .shadow(
                 color: tableTitle.shadowColorRole.token.swiftUIColor.opacity(
                     tableTitle.usesShadow ? tableTitle.shadowOpacityToken.value : 0
                 ),
-                radius: tableTitle.usesShadow ? tableTitle.shadowBlurRadiusToken.value : 0
+                radius: tableTitle.usesShadow ? CGFloat(tableTitle.shadowBlurRadiusToken.value) : 0,
+                x: 0,
+                y: tableTitle.usesShadow ? CGFloat(tableTitle.shadowOffsetYToken.value) : 0
             )
             .minimumScaleFactor(0.72)
             .lineLimit(1)
@@ -320,13 +418,16 @@ struct ContentView: View {
 
     @ViewBuilder
     private func playerStation(for player: Player, metrics: TableLayoutMetrics) -> some View {
+        let activeSeat = gameState.currentBiddingSeat ?? gameState.currentTrickTurnSeat
+        let motionCueSeat = automatedBidCueSeat ?? automatedTrickCueSeat
+        let isMotionCuePulsed = isAutomatedBidCuePulsed || isAutomatedTrickCuePulsed
         let dealerPresentation = DealerStationPresentation(
             seat: player.seat,
             phase: gameState.phase,
             dealerSeat: gameState.dealerSeat,
-            activeSeat: gameState.currentBiddingSeat,
-            bidCueSeat: automatedBidCueSeat,
-            isBidCuePulsed: isAutomatedBidCuePulsed
+            activeSeat: activeSeat,
+            bidCueSeat: motionCueSeat,
+            isBidCuePulsed: isMotionCuePulsed
         )
         let bidEntry = stationBidEntry(for: player.seat)
 
@@ -353,15 +454,14 @@ struct ContentView: View {
                         .padding(.top, 4)
                 }
                 .overlay(alignment: .topTrailing) {
-                    stationTrickCounterSlot(for: player.seat, metrics: metrics)
-                        .padding(.trailing, 4)
-                        .padding(.top, 4)
-                }
-                .overlay(alignment: .topTrailing) {
                     if dealerPresentation.isActiveTurn {
                         activeTurnIndicator(dealerPresentation)
                             .padding(8)
                     }
+                }
+                .overlay(alignment: .bottom) {
+                    stationTrickCounterSlot(for: player.seat, placement: "stationBottomEdge")
+                        .offset(y: metrics.stationTrickCounterStationEdgeOffset)
                 }
                 .scaleEffect(dealerPresentation.stationScale)
                 .shadow(
@@ -405,15 +505,14 @@ struct ContentView: View {
                         .padding(.top, 4)
                 }
                 .overlay(alignment: .topTrailing) {
-                    stationTrickCounterSlot(for: player.seat, metrics: metrics)
-                        .padding(.trailing, 4)
-                        .padding(.top, 4)
-                }
-                .overlay(alignment: .topTrailing) {
                     if dealerPresentation.isActiveTurn {
                         activeTurnIndicator(dealerPresentation)
                             .padding(8)
                     }
+                }
+                .overlay(alignment: .bottom) {
+                    stationTrickCounterSlot(for: player.seat, placement: "stationBottomEdge")
+                        .offset(y: metrics.stationTrickCounterStationEdgeOffset)
                 }
                 .scaleEffect(dealerPresentation.stationScale)
                 .shadow(
@@ -526,9 +625,10 @@ struct ContentView: View {
     }
 
     private func stationBidEntry(for seat: Seat) -> BidEntryPresentation? {
-        guard gameState.phase == .dealt,
+        guard gameState.phase == .dealt || gameState.phase == .trickPlay || gameState.phase == .handComplete,
               dealAnimation == nil,
-              let biddingState = gameState.biddingState else {
+              let biddingState = gameState.biddingState,
+              biddingState.status != .complete else {
             return nil
         }
 
@@ -589,31 +689,39 @@ struct ContentView: View {
         Circle()
             .fill(GameColorRole.newGameActionBackground.token.swiftUIColor)
             .frame(width: 9, height: 9)
-            .accessibilityLabel("Active bidder")
+            .accessibilityLabel("Active turn")
             .accessibilityIdentifier("tarneeb-active-bidder-\(presentation.seat.rawValue)")
             .accessibilityValue(Text(verbatim: "activeTurn=\(presentation.isActiveTurn);color=\(GameColorRole.newGameActionBackground.token.rawValue)"))
     }
 
-    private func stationTrickCounterSlot(for seat: Seat, metrics: TableLayoutMetrics) -> some View {
-        Text("0")
+    private func stationTrickCounterSlot(for seat: Seat, placement: String) -> some View {
+        let tokens = TrickPlayTokenSet()
+        let count = gameState.trickPlayState?.individualTrickCount(for: seat) ?? 0
+        let partnershipCount = gameState.trickPlayState?.partnershipTrickCount(for: seat) ?? 0
+        let isVisible = gameState.phase == .trickPlay || gameState.phase == .handComplete
+
+        return Text("\(count)")
             .font(.caption2.weight(.bold))
-            .foregroundStyle(GameColorRole.textSecondary.token.swiftUIColor)
+            .foregroundStyle(tokens.countText.swiftUIColor)
             .lineLimit(1)
             .minimumScaleFactor(0.75)
-            .frame(width: metrics.stationTrickCounterWidth, height: metrics.stationTrickCounterHeight)
+            .frame(
+                minWidth: CGFloat(GameTrickLayoutToken.trickCounterMinimumWidth.numericValue),
+                minHeight: CGFloat(GameTrickLayoutToken.trickCounterHeight.numericValue)
+            )
             .background(
                 Capsule()
-                    .fill(GameColorRole.bidAreaTableDivider.token.swiftUIColor.opacity(GameEffectToken.bidCellDefaultBackgroundOpacity.value))
+                    .fill(tokens.countBackground.swiftUIColor.opacity(tokens.countBackgroundOpacity.value))
                     .overlay(
                         Capsule()
-                            .stroke(GameColorRole.bidAreaTableDivider.token.swiftUIColor, lineWidth: 1)
+                            .stroke(tokens.slotBorder.swiftUIColor.opacity(tokens.slotBorderOpacity.value), lineWidth: 1)
                     )
             )
-            .opacity(0)
+            .opacity(isVisible ? 1 : 0)
             .allowsHitTesting(false)
             .accessibilityIdentifier("tarneeb-trick-counter-slot-\(seat.rawValue)")
-            .accessibilityValue(Text(verbatim: "reserved=true;visible=false;count=none;placement=topTrailing"))
-            .accessibilityHidden(true)
+            .accessibilityValue(Text(verbatim: "reserved=true;visible=\(isVisible);count=\(isVisible ? "\(count)" : "none");countScope=individual;player=\(seat.rawValue);partnershipCount=\(partnershipCount);placement=\(placement);team=\(seat.highBiddingTeamLabel);tokens=\(tokens.accessibilityValue)"))
+            .accessibilityHidden(!isVisible)
     }
 
     private func visibleHand(for player: Player) -> some View {
@@ -653,7 +761,7 @@ struct ContentView: View {
             spacing: CGFloat(layout.cardSpacing)
         ) {
             ForEach(Array(cardPresentations.enumerated()), id: \.element.cardID) { index, presentation in
-                cardFaceView(presentation)
+                southInteractiveCardView(presentation)
                     .padding(
                         .leading,
                         CGFloat(layout.additionalLeadingSpacing(beforeCardAt: index, in: cardPresentations))
@@ -745,6 +853,46 @@ struct ContentView: View {
             .accessibilityLabel(presentation.accessibilityLabel)
             .accessibilityIdentifier("tarneeb-visible-card")
             .accessibilityValue(presentation.accessibilityValue)
+    }
+
+    @ViewBuilder
+    private func southInteractiveCardView(_ presentation: CardPresentation) -> some View {
+        let isTrickPlay = gameState.phase == .trickPlay
+        let isSouthTurn = gameState.currentTrickTurnSeat == .south
+        let isLegal = TrickPlayRules.isLegal(card: presentation.card, for: .south, in: gameState)
+        let tokens = TrickPlayTokenSet()
+        let baseCard = cardFaceView(presentation)
+            .overlay(
+                RoundedRectangle(cornerRadius: CGFloat(cardSizeConfiguration.cornerRadius))
+                    .stroke(
+                        tokens.legalCardOutline.swiftUIColor.opacity(
+                            isLegal ? tokens.legalCardOutlineOpacity.value : 0
+                        ),
+                        lineWidth: isLegal ? 2 : 0
+                    )
+            )
+            .opacity(isTrickPlay && isSouthTurn && !isLegal ? tokens.unavailableSouthCardOpacity.value : 1)
+            .onTapGesture(count: 2) {
+                guard isLegal else {
+                    return
+                }
+
+                playSouthCard(presentation.card)
+            }
+            .accessibilityIdentifier("tarneeb-visible-card")
+            .accessibilityValue(
+                Text(
+                    verbatim: "\(presentation.accessibilityValue);cardID=\(presentation.cardID);trickPlayable=\(isLegal);southTurn=\(isSouthTurn);dragEnabled=\(isLegal);doubleTapEnabled=\(isLegal);legalOutline=\(tokens.legalCardOutline.rawValue);unavailableOpacity=\(tokens.unavailableSouthCardOpacity.rawValue)"
+                )
+            )
+
+        if isLegal {
+            baseCard.onDrag {
+                NSItemProvider(object: presentation.cardID as NSString)
+            }
+        } else {
+            baseCard
+        }
     }
 
     private func southRevealCardBack(index: Int) -> some View {
@@ -858,23 +1006,37 @@ struct ContentView: View {
     }
 
     private func postBiddingSummaryView(_ presentation: PostBiddingSummaryPresentation) -> some View {
-        HStack(alignment: .center, spacing: 6) {
-            Text(presentation.tarneebLabel)
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(presentation.tokens.labelText.swiftUIColor)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
+        VStack(alignment: .leading, spacing: CGFloat(presentation.tokens.rowGap.numericValue)) {
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text("\(presentation.highBidderLabel):")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(presentation.tokens.teamText.swiftUIColor)
+                    .lineLimit(1)
 
-            postBiddingTarneebSuitChip(presentation)
+                Text(presentation.bidValueLabel)
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(presentation.tokens.bidText.swiftUIColor)
+                    .lineLimit(1)
+            }
+
+            HStack(alignment: .center, spacing: 6) {
+                Text("\(presentation.tarneebLabel):")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(presentation.tokens.labelText.swiftUIColor)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+
+                postBiddingTarneebSuitChip(presentation)
+            }
         }
         .padding(.horizontal, CGFloat(presentation.tokens.padding.numericValue))
         .padding(.vertical, 6)
-        .fixedSize(horizontal: true, vertical: false)
+        .fixedSize(horizontal: true, vertical: true)
         .background(
-            Capsule()
+            RoundedRectangle(cornerRadius: CGFloat(presentation.tokens.cornerRadius.numericValue), style: .continuous)
                 .fill(presentation.tokens.background.swiftUIColor)
                 .overlay(
-                    Capsule()
+                    RoundedRectangle(cornerRadius: CGFloat(presentation.tokens.cornerRadius.numericValue), style: .continuous)
                         .stroke(presentation.tokens.border.swiftUIColor, lineWidth: 1)
                 )
         )
@@ -1129,7 +1291,7 @@ struct ContentView: View {
 
     private var bottomDealControl: some View {
         VStack(spacing: 4) {
-            if gameState.phase == .dealt {
+            if gameState.phase != .notStarted {
                 phaseStatusPill
             }
 
@@ -1159,7 +1321,7 @@ struct ContentView: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("tarneeb-bottom-deal-control")
-        .accessibilityValue(Text(verbatim: "buttons=New Game,Deal;phaseStatusVisible=\(gameState.phase == .dealt);phaseStatusTreatment=compactPhasePill;newGameTokens=\(ButtonTokenSet.newGame.accessibilityValue);dealTokens=\(ButtonTokenSet.deal.accessibilityValue)"))
+        .accessibilityValue(Text(verbatim: "buttons=New Game,Deal;phaseStatusVisible=\(gameState.phase != .notStarted);phaseStatusTreatment=compactPhasePill;newGameTokens=\(ButtonTokenSet.newGame.accessibilityValue);dealTokens=\(ButtonTokenSet.deal.accessibilityValue)"))
     }
 
     private var phaseStatusPill: some View {
@@ -1204,9 +1366,13 @@ struct ContentView: View {
         }
 
         cancelSimulatedBiddingTask()
+        cancelSimulatedTrickTask()
         cancelBiddingAreaFadeTask()
+        cancelTrickClearTask()
         isBiddingAreaFadingOut = false
+        isCurrentTrickFadingOut = false
         clearAutomatedBidCue()
+        clearAutomatedTrickCue()
         presentationState.deal()
         let dealtState = presentationState.gameState
         southDraftBid = normalizedSouthDraftBid(for: dealtState)
@@ -1221,9 +1387,13 @@ struct ContentView: View {
         }
 
         cancelSimulatedBiddingTask()
+        cancelSimulatedTrickTask()
         cancelBiddingAreaFadeTask()
+        cancelTrickClearTask()
         isBiddingAreaFadingOut = false
+        isCurrentTrickFadingOut = false
         clearAutomatedBidCue()
+        clearAutomatedTrickCue()
         presentationState.newGame()
         pendingDealtState = nil
         lastDealAnimationPresentation = nil
@@ -1269,6 +1439,7 @@ struct ContentView: View {
         presentationState.submitSouthTarneebSuit(selectedTarneebSuit)
         gameState = presentationState.gameState
         southDraftTarneebSuit = normalizedSouthDraftTarneebSuit(for: gameState)
+        startTrickPlayIfReady()
     }
 
     private func stageDealAnimationIfNeeded(for dealtState: GameState) {
@@ -1428,14 +1599,46 @@ struct ContentView: View {
         clearAutomatedBidCue()
     }
 
+    private func cancelSimulatedTrickTask() {
+        simulatedTrickTask?.cancel()
+        simulatedTrickTask = nil
+        clearAutomatedTrickCue()
+    }
+
     private func cancelBiddingAreaFadeTask() {
         biddingAreaFadeTask?.cancel()
         biddingAreaFadeTask = nil
     }
 
+    private func cancelTrickClearTask() {
+        trickClearTask?.cancel()
+        trickClearTask = nil
+    }
+
     private func clearAutomatedBidCue() {
         automatedBidCueSeat = nil
         isAutomatedBidCuePulsed = false
+    }
+
+    private func clearAutomatedTrickCue() {
+        automatedTrickCueSeat = nil
+        isAutomatedTrickCuePulsed = false
+    }
+
+    private func startTrickPlayIfReady() {
+        let previousPhase = gameState.phase
+        presentationState.startTrickPlayIfReady()
+
+        guard presentationState.gameState.phase != previousPhase else {
+            gameState = presentationState.gameState
+            return
+        }
+
+        withAnimation(.easeInOut(duration: GameAnimationToken.trickPlayedCardFlightDuration.seconds)) {
+            gameState = presentationState.gameState
+        }
+
+        scheduleSimulatedTrickIfNeeded()
     }
 
     private func beginTerminalBiddingTransitionIfNeeded() {
@@ -1472,6 +1675,8 @@ struct ContentView: View {
 
                 if completionOutcome == .allPassRedeal {
                     beginAutomaticRedealAfterAllPassIfNeeded()
+                } else {
+                    startTrickPlayIfReady()
                 }
             }
         }
@@ -1535,6 +1740,157 @@ struct ContentView: View {
         simulatedBiddingTask = nil
     }
 
+    private func scheduleSimulatedTrickIfNeeded() {
+        cancelSimulatedTrickTask()
+
+        guard gameState.phase == .trickPlay,
+              !gameState.isCurrentTrickComplete,
+              let currentTurnSeat = gameState.currentTrickTurnSeat,
+              currentTurnSeat != .south else {
+            return
+        }
+
+        simulatedTrickTask = Task {
+            await runSimulatedTrickLoop()
+        }
+    }
+
+    @MainActor
+    private func runSimulatedTrickLoop() async {
+        while !Task.isCancelled,
+              gameState.phase == .trickPlay,
+              !gameState.isCurrentTrickComplete,
+              let currentTurnSeat = gameState.currentTrickTurnSeat,
+              currentTurnSeat != .south {
+            await cueAutomatedTrick(for: currentTurnSeat)
+
+            guard !Task.isCancelled,
+                  gameState.phase == .trickPlay,
+                  gameState.currentTrickTurnSeat == currentTurnSeat,
+                  !gameState.isCurrentTrickComplete else {
+                clearAutomatedTrickCue()
+                return
+            }
+
+            withAnimation(.easeInOut(duration: GameAnimationToken.trickPlayedCardFlightDuration.seconds)) {
+                presentationState.resolveNextSimulatedTrickPlay()
+                gameState = presentationState.gameState
+            }
+
+            withAnimation(.easeInOut(duration: GameAnimationToken.bidStationCuePulseDuration.seconds)) {
+                clearAutomatedTrickCue()
+            }
+
+            if gameState.isCurrentTrickComplete {
+                scheduleTrickClearIfNeeded()
+                return
+            }
+        }
+
+        simulatedTrickTask = nil
+    }
+
+    @MainActor
+    private func cueAutomatedTrick(for seat: Seat) async {
+        withAnimation(.easeOut(duration: GameAnimationToken.bidStationCuePulseDuration.seconds)) {
+            automatedTrickCueSeat = seat
+            isAutomatedTrickCuePulsed = true
+        }
+
+        try? await Task.sleep(nanoseconds: GameAnimationToken.bidStationCuePulseDuration.nanoseconds)
+
+        guard !Task.isCancelled else {
+            clearAutomatedTrickCue()
+            return
+        }
+
+        withAnimation(.easeIn(duration: GameAnimationToken.bidStationCuePulseDuration.seconds)) {
+            isAutomatedTrickCuePulsed = false
+        }
+
+        try? await Task.sleep(nanoseconds: GameAnimationToken.bidStationCuePulseDuration.nanoseconds)
+    }
+
+    private func scheduleTrickClearIfNeeded() {
+        guard gameState.phase == .trickPlay,
+              gameState.isCurrentTrickComplete,
+              trickClearTask == nil else {
+            return
+        }
+
+        cancelSimulatedTrickTask()
+        trickClearTask = Task {
+            try? await Task.sleep(nanoseconds: GameAnimationToken.trickClearPauseDuration.nanoseconds)
+            guard !Task.isCancelled else {
+                return
+            }
+
+            await MainActor.run {
+                withAnimation(.easeInOut(duration: GameAnimationToken.trickClearFadeDuration.seconds)) {
+                    isCurrentTrickFadingOut = true
+                }
+            }
+
+            try? await Task.sleep(nanoseconds: GameAnimationToken.trickClearFadeDuration.nanoseconds)
+            guard !Task.isCancelled else {
+                return
+            }
+
+            await MainActor.run {
+                presentationState.clearCompletedTrickIfNeeded()
+                gameState = presentationState.gameState
+                isCurrentTrickFadingOut = false
+                trickClearTask = nil
+                scheduleSimulatedTrickIfNeeded()
+            }
+        }
+    }
+
+    private func playSouthCard(_ card: Card) {
+        let previousState = gameState
+
+        withAnimation(.easeInOut(duration: GameAnimationToken.trickPlayedCardFlightDuration.seconds)) {
+            presentationState.playSouthCard(card)
+            gameState = presentationState.gameState
+        }
+
+        guard gameState != previousState else {
+            return
+        }
+
+        if gameState.isCurrentTrickComplete {
+            scheduleTrickClearIfNeeded()
+        } else {
+            scheduleSimulatedTrickIfNeeded()
+        }
+    }
+
+    private func playSouthCard(withID cardID: String) {
+        guard let card = player(for: .south).hand.first(where: { $0.id == cardID }) else {
+            return
+        }
+
+        playSouthCard(card)
+    }
+
+    private func handleSouthCardDrop(_ providers: [NSItemProvider]) -> Bool {
+        guard let provider = providers.first(where: { $0.canLoadObject(ofClass: NSString.self) }) else {
+            return false
+        }
+
+        provider.loadObject(ofClass: NSString.self) { object, _ in
+            guard let cardID = object as? String else {
+                return
+            }
+
+            Task { @MainActor in
+                playSouthCard(withID: cardID)
+            }
+        }
+
+        return true
+    }
+
     @MainActor
     private func cueAutomatedBid(for seat: Seat) async {
         withAnimation(.easeOut(duration: GameAnimationToken.bidStationCuePulseDuration.seconds)) {
@@ -1585,6 +1941,10 @@ struct ContentView: View {
     }
 
     private var statusLabelText: String {
+        if gameState.phase == .handComplete {
+            return "Hand complete"
+        }
+
         switch gameState.biddingStatus {
         case .complete:
             return "Bidding complete"
@@ -1606,7 +1966,10 @@ struct ContentView: View {
     }
 
     private func showsDealtHand(for seat: Seat) -> Bool {
-        gameState.phase == .dealt || showsAnimatedHand(for: seat)
+        gameState.phase == .dealt
+            || gameState.phase == .trickPlay
+            || gameState.phase == .handComplete
+            || showsAnimatedHand(for: seat)
     }
 
     private func showsAnimatedHand(for seat: Seat) -> Bool {
@@ -1628,6 +1991,8 @@ struct ContentView: View {
 
         guard let dealAnimation else {
             return gameState.phase == .dealt
+                || gameState.phase == .trickPlay
+                || gameState.phase == .handComplete
         }
 
         return dealAnimation.southRevealState.usesExpandedStation
@@ -1667,10 +2032,14 @@ struct ContentView: View {
                 stateValue = showsDealtHand(for: player.seat) ? "dealingDelivered" : "dealingWaiting"
             }
         } else {
-            stateValue = gameState.phase == .dealt ? "dealt" : "notStarted"
+            stateValue = gameState.phase.rawValue
         }
         let shapeValue = expandsSouthStation(for: player.seat) ? "expandedRoundedStation" : "roundedSquare"
         let bidEntry = stationBidEntry(for: player.seat)
+        let trickCounterVisible = gameState.phase == .trickPlay || gameState.phase == .handComplete
+        let trickCount = gameState.trickPlayState?.individualTrickCount(for: player.seat)
+        let partnershipTrickCount = gameState.trickPlayState?.partnershipTrickCount(for: player.seat)
+        let trickCounterPlacement = "stationBottomEdge"
 
         return [
             "label=\(GameColorRole.textPrimary.token.rawValue)",
@@ -1682,11 +2051,15 @@ struct ContentView: View {
             "bid=\(bidEntry?.valueLabel ?? "none")",
             "bidValueText=\(bidEntry?.valueColorToken.rawValue ?? "none")",
             "trickCounterReserved=true",
-            "trickCounterVisible=false",
-            "trickCount=none",
-            "trickCounterPlacement=topTrailing",
+            "trickCounterVisible=\(trickCounterVisible)",
+            "trickCount=\(trickCount.map(String.init) ?? "none")",
+            "trickCountScope=individual",
+            "partnershipTrickCount=\(partnershipTrickCount.map(String.init) ?? "none")",
+            "trickCounterPlacement=\(trickCounterPlacement)",
             "trickCounterWidth=\(Int(metrics.stationTrickCounterWidth.rounded()))",
             "trickCounterHeight=\(Int(metrics.stationTrickCounterHeight.rounded()))",
+            "trickCounterHeaderOffset=\(GameTrickLayoutToken.trickCounterHeaderOffset.rawValue)",
+            "trickCounterStationEdgeOffset=\(GameTrickLayoutToken.trickCounterStationEdgeOffset.rawValue)",
             "state=\(stateValue)",
             "dealAnimationDelivered=\(showsAnimatedHand(for: player.seat))",
             "compactSide=\(Int(metrics.compactStationSide.rounded()))",
@@ -1820,15 +2193,15 @@ private struct TableLayoutMetrics {
     }
 
     var playAreaSlotWidth: CGFloat {
-        tableDiameter * 0.14
+        min(tableDiameter * 0.14, CGFloat(GameTrickLayoutToken.playAreaSlotWidth.numericValue))
     }
 
     var playAreaSlotHeight: CGFloat {
-        tableDiameter * 0.20
+        min(tableDiameter * 0.20, CGFloat(GameTrickLayoutToken.playAreaSlotHeight.numericValue))
     }
 
     var playAreaSlotCornerRadius: CGFloat {
-        max(4, playAreaSlotWidth * 0.18)
+        CGFloat(GameTrickLayoutToken.playAreaSlotCornerRadius.numericValue)
     }
 
     var playAreaSlotOffsetX: CGFloat {
@@ -1839,8 +2212,12 @@ private struct TableLayoutMetrics {
         playAreaHeight * 0.24
     }
 
-    var contractRibbonVerticalOffset: CGFloat {
-        tableDiameter * CGFloat(GameBidLayoutToken.postBiddingSummaryTableEdgeVerticalOffsetRatio.numericValue)
+    var postBiddingSummaryOutsideTableOffsetX: CGFloat {
+        tableDiameter * CGFloat(GameBidLayoutToken.postBiddingSummaryOutsideTableHorizontalOffsetRatio.numericValue)
+    }
+
+    var postBiddingSummaryOutsideTableOffsetY: CGFloat {
+        tableDiameter * CGFloat(GameBidLayoutToken.postBiddingSummaryOutsideTableVerticalOffsetRatio.numericValue)
     }
 
     var compactStationSide: CGFloat {
@@ -1864,11 +2241,23 @@ private struct TableLayoutMetrics {
     }
 
     var stationTrickCounterWidth: CGFloat {
-        22
+        CGFloat(GameTrickLayoutToken.trickCounterMinimumWidth.numericValue)
     }
 
     var stationTrickCounterHeight: CGFloat {
-        16
+        CGFloat(GameTrickLayoutToken.trickCounterHeight.numericValue)
+    }
+
+    var stationTrickCounterEdgePadding: CGFloat {
+        CGFloat(GameTrickLayoutToken.trickCounterHeaderOffset.numericValue)
+    }
+
+    var stationTrickCounterTopPadding: CGFloat {
+        stationHeaderReservedHeight + stationTrickCounterHeight + CGFloat(GameTrickLayoutToken.trickCounterHeaderOffset.numericValue)
+    }
+
+    var stationTrickCounterStationEdgeOffset: CGFloat {
+        CGFloat(GameTrickLayoutToken.trickCounterStationEdgeOffset.numericValue)
     }
 
     var stationBodyBottomPadding: CGFloat {

@@ -1532,6 +1532,79 @@ struct BiddingService {
     }
 }
 
+struct TrickPlayService {
+    func startIfReady(in gameState: GameState) -> GameState {
+        gameState.startingTrickPlayIfReady()
+    }
+
+    func legalCards(for seat: Seat, in gameState: GameState) -> [Card] {
+        TrickPlayRules.legalCards(for: seat, in: gameState)
+    }
+
+    func playSouthCard(_ card: Card, in gameState: GameState) -> GameState {
+        play(card: card, for: .south, in: gameState)
+    }
+
+    func playSimulatedTurn(in gameState: GameState) -> GameState {
+        guard gameState.phase == .trickPlay,
+              let trickPlayState = gameState.trickPlayState,
+              let currentTurnSeat = trickPlayState.currentTurnSeat,
+              currentTurnSeat != .south else {
+            return gameState
+        }
+
+        let legalCards = legalCards(for: currentTurnSeat, in: gameState)
+        guard let selectedCard = TrickPlayRules
+            .sortedLegalCardsForSimulatedPlay(legalCards, tarneebSuit: trickPlayState.tarneebSuit)
+            .first else {
+            return gameState
+        }
+
+        return play(card: selectedCard, for: currentTurnSeat, in: gameState)
+    }
+
+    func clearCompletedTrickIfNeeded(in gameState: GameState) -> GameState {
+        guard gameState.phase == .trickPlay,
+              var trickPlayState = gameState.trickPlayState,
+              trickPlayState.pendingCompletedTrick != nil else {
+            return gameState
+        }
+
+        trickPlayState.clearPendingCompletedTrick()
+        let nextPhase: GamePhase = trickPlayState.isHandComplete ? .handComplete : .trickPlay
+
+        return gameState.replacingTrickPlayState(
+            trickPlayState,
+            players: gameState.players,
+            phase: nextPhase
+        )
+    }
+
+    private func play(card: Card, for seat: Seat, in gameState: GameState) -> GameState {
+        guard gameState.phase == .trickPlay,
+              var trickPlayState = gameState.trickPlayState,
+              trickPlayState.currentTurnSeat == seat,
+              TrickPlayRules.isLegal(card: card, for: seat, in: gameState) else {
+            return gameState
+        }
+
+        var players = gameState.players
+        guard let playerIndex = players.firstIndex(where: { $0.seat == seat }),
+              let cardIndex = players[playerIndex].hand.firstIndex(of: card) else {
+            return gameState
+        }
+
+        players[playerIndex].hand.remove(at: cardIndex)
+        trickPlayState.appendPlayedCard(PlayedCard(seat: seat, card: card))
+
+        return gameState.replacingTrickPlayState(
+            trickPlayState,
+            players: players,
+            phase: .trickPlay
+        )
+    }
+}
+
 struct BiddingSimulationSample: Equatable {
     let dealIndex: Int
     let seat: Seat
@@ -1754,6 +1827,8 @@ struct Player: Identifiable, Equatable, Hashable {
 enum GamePhase: String, CaseIterable, Equatable, Hashable {
     case notStarted
     case dealt
+    case trickPlay
+    case handComplete
 }
 
 struct PostBiddingSummary: Equatable, Hashable {
@@ -1774,6 +1849,181 @@ struct PostBiddingSummary: Equatable, Hashable {
     }
 }
 
+struct PlayedCard: Identifiable, Equatable, Hashable {
+    let seat: Seat
+    let card: Card
+
+    var id: String {
+        "\(seat.rawValue)-\(card.id)"
+    }
+}
+
+struct CompletedTrick: Equatable, Hashable {
+    let leaderSeat: Seat
+    let winnerSeat: Seat
+    let ledSuit: Suit
+    let playedCards: [PlayedCard]
+}
+
+struct TrickPlayState: Equatable, Hashable {
+    let declarerSeat: Seat
+    let tarneebSuit: Suit
+    private(set) var leaderSeat: Seat
+    private(set) var currentTurnSeat: Seat?
+    private(set) var currentTrick: [PlayedCard]
+    private(set) var pendingCompletedTrick: CompletedTrick?
+    private(set) var completedTricks: [CompletedTrick]
+
+    init(
+        declarerSeat: Seat,
+        tarneebSuit: Suit,
+        leaderSeat: Seat? = nil,
+        currentTurnSeat: Seat? = nil,
+        currentTrick: [PlayedCard] = [],
+        pendingCompletedTrick: CompletedTrick? = nil,
+        completedTricks: [CompletedTrick] = []
+    ) {
+        self.declarerSeat = declarerSeat
+        self.tarneebSuit = tarneebSuit
+        self.leaderSeat = leaderSeat ?? declarerSeat
+        self.currentTurnSeat = currentTurnSeat ?? declarerSeat
+        self.currentTrick = currentTrick
+        self.pendingCompletedTrick = pendingCompletedTrick
+        self.completedTricks = completedTricks
+    }
+
+    var ledSuit: Suit? {
+        currentTrick.first?.card.suit
+    }
+
+    var playedCards: [PlayedCard] {
+        completedTricks.flatMap(\.playedCards) + currentTrick
+    }
+
+    var resolvedTricks: [CompletedTrick] {
+        completedTricks + [pendingCompletedTrick].compactMap { $0 }
+    }
+
+    var isCurrentTrickComplete: Bool {
+        pendingCompletedTrick != nil
+    }
+
+    var isHandComplete: Bool {
+        completedTricks.count == 13 && pendingCompletedTrick == nil && currentTrick.isEmpty
+    }
+
+    var completedTrickCount: Int {
+        completedTricks.count
+    }
+
+    func playedCard(for seat: Seat) -> PlayedCard? {
+        currentTrick.first { $0.seat == seat }
+    }
+
+    func individualTrickCount(for seat: Seat) -> Int {
+        resolvedTricks.filter { $0.winnerSeat == seat }.count
+    }
+
+    func partnershipTrickCount(for seat: Seat) -> Int {
+        resolvedTricks.filter { $0.winnerSeat == seat || $0.winnerSeat.partnerSeat == seat }.count
+    }
+
+    mutating func appendPlayedCard(_ playedCard: PlayedCard) {
+        currentTrick.append(playedCard)
+
+        if currentTrick.count == Seat.allCases.count,
+           let ledSuit,
+           let winnerSeat = TrickPlayRules.winner(
+            for: currentTrick,
+            ledSuit: ledSuit,
+            tarneebSuit: tarneebSuit
+           ) {
+            pendingCompletedTrick = CompletedTrick(
+                leaderSeat: leaderSeat,
+                winnerSeat: winnerSeat,
+                ledSuit: ledSuit,
+                playedCards: currentTrick
+            )
+            currentTurnSeat = nil
+        } else {
+            currentTurnSeat = playedCard.seat.nextCounterclockwiseDealer
+        }
+    }
+
+    mutating func clearPendingCompletedTrick() {
+        guard let completedTrick = pendingCompletedTrick else {
+            return
+        }
+
+        completedTricks.append(completedTrick)
+        pendingCompletedTrick = nil
+        currentTrick = []
+        leaderSeat = completedTrick.winnerSeat
+        currentTurnSeat = completedTricks.count == 13 ? nil : completedTrick.winnerSeat
+    }
+}
+
+enum TrickPlayRules {
+    static func legalCards(for seat: Seat, in gameState: GameState) -> [Card] {
+        guard gameState.phase == .trickPlay,
+              let trickPlayState = gameState.trickPlayState,
+              trickPlayState.currentTurnSeat == seat,
+              !trickPlayState.isCurrentTrickComplete,
+              let player = gameState.players.first(where: { $0.seat == seat }) else {
+            return []
+        }
+
+        guard let ledSuit = trickPlayState.ledSuit else {
+            return player.hand
+        }
+
+        let ledSuitCards = player.hand.filter { $0.suit == ledSuit }
+        return ledSuitCards.isEmpty ? player.hand : ledSuitCards
+    }
+
+    static func isLegal(card: Card, for seat: Seat, in gameState: GameState) -> Bool {
+        legalCards(for: seat, in: gameState).contains(card)
+    }
+
+    static func winner(
+        for playedCards: [PlayedCard],
+        ledSuit: Suit,
+        tarneebSuit: Suit
+    ) -> Seat? {
+        let winningSuitCards = playedCards.filter { $0.card.suit == tarneebSuit }
+
+        if let highestTarneeb = highestCardPlay(in: winningSuitCards) {
+            return highestTarneeb.seat
+        }
+
+        return highestCardPlay(in: playedCards.filter { $0.card.suit == ledSuit })?.seat
+    }
+
+    static func sortedLegalCardsForSimulatedPlay(
+        _ cards: [Card],
+        tarneebSuit: Suit
+    ) -> [Card] {
+        cards.sorted { lhs, rhs in
+            let lhsTarneebPenalty = lhs.suit == tarneebSuit ? 100 : 0
+            let rhsTarneebPenalty = rhs.suit == tarneebSuit ? 100 : 0
+            let lhsScore = lhsTarneebPenalty + lhs.rank.lowCardSortValue
+            let rhsScore = rhsTarneebPenalty + rhs.rank.lowCardSortValue
+
+            if lhsScore == rhsScore {
+                return lhs.suit.tieBreakIndex < rhs.suit.tieBreakIndex
+            }
+
+            return lhsScore < rhsScore
+        }
+    }
+
+    private static func highestCardPlay(in playedCards: [PlayedCard]) -> PlayedCard? {
+        playedCards.max { lhs, rhs in
+            lhs.card.rank.trickPower < rhs.card.rank.trickPower
+        }
+    }
+}
+
 struct GameState: Equatable {
     let phase: GamePhase
     let players: [Player]
@@ -1781,6 +2031,7 @@ struct GameState: Equatable {
     let deck: [Card]?
     let biddingState: BiddingState?
     let postBiddingSummary: PostBiddingSummary?
+    let trickPlayState: TrickPlayState?
 
     var bids: [Seat: BidState] {
         biddingState?.bids ?? [:]
@@ -1806,19 +2057,33 @@ struct GameState: Equatable {
         biddingState?.completionOutcome
     }
 
+    var currentTrickTurnSeat: Seat? {
+        trickPlayState?.currentTurnSeat
+    }
+
+    var isCurrentTrickComplete: Bool {
+        trickPlayState?.isCurrentTrickComplete == true
+    }
+
+    var isHandComplete: Bool {
+        trickPlayState?.isHandComplete == true
+    }
+
     init?(
         phase: GamePhase,
         players: [Player],
         dealerSeat: Seat,
         deck: [Card]? = nil,
         biddingState: BiddingState? = nil,
-        postBiddingSummary: PostBiddingSummary? = nil
+        postBiddingSummary: PostBiddingSummary? = nil,
+        trickPlayState: TrickPlayState? = nil
     ) {
         guard players.count == 4 else {
             return nil
         }
 
-        if phase == .dealt {
+        switch phase {
+        case .dealt:
             guard GameState.isValidCompletedDeal(players: players, deck: deck) else {
                 return nil
             }
@@ -1828,10 +2093,38 @@ struct GameState: Equatable {
                   biddingState.status == .inProgress || biddingState.status == .complete else {
                 return nil
             }
-        } else if biddingState != nil {
-            return nil
-        } else if postBiddingSummary != nil {
-            return nil
+
+            guard trickPlayState == nil else {
+                return nil
+            }
+        case .trickPlay:
+            guard GameState.isValidTrickPlay(
+                phase: phase,
+                players: players,
+                deck: deck,
+                biddingState: biddingState,
+                postBiddingSummary: postBiddingSummary,
+                trickPlayState: trickPlayState
+            ) else {
+                return nil
+            }
+        case .handComplete:
+            guard GameState.isValidTrickPlay(
+                phase: phase,
+                players: players,
+                deck: deck,
+                biddingState: biddingState,
+                postBiddingSummary: postBiddingSummary,
+                trickPlayState: trickPlayState
+            ) else {
+                return nil
+            }
+        case .notStarted:
+            guard biddingState == nil,
+                  postBiddingSummary == nil,
+                  trickPlayState == nil else {
+                return nil
+            }
         }
 
         self.phase = phase
@@ -1840,6 +2133,7 @@ struct GameState: Equatable {
         self.deck = deck
         self.biddingState = biddingState
         self.postBiddingSummary = postBiddingSummary
+        self.trickPlayState = trickPlayState
     }
 
     static var initial: GameState {
@@ -1859,24 +2153,7 @@ struct GameState: Equatable {
             return false
         }
 
-        guard Set(players.map(\.seat)) == Set(Seat.allCases) else {
-            return false
-        }
-
-        guard players.filter({ $0.type == .human }).map(\.seat) == [.south] else {
-            return false
-        }
-
-        guard players.allSatisfy({ player in
-            switch player.seat {
-            case .south:
-                return player.type == .human && player.team == .teamA
-            case .north:
-                return player.type == .simulated && player.team == .teamA
-            case .east, .west:
-                return player.type == .simulated && player.team == .teamB
-            }
-        }) else {
+        guard isValidPlayerConfiguration(players) else {
             return false
         }
 
@@ -1892,6 +2169,92 @@ struct GameState: Equatable {
             && Set(dealtCards) == Set(canonicalDeck)
     }
 
+    private static func isValidTrickPlay(
+        phase: GamePhase,
+        players: [Player],
+        deck: [Card]?,
+        biddingState: BiddingState?,
+        postBiddingSummary: PostBiddingSummary?,
+        trickPlayState: TrickPlayState?
+    ) -> Bool {
+        guard deck?.isEmpty ?? true,
+              isValidPlayerConfiguration(players),
+              let biddingState,
+              biddingState.status == .complete,
+              let postBiddingSummary,
+              let trickPlayState,
+              postBiddingSummary.bidValue.numericValue != nil,
+              postBiddingSummary.highBidderSeat == trickPlayState.declarerSeat,
+              postBiddingSummary.tarneebSuit == trickPlayState.tarneebSuit,
+              biddingState.highestBidSeat == postBiddingSummary.highBidderSeat,
+              biddingState.highestBidValue == postBiddingSummary.bidValue else {
+            return false
+        }
+
+        guard trickPlayState.currentTrick.count <= Seat.allCases.count,
+              trickPlayState.currentTrick.map(\.seat).count == Set(trickPlayState.currentTrick.map(\.seat)).count,
+              trickPlayState.completedTricks.count <= 13 else {
+            return false
+        }
+
+        if trickPlayState.isCurrentTrickComplete {
+            guard trickPlayState.currentTurnSeat == nil,
+                  trickPlayState.currentTrick.count == Seat.allCases.count else {
+                return false
+            }
+        } else if phase == .trickPlay {
+            guard trickPlayState.currentTurnSeat != nil else {
+                return false
+            }
+        }
+
+        if phase == .handComplete {
+            guard trickPlayState.isHandComplete,
+                  players.allSatisfy(\.hand.isEmpty) else {
+                return false
+            }
+        } else {
+            guard !trickPlayState.isHandComplete else {
+                return false
+            }
+        }
+
+        for player in players {
+            let playedCount = trickPlayState.playedCards.filter { $0.seat == player.seat }.count
+            guard player.hand.count + playedCount == 13 else {
+                return false
+            }
+        }
+
+        let visibleAndPlayedCards = players.flatMap(\.hand) + trickPlayState.playedCards.map(\.card)
+        let canonicalDeck = DeckFactory.makeCanonicalDeck()
+
+        return visibleAndPlayedCards.count == 52
+            && Set(visibleAndPlayedCards.map(\.id)).count == 52
+            && Set(visibleAndPlayedCards) == Set(canonicalDeck)
+    }
+
+    private static func isValidPlayerConfiguration(_ players: [Player]) -> Bool {
+        guard Set(players.map(\.seat)) == Set(Seat.allCases) else {
+            return false
+        }
+
+        guard players.filter({ $0.type == .human }).map(\.seat) == [.south] else {
+            return false
+        }
+
+        return players.allSatisfy { player in
+            switch player.seat {
+            case .south:
+                return player.type == .human && player.team == .teamA
+            case .north:
+                return player.type == .simulated && player.team == .teamA
+            case .east, .west:
+                return player.type == .simulated && player.team == .teamB
+            }
+        }
+    }
+
     func replacingBiddingState(_ biddingState: BiddingState, postBiddingSummary: PostBiddingSummary? = nil) -> GameState {
         guard let updatedState = GameState(
             phase: phase,
@@ -1899,9 +2262,55 @@ struct GameState: Equatable {
             dealerSeat: dealerSeat,
             deck: deck,
             biddingState: biddingState,
-            postBiddingSummary: postBiddingSummary
+            postBiddingSummary: postBiddingSummary,
+            trickPlayState: trickPlayState
         ) else {
             preconditionFailure("Bidding state replacement must preserve a valid dealt game state.")
+        }
+
+        return updatedState
+    }
+
+    func startingTrickPlayIfReady() -> GameState {
+        guard phase == .dealt,
+              biddingStatus == .complete,
+              let postBiddingSummary else {
+            return self
+        }
+
+        guard let updatedState = GameState(
+            phase: .trickPlay,
+            players: players,
+            dealerSeat: dealerSeat,
+            deck: deck,
+            biddingState: biddingState,
+            postBiddingSummary: postBiddingSummary,
+            trickPlayState: TrickPlayState(
+                declarerSeat: postBiddingSummary.highBidderSeat,
+                tarneebSuit: postBiddingSummary.tarneebSuit
+            )
+        ) else {
+            preconditionFailure("Numeric bidding summary must create a valid trick-play state.")
+        }
+
+        return updatedState
+    }
+
+    func replacingTrickPlayState(
+        _ trickPlayState: TrickPlayState,
+        players: [Player],
+        phase: GamePhase = .trickPlay
+    ) -> GameState {
+        guard let updatedState = GameState(
+            phase: phase,
+            players: players,
+            dealerSeat: dealerSeat,
+            deck: deck,
+            biddingState: biddingState,
+            postBiddingSummary: postBiddingSummary,
+            trickPlayState: trickPlayState
+        ) else {
+            preconditionFailure("Trick-play state replacement must preserve a valid hand.")
         }
 
         return updatedState
@@ -1999,6 +2408,7 @@ final class TarneebPresentationState {
     private let dealService: Dealing
     private let dealerSelector: DealerSelecting
     private let biddingService: BiddingService
+    private let trickPlayService: TrickPlayService
     private var isDealing = false
 
     private(set) var gameState: GameState
@@ -2010,11 +2420,13 @@ final class TarneebPresentationState {
     init(
         dealService: Dealing = DealService(),
         dealerSelector: DealerSelecting = EnvironmentDealerSelector(),
-        biddingService: BiddingService = BiddingService()
+        biddingService: BiddingService = BiddingService(),
+        trickPlayService: TrickPlayService = TrickPlayService()
     ) {
         self.dealService = dealService
         self.dealerSelector = dealerSelector
         self.biddingService = biddingService
+        self.trickPlayService = trickPlayService
         self.gameState = .initial(dealerSeat: dealerSelector.selectDealer())
     }
 
@@ -2029,7 +2441,7 @@ final class TarneebPresentationState {
         }
 
         let dealerForDeal: Seat
-        if gameState.phase == .dealt {
+        if gameState.phase != .notStarted {
             dealerForDeal = gameState.dealerSeat.nextCounterclockwiseDealer
             gameState = .initial(dealerSeat: dealerForDeal)
         } else {
@@ -2069,5 +2481,64 @@ final class TarneebPresentationState {
 
     func resolveNextSimulatedBid() {
         gameState = biddingService.resolveNextSimulatedBid(in: gameState)
+    }
+
+    func startTrickPlayIfReady() {
+        gameState = trickPlayService.startIfReady(in: gameState)
+    }
+
+    func playSouthCard(_ card: Card) {
+        gameState = trickPlayService.playSouthCard(card, in: gameState)
+    }
+
+    func resolveNextSimulatedTrickPlay() {
+        gameState = trickPlayService.playSimulatedTurn(in: gameState)
+    }
+
+    func clearCompletedTrickIfNeeded() {
+        gameState = trickPlayService.clearCompletedTrickIfNeeded(in: gameState)
+    }
+}
+
+private extension Rank {
+    var trickPower: Int {
+        switch self {
+        case .ace:
+            return 14
+        case .king:
+            return 13
+        case .queen:
+            return 12
+        case .jack:
+            return 11
+        case .ten:
+            return 10
+        case .nine:
+            return 9
+        case .eight:
+            return 8
+        case .seven:
+            return 7
+        case .six:
+            return 6
+        case .five:
+            return 5
+        case .four:
+            return 4
+        case .three:
+            return 3
+        case .two:
+            return 2
+        }
+    }
+
+    var lowCardSortValue: Int {
+        trickPower
+    }
+}
+
+private extension Suit {
+    var tieBreakIndex: Int {
+        Suit.allCases.firstIndex(of: self) ?? 0
     }
 }

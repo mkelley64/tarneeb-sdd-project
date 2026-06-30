@@ -98,7 +98,7 @@ final class TarneebLaunchUITests: XCTestCase {
         try assertTokenValue(screen.playArea, contains: "slotCount=4")
         try assertTokenValue(screen.playArea, contains: "surface=color.table.background.primary")
         try assertTokenValue(screen.playArea, contains: "border=color.table.felt.highlight")
-        try assertTokenValue(screen.playArea, contains: "slotBorder=color.card.border")
+        try assertTokenValue(screen.playArea, contains: "slotBorder=color.trickPlay.slot.border")
         try assertTokenValue(screen.playArea, contains: "shadowOpacity=effect.table.playArea.shadow.opacity")
         try assertTokenValue(screen.playArea, contains: "layout=tableCenter")
         try assertTokenValue(screen.playArea, contains: "playedCardMotion=stationToCenter")
@@ -106,6 +106,10 @@ final class TarneebLaunchUITests: XCTestCase {
         try assertTokenValue(screen.playArea, contains: "playedCardTargetLayout=matchingSeatSlots")
         try assertTokenValue(screen.playArea, contains: "playedCardFlight=animation.trick.playedCard.flight.duration")
         try assertTokenValue(screen.playArea, contains: "playedCardFlightSeconds=0.3")
+        try assertTokenValue(screen.southPlayAreaSlot, contains: "rotationDegrees=0")
+        try assertTokenValue(screen.westPlayAreaSlot, contains: "rotationDegrees=0")
+        try assertTokenValue(screen.northPlayAreaSlot, contains: "rotationDegrees=180")
+        try assertTokenValue(screen.eastPlayAreaSlot, contains: "rotationDegrees=0")
         try assertTokenValue(screen.title, contains: "font=typography.tableTitle.font")
         try assertTokenValue(screen.title, contains: "fontName=SF Arabic Rounded Bold")
         try assertTokenValue(screen.title, contains: "fontSize=typography.tableTitle.fontSize")
@@ -114,10 +118,17 @@ final class TarneebLaunchUITests: XCTestCase {
         try assertTokenValue(screen.title, contains: "trackingMax=typography.tableTitle.tracking.max")
         try assertTokenValue(screen.title, contains: "textColor=color.tableTitle.text")
         try assertTokenValue(screen.title, contains: "textOpacity=effect.tableTitle.text.opacity")
-        try assertTokenValue(screen.title, contains: "textOpacityValue=0.92")
+        try assertTokenValue(screen.title, contains: "textOpacityValue=0.72")
         try assertTokenValue(screen.title, contains: "shadowColor=effect.tableTitle.shadow.color")
         try assertTokenValue(screen.title, contains: "usesShadow=true")
-        try assertTokenValue(screen.title, contains: "shadowOpacityValue=0.25")
+        try assertTokenValue(screen.title, contains: "shadowOpacityValue=0.38")
+        try assertTokenValue(screen.title, contains: "shadowOffsetY=effect.tableTitle.shadow.offset.y")
+        try assertTokenValue(screen.title, contains: "highlightColor=effect.tableTitle.highlight.color")
+        try assertTokenValue(screen.title, contains: "highlightOpacity=effect.tableTitle.highlight.opacity")
+        try assertTokenValue(screen.title, contains: "highlightOpacityValue=0.18")
+        try assertTokenValue(screen.title, contains: "highlightBlur=effect.tableTitle.highlight.blurRadius")
+        try assertTokenValue(screen.title, contains: "highlightOffsetY=effect.tableTitle.highlight.offset.y")
+        try assertTokenValue(screen.title, contains: "style=embossedFelt")
         try assertTokenValue(screen.undealtDeckStack, contains: "count=52")
         try assertTokenValue(screen.undealtDeckStack, contains: "asset=card_back")
         try assertTokenValue(screen.undealtDeckStack, contains: "layout=squaredStack")
@@ -164,8 +175,15 @@ final class TarneebLaunchUITests: XCTestCase {
             try assertTokenValue(station, contains: "trickCounterReserved=true")
             try assertTokenValue(station, contains: "trickCounterVisible=false")
             try assertTokenValue(station, contains: "trickCount=none")
-            try assertTokenValue(station, contains: "trickCounterPlacement=topTrailing")
+            try assertTokenValue(station, contains: "trickCountScope=individual")
+            try assertTokenValue(station, contains: "partnershipTrickCount=none")
+            try assertTokenValue(station, contains: "trickCounterHeaderOffset=layout.trickPlay.counter.headerOffset")
+            try assertTokenValue(station, contains: "trickCounterStationEdgeOffset=layout.trickPlay.counter.stationEdgeOffset")
         }
+        try assertTokenValue(screen.southSeatArea, contains: "trickCounterPlacement=stationBottomEdge")
+        try assertTokenValue(screen.northSeatArea, contains: "trickCounterPlacement=stationBottomEdge")
+        try assertTokenValue(screen.westSeatArea, contains: "trickCounterPlacement=stationBottomEdge")
+        try assertTokenValue(screen.eastSeatArea, contains: "trickCounterPlacement=stationBottomEdge")
 
         for station in screen.nonDealerStationAreas {
             try assertTokenValue(station, contains: "shape=roundedSquare")
@@ -404,6 +422,8 @@ final class TarneebLaunchUITests: XCTestCase {
             try assertTokenValue(station, contains: "trickCounterReserved=true")
             try assertTokenValue(station, contains: "trickCounterVisible=false")
             try assertTokenValue(station, contains: "trickCount=none")
+            try assertTokenValue(station, contains: "trickCountScope=individual")
+            try assertTokenValue(station, contains: "partnershipTrickCount=none")
             try assertStationOutlineMatchesBiddingState(station)
         }
         try assertTokenValue(screen.southStationBid, contains: "value=--")
@@ -579,15 +599,21 @@ final class TarneebLaunchUITests: XCTestCase {
 
         XCTAssertTrue(screen.postBiddingSummary.waitForExistence(timeout: 2))
         XCTAssertFalse(screen.southTarneebSelection.exists)
-        try assertTokenValue(screen.postBiddingSummary, contains: "placement=tableEdgeRibbon")
-        try assertTokenValue(screen.postBiddingSummary, contains: "display=tarneebOnlyRibbon")
+        XCTAssertFalse(screen.southStationBid.exists)
+        XCTAssertFalse(screen.eastStationBid.exists)
+        XCTAssertFalse(screen.northStationBid.exists)
+        XCTAssertFalse(screen.westStationBid.exists)
+        try assertTokenValue(screen.postBiddingSummary, contains: "placement=outsideTableUpperLeft")
+        try assertTokenValue(screen.postBiddingSummary, contains: "display=contractBox")
+        try assertTokenValue(screen.postBiddingSummary, contains: "highBidder=South")
+        try assertTokenValue(screen.postBiddingSummary, contains: "bid=10")
         try assertTokenValue(screen.postBiddingSummary, contains: "tarneebLabel=Tarneeb")
         try assertTokenValue(screen.postBiddingSummary, contains: "tarneebSymbol=♠")
         try assertTokenValue(screen.postBiddingSummary, contains: "tarneebSymbolColor=color.card.suit.black")
         try assertTokenValue(screen.postBiddingSummary, contains: "tarneebSymbolBackground=color.card.background")
         try assertTokenValue(screen.postBiddingSummary, contains: "tarneebSymbolBorder=color.button.newGame.background")
         try assertTokenValue(screen.postBiddingSummary, contains: "tarneebSymbolChipTokens=background=color.card.background")
-        assertContractRibbonIsAnchoredToTableEdge(on: screen)
+        assertContractBoxIsAnchoredOutsideUpperLeftTable(on: screen)
     }
 
     func testSouthPassRemainsReadonlyAfterLaterPlayerRaises() throws {
@@ -951,7 +977,7 @@ final class TarneebLaunchUITests: XCTestCase {
         XCTAssertGreaterThan(screen.bidArea.frame.minY, screen.playArea.frame.maxY, file: file, line: line)
     }
 
-    private func assertContractRibbonIsAnchoredToTableEdge(
+    private func assertContractBoxIsAnchoredOutsideUpperLeftTable(
         on screen: TarneebScreen,
         file: StaticString = #filePath,
         line: UInt = #line
@@ -960,11 +986,13 @@ final class TarneebLaunchUITests: XCTestCase {
         XCTAssertTrue(screen.cardTable.exists, file: file, line: line)
         XCTAssertTrue(screen.playArea.exists, file: file, line: line)
 
-        XCTAssertEqual(screen.postBiddingSummary.frame.midX, screen.cardTable.frame.midX, accuracy: 8, file: file, line: line)
-        XCTAssertGreaterThan(screen.postBiddingSummary.frame.midY, screen.cardTable.frame.midY, file: file, line: line)
-        XCTAssertGreaterThan(screen.postBiddingSummary.frame.minY, screen.playArea.frame.maxY, file: file, line: line)
-        XCTAssertLessThanOrEqual(screen.postBiddingSummary.frame.maxY, screen.cardTable.frame.maxY + 6, file: file, line: line)
-        XCTAssertLessThan(screen.postBiddingSummary.frame.width, screen.cardTable.frame.width * 0.75, file: file, line: line)
+        XCTAssertLessThan(screen.postBiddingSummary.frame.midX, screen.cardTable.frame.midX, file: file, line: line)
+        XCTAssertLessThan(screen.postBiddingSummary.frame.midY, screen.cardTable.frame.midY, file: file, line: line)
+        XCTAssertLessThan(screen.postBiddingSummary.frame.minX, screen.cardTable.frame.minX, file: file, line: line)
+        XCTAssertLessThan(screen.postBiddingSummary.frame.minY, screen.cardTable.frame.minY, file: file, line: line)
+        XCTAssertLessThan(screen.postBiddingSummary.frame.maxX, screen.cardTable.frame.midX, file: file, line: line)
+        XCTAssertLessThan(screen.postBiddingSummary.frame.maxY, screen.cardTable.frame.midY, file: file, line: line)
+        XCTAssertLessThan(screen.postBiddingSummary.frame.width, screen.cardTable.frame.width * 0.55, file: file, line: line)
         XCTAssertFalse(screen.postBiddingSummary.frame.intersects(screen.playArea.frame.insetBy(dx: -4, dy: -4)), file: file, line: line)
     }
 
@@ -1268,6 +1296,22 @@ private struct TarneebScreen {
 
     var playArea: XCUIElement {
         element(identifier: "tarneeb-play-area")
+    }
+
+    var southPlayAreaSlot: XCUIElement {
+        element(identifier: "tarneeb-play-area-slot-south")
+    }
+
+    var westPlayAreaSlot: XCUIElement {
+        element(identifier: "tarneeb-play-area-slot-west")
+    }
+
+    var northPlayAreaSlot: XCUIElement {
+        element(identifier: "tarneeb-play-area-slot-north")
+    }
+
+    var eastPlayAreaSlot: XCUIElement {
+        element(identifier: "tarneeb-play-area-slot-east")
     }
 
     var undealtDeckStack: XCUIElement {
