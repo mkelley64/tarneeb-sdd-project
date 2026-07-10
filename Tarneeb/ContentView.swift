@@ -207,6 +207,7 @@ struct ContentView: View {
     ) -> some View {
         let tokens = TrickPlayTokenSet()
         let trickAccessibilityValue = trickPlayPresentation?.accessibilityValue ?? "active=false"
+        let activeTargetSeat = trickPlayPresentation?.currentTurnSeat?.rawValue ?? "none"
 
         return ZStack {
             RoundedRectangle(cornerRadius: metrics.playAreaCornerRadius)
@@ -223,6 +224,7 @@ struct ContentView: View {
                 tablePlayAreaSlot(
                     metrics: metrics,
                     seat: seat,
+                    activeTurnSeat: trickPlayPresentation?.currentTurnSeat,
                     playedCardPresentation: trickPlayPresentation?.playedCard(for: seat),
                     tokens: tokens
                 )
@@ -239,7 +241,7 @@ struct ContentView: View {
         .accessibilityIdentifier("tarneeb-play-area")
         .accessibilityValue(
             Text(
-                verbatim: "reservedFor=trickPlay;centerReserved=true;slots=south,west,north,east;slotCount=4;surface=\(GameColorRole.tableSurface.token.rawValue);border=\(GameColorRole.tableHighlight.token.rawValue);slotBorder=\(tokens.slotBorder.rawValue);surfaceOpacity=\(GameEffectToken.tableCenterSurfaceOpacity.rawValue);borderOpacity=\(GameEffectToken.tableInnerRingOpacity.rawValue);shadowOpacity=\(GameEffectToken.tablePlayAreaShadowOpacity.rawValue);layout=tableCenter;playedCardMotion=stationToCenter;playedCardTargets=south,west,north,east;playedCardTargetLayout=matchingSeatSlots;playedCardFlight=\(tokens.playedCardFlight.rawValue);playedCardFlightSeconds=\(tokens.playedCardFlight.seconds);\(trickAccessibilityValue);tokens=\(tokens.accessibilityValue)"
+                verbatim: "reservedFor=trickPlay;centerReserved=true;slots=south,west,north,east;slotCount=4;surface=\(GameColorRole.tableSurface.token.rawValue);border=\(GameColorRole.tableHighlight.token.rawValue);slotBorder=\(tokens.slotBorder.rawValue);surfaceOpacity=\(GameEffectToken.tableCenterSurfaceOpacity.rawValue);borderOpacity=\(GameEffectToken.tableInnerRingOpacity.rawValue);shadowOpacity=\(GameEffectToken.tablePlayAreaShadowOpacity.rawValue);layout=tableCenter;activeTargetSlot=\(activeTargetSeat);activeSlotTreatment=softRing;activeSlotOutline=\(tokens.activeSeatOutline.rawValue);activeSlotOutlineOpacity=\(tokens.activeSlotOutlineOpacity.rawValue);playedCardMotion=stationToCenter;playedCardTargets=south,west,north,east;playedCardTargetLayout=matchingSeatSlots;playedCardFlight=\(tokens.playedCardFlight.rawValue);playedCardFlightSeconds=\(tokens.playedCardFlight.seconds);\(trickAccessibilityValue);tokens=\(tokens.accessibilityValue)"
             )
         )
         .onDrop(of: [UTType.plainText], isTargeted: nil) { providers in
@@ -250,10 +252,15 @@ struct ContentView: View {
     private func tablePlayAreaSlot(
         metrics: TableLayoutMetrics,
         seat: Seat,
+        activeTurnSeat: Seat?,
         playedCardPresentation: PlayedCardPresentation?,
         tokens: TrickPlayTokenSet
     ) -> some View {
-        ZStack {
+        let isActiveTarget = activeTurnSeat == seat
+            && playedCardPresentation == nil
+            && !isCurrentTrickFadingOut
+
+        return ZStack {
             RoundedRectangle(cornerRadius: metrics.playAreaSlotCornerRadius)
                 .fill(tokens.slotBackground.swiftUIColor.opacity(tokens.slotBackgroundOpacity.value))
                 .overlay(
@@ -261,6 +268,17 @@ struct ContentView: View {
                         .stroke(
                             tokens.slotBorder.swiftUIColor.opacity(tokens.slotBorderOpacity.value),
                             style: StrokeStyle(lineWidth: 1, dash: [4, 3])
+                        )
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: metrics.playAreaSlotCornerRadius)
+                        .fill(tokens.activeSeatOutline.swiftUIColor.opacity(isActiveTarget ? tokens.activeSlotBackgroundOpacity.value : 0))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: metrics.playAreaSlotCornerRadius)
+                        .stroke(
+                            tokens.activeSeatOutline.swiftUIColor.opacity(isActiveTarget ? tokens.activeSlotOutlineOpacity.value : 0),
+                            lineWidth: isActiveTarget ? 2 : 0
                         )
                 )
 
@@ -286,7 +304,7 @@ struct ContentView: View {
         .accessibilityLabel(Text(verbatim: "\(seat.displayLabel) trick slot"))
         .accessibilityValue(
             Text(
-                verbatim: "seat=\(seat.rawValue);occupied=\(playedCardPresentation != nil);card=\(playedCardPresentation?.cardPresentation.displayLabel ?? "none");winner=\(playedCardPresentation?.isWinningCard == true);fading=\(isCurrentTrickFadingOut);rotationDegrees=\(Int(playAreaSlotRotation(for: seat)));\(playedCardPresentation?.accessibilityValue ?? tokens.accessibilityValue)"
+                verbatim: "seat=\(seat.rawValue);occupied=\(playedCardPresentation != nil);card=\(playedCardPresentation?.cardPresentation.displayLabel ?? "none");winner=\(playedCardPresentation?.isWinningCard == true);activeTarget=\(isActiveTarget);activeTargetSeat=\(activeTurnSeat?.rawValue ?? "none");activeSlotTreatment=softRing;activeSlotOutline=\(tokens.activeSeatOutline.rawValue);activeSlotOutlineOpacity=\(tokens.activeSlotOutlineOpacity.rawValue);fading=\(isCurrentTrickFadingOut);rotationDegrees=\(Int(playAreaSlotRotation(for: seat)));\(playedCardPresentation?.accessibilityValue ?? tokens.accessibilityValue)"
             )
         )
     }
@@ -434,7 +452,7 @@ struct ContentView: View {
         if expandsSouthStation(for: player.seat) {
             stationBody(for: player)
                 .padding(.top, metrics.stationHeaderReservedHeight)
-                .padding(.bottom, metrics.stationBodyBottomPadding)
+                .padding(.bottom, stationBodyBottomPadding(for: player.seat, metrics: metrics))
                 .frame(maxWidth: metrics.southStationMaxWidth)
                 .frame(minHeight: metrics.southStationMinHeight, alignment: .center)
                 .background(
@@ -460,8 +478,8 @@ struct ContentView: View {
                     }
                 }
                 .overlay(alignment: .bottom) {
-                    stationTrickCounterSlot(for: player.seat, placement: "stationBottomEdge")
-                        .offset(y: metrics.stationTrickCounterStationEdgeOffset)
+                    stationTrickCounterSlot(for: player.seat, placement: "stationBottomDock")
+                        .padding(.bottom, metrics.stationTrickCounterStationEdgeOffset)
                 }
                 .scaleEffect(dealerPresentation.stationScale)
                 .shadow(
@@ -486,7 +504,7 @@ struct ContentView: View {
         } else {
             stationBody(for: player)
                 .padding(.top, metrics.stationHeaderReservedHeight)
-                .padding(.bottom, metrics.stationBodyBottomPadding)
+                .padding(.bottom, stationBodyBottomPadding(for: player.seat, metrics: metrics))
                 .frame(width: metrics.compactStationSide, height: metrics.compactStationSide, alignment: .center)
                 .background(
                     RoundedRectangle(cornerRadius: metrics.stationCornerRadius)
@@ -511,8 +529,8 @@ struct ContentView: View {
                     }
                 }
                 .overlay(alignment: .bottom) {
-                    stationTrickCounterSlot(for: player.seat, placement: "stationBottomEdge")
-                        .offset(y: metrics.stationTrickCounterStationEdgeOffset)
+                    stationTrickCounterSlot(for: player.seat, placement: "stationBottomDock")
+                        .padding(.bottom, metrics.stationTrickCounterStationEdgeOffset)
                 }
                 .scaleEffect(dealerPresentation.stationScale)
                 .shadow(
@@ -749,25 +767,22 @@ struct ContentView: View {
             sizeConfiguration: cardSizeConfiguration
         )
 
-        return LazyVGrid(
-            columns: [
-                GridItem(
-                    .adaptive(
-                        minimum: CGFloat(cardSizeConfiguration.baseCardWidth + layout.additionalSuitBoundarySpacing)
-                    ),
-                    spacing: CGFloat(layout.cardSpacing)
-                )
-            ],
-            spacing: CGFloat(layout.cardSpacing)
-        ) {
-            ForEach(Array(cardPresentations.enumerated()), id: \.element.cardID) { index, presentation in
-                southInteractiveCardView(presentation)
-                    .padding(
-                        .leading,
-                        CGFloat(layout.additionalLeadingSpacing(beforeCardAt: index, in: cardPresentations))
-                    )
+        let suitGroups = SouthHandPresentation.suitGroups(from: cardPresentations)
+
+        return HStack(alignment: .top, spacing: CGFloat(layout.suitLaneGap)) {
+            ForEach(suitGroups) { group in
+                southHandSuitLane(
+                    suit: group.suit,
+                    cardCount: group.cards.count,
+                    layout: layout
+                ) {
+                    ForEach(group.cards, id: \.cardID) { presentation in
+                        southInteractiveCardView(presentation)
+                    }
+                }
             }
         }
+        .frame(maxWidth: .infinity, alignment: .top)
         .background(alignment: .bottom) {
             southHandOwnershipRail()
         }
@@ -787,31 +802,28 @@ struct ContentView: View {
             sizeConfiguration: cardSizeConfiguration
         )
 
-        return LazyVGrid(
-            columns: [
-                GridItem(
-                    .adaptive(
-                        minimum: CGFloat(cardSizeConfiguration.baseCardWidth + layout.additionalSuitBoundarySpacing)
-                    ),
-                    spacing: CGFloat(layout.cardSpacing)
-                )
-            ],
-            spacing: CGFloat(layout.cardSpacing)
-        ) {
-            ForEach(Array(cardPresentations.enumerated()), id: \.element.cardID) { index, presentation in
-                let leadingSpacing = CGFloat(layout.additionalLeadingSpacing(beforeCardAt: index, in: cardPresentations))
+        let suitGroups = SouthHandPresentation.indexedSuitGroups(from: cardPresentations)
 
-                if index < dealAnimation.southRevealedCardCount {
-                    cardFaceView(presentation)
-                        .padding(.leading, leadingSpacing)
-                        .transition(.opacity.combined(with: .scale(scale: 0.94)))
-                } else {
-                    southRevealCardBack(index: index)
-                        .padding(.leading, leadingSpacing)
-                        .transition(.opacity)
+        return HStack(alignment: .top, spacing: CGFloat(layout.suitLaneGap)) {
+            ForEach(suitGroups) { group in
+                southHandSuitLane(
+                    suit: group.suit,
+                    cardCount: group.cards.count,
+                    layout: layout
+                ) {
+                    ForEach(group.cards) { indexedCard in
+                        if indexedCard.index < dealAnimation.southRevealedCardCount {
+                            cardFaceView(indexedCard.cardPresentation)
+                                .transition(.opacity.combined(with: .scale(scale: 0.94)))
+                        } else {
+                            southRevealCardBack(index: indexedCard.index)
+                                .transition(.opacity)
+                        }
+                    }
                 }
             }
         }
+        .frame(maxWidth: .infinity, alignment: .top)
         .background(alignment: .bottom) {
             southHandOwnershipRail()
         }
@@ -820,6 +832,62 @@ struct ContentView: View {
         .accessibilityValue(
             Text(verbatim: "state=\(dealAnimation.southRevealState.rawValue);backCount=\(DealAnimationPresentation.cardsPerStack);revealedCount=\(dealAnimation.southRevealedCardCount);direction=leftToRight;totalDuration=\(GameAnimationToken.dealSouthRevealTotalDuration.rawValue);totalSeconds=\(GameAnimationToken.dealSouthRevealTotalDuration.seconds);\(layout.accessibilityValue);\(southHandOwnershipAccessibilityValue)")
         )
+    }
+
+    private func southHandSuitLane<Content: View>(
+        suit: Suit,
+        cardCount: Int,
+        layout: SouthHandLayoutPresentation,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .center, spacing: CGFloat(layout.cardSpacing)) {
+            southHandSuitLaneHeader(for: suit, layout: layout)
+
+            LazyVGrid(
+                columns: [
+                    GridItem(
+                        .adaptive(
+                            minimum: CGFloat(cardSizeConfiguration.baseCardWidth),
+                            maximum: CGFloat(cardSizeConfiguration.baseCardWidth)
+                        ),
+                        spacing: CGFloat(layout.cardSpacing)
+                    )
+                ],
+                spacing: CGFloat(layout.cardSpacing)
+            ) {
+                content()
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .top)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("tarneeb-south-hand-suit-lane-\(suit.rawValue)")
+        .accessibilityValue(
+            Text(
+                verbatim: "suit=\(suit.rawValue);symbol=\(suit.displaySymbol);count=\(cardCount);layout=suitLane;headerVisible=true;headerHeight=\(layout.suitLaneHeaderHeight);cardSpacing=\(layout.cardSpacing)"
+            )
+        )
+    }
+
+    private func southHandSuitLaneHeader(for suit: Suit, layout: SouthHandLayoutPresentation) -> some View {
+        Text(suit.displaySymbol)
+            .font(.caption.weight(.bold))
+            .foregroundStyle(suit.colorToken.swiftUIColor)
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
+            .frame(
+                minWidth: CGFloat(cardSizeConfiguration.baseCardWidth),
+                minHeight: CGFloat(layout.suitLaneHeaderHeight)
+            )
+            .padding(.horizontal, 3)
+            .background(
+                CardSuitChipBackground(
+                    tokens: BidSuitSelectorTokenSet(),
+                    isSelected: false,
+                    isPressed: false
+                )
+            )
+            .accessibilityIdentifier("tarneeb-south-hand-suit-header-\(suit.rawValue)")
+            .accessibilityValue(Text(verbatim: "symbol=\(suit.displaySymbol);text=\(suit.colorToken.rawValue);background=\(GameColorToken.cardBackground.rawValue);border=\(GameColorToken.cardBorder.rawValue)"))
     }
 
     private func southHandOwnershipRail() -> some View {
@@ -1034,11 +1102,19 @@ struct ContentView: View {
         .fixedSize(horizontal: true, vertical: true)
         .background(
             RoundedRectangle(cornerRadius: CGFloat(presentation.tokens.cornerRadius.numericValue), style: .continuous)
-                .fill(presentation.tokens.background.swiftUIColor)
+                .fill(presentation.tokens.background.swiftUIColor.opacity(presentation.tokens.backgroundOpacity.value))
                 .overlay(
                     RoundedRectangle(cornerRadius: CGFloat(presentation.tokens.cornerRadius.numericValue), style: .continuous)
-                        .stroke(presentation.tokens.border.swiftUIColor, lineWidth: 1)
+                        .stroke(
+                            presentation.tokens.border.swiftUIColor.opacity(presentation.tokens.borderOpacity.value),
+                            lineWidth: 1
+                        )
                 )
+        )
+        .shadow(
+            color: GameColorRole.cardShadow.token.swiftUIColor.opacity(presentation.tokens.shadowOpacity.value),
+            radius: CGFloat(presentation.tokens.shadowRadius.value),
+            y: 1
         )
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("tarneeb-post-bidding-summary")
@@ -1051,8 +1127,8 @@ struct ContentView: View {
             .foregroundStyle(presentation.tarneebSymbolColorToken.swiftUIColor)
             .lineLimit(1)
             .minimumScaleFactor(0.8)
-            .padding(.horizontal, 5)
-            .padding(.vertical, 1)
+            .padding(.horizontal, CGFloat(presentation.tokens.suitChipHorizontalPadding.numericValue))
+            .padding(.vertical, CGFloat(presentation.tokens.suitChipVerticalPadding.numericValue))
             .background(
                 CardSuitChipBackground(
                     tokens: presentation.tarneebSymbolChipTokens,
@@ -1295,7 +1371,7 @@ struct ContentView: View {
                 phaseStatusPill
             }
 
-            HStack(spacing: 10) {
+            HStack(spacing: CGFloat(GameControlLayoutToken.bottomControlButtonGap.numericValue)) {
                 Button(PresentationAction.newGame.visibleLabel, action: newGame)
                     .buttonStyle(TokenButtonStyle(tokens: .newGame))
                     .disabled(isDealAnimationRunning)
@@ -1303,10 +1379,12 @@ struct ContentView: View {
                     .accessibilityValue(Text(verbatim: "\(ButtonTokenSet.newGame.accessibilityValue);dealAnimationRunning=\(dealAnimationRunningValue)"))
 
                 Button(PresentationAction.deal.visibleLabel, action: deal)
-                    .buttonStyle(TokenButtonStyle(tokens: .deal))
+                    .buttonStyle(TokenButtonStyle(tokens: .deal, isSecondary: isDealButtonSecondary))
                     .disabled(isDealAnimationRunning)
+                    .opacity(isDealButtonSecondary ? GameEffectToken.bottomDealSecondaryOpacity.value : 1)
+                    .frame(maxWidth: isDealButtonSecondary ? CGFloat(GameControlLayoutToken.bottomControlSecondaryDealMaxWidth.numericValue) : .infinity)
                     .accessibilityIdentifier("tarneeb-deal-button")
-                    .accessibilityValue(Text(verbatim: "\(ButtonTokenSet.deal.accessibilityValue);dealAnimationRunning=\(dealAnimationRunningValue)"))
+                    .accessibilityValue(Text(verbatim: "\(ButtonTokenSet.deal.accessibilityValue);dealAnimationRunning=\(dealAnimationRunningValue);visualProminence=\(isDealButtonSecondary ? "secondary" : "primary");secondaryOpacity=\(GameEffectToken.bottomDealSecondaryOpacity.rawValue);secondaryMaxWidth=\(GameControlLayoutToken.bottomControlSecondaryDealMaxWidth.rawValue)"))
             }
         }
         .frame(maxWidth: .infinity)
@@ -1321,7 +1399,13 @@ struct ContentView: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("tarneeb-bottom-deal-control")
-        .accessibilityValue(Text(verbatim: "buttons=New Game,Deal;phaseStatusVisible=\(gameState.phase != .notStarted);phaseStatusTreatment=compactPhasePill;newGameTokens=\(ButtonTokenSet.newGame.accessibilityValue);dealTokens=\(ButtonTokenSet.deal.accessibilityValue)"))
+        .accessibilityValue(Text(verbatim: "buttons=New Game,Deal;phaseStatusVisible=\(gameState.phase != .notStarted);phaseStatusTreatment=compactPhasePill;dealVisualProminence=\(isDealButtonSecondary ? "secondary" : "primary");dealSecondaryOpacity=\(GameEffectToken.bottomDealSecondaryOpacity.rawValue);dealSecondaryMaxWidth=\(GameControlLayoutToken.bottomControlSecondaryDealMaxWidth.rawValue);buttonGap=\(GameControlLayoutToken.bottomControlButtonGap.rawValue);newGameTokens=\(ButtonTokenSet.newGame.accessibilityValue);dealTokens=\(ButtonTokenSet.deal.accessibilityValue)"))
+    }
+
+    private var isDealButtonSecondary: Bool {
+        gameState.biddingStatus == .complete
+            || gameState.phase == .trickPlay
+            || gameState.phase == .handComplete
     }
 
     private var phaseStatusPill: some View {
@@ -2019,6 +2103,12 @@ struct ContentView: View {
         expandsSouthStation(for: .south) ? metrics.southStationMinHeight : metrics.compactStationSide
     }
 
+    private func stationBodyBottomPadding(for _: Seat, metrics: TableLayoutMetrics) -> CGFloat {
+        let trickCounterVisible = gameState.phase == .trickPlay || gameState.phase == .handComplete
+
+        return trickCounterVisible ? metrics.stationBodyBottomPaddingWithCounterDock : metrics.stationBodyBottomPadding
+    }
+
     private func stationAccessibilityValue(
         for player: Player,
         metrics: TableLayoutMetrics,
@@ -2039,7 +2129,7 @@ struct ContentView: View {
         let trickCounterVisible = gameState.phase == .trickPlay || gameState.phase == .handComplete
         let trickCount = gameState.trickPlayState?.individualTrickCount(for: player.seat)
         let partnershipTrickCount = gameState.trickPlayState?.partnershipTrickCount(for: player.seat)
-        let trickCounterPlacement = "stationBottomEdge"
+        let trickCounterPlacement = "stationBottomDock"
 
         return [
             "label=\(GameColorRole.textPrimary.token.rawValue)",
@@ -2264,6 +2354,10 @@ private struct TableLayoutMetrics {
         4
     }
 
+    var stationBodyBottomPaddingWithCounterDock: CGFloat {
+        stationTrickCounterHeight + stationTrickCounterStationEdgeOffset + 4
+    }
+
     var stationCornerRadius: CGFloat {
         12
     }
@@ -2284,16 +2378,17 @@ private struct TableLayoutMetrics {
 
 private struct TokenButtonStyle: ButtonStyle {
     let tokens: ButtonTokenSet
+    var isSecondary = false
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.headline)
+            .font(isSecondary ? .subheadline.weight(.semibold) : .headline)
             .foregroundStyle(tokens.text.swiftUIColor)
-            .padding(.horizontal, 22)
-            .padding(.vertical, 12)
+            .padding(.horizontal, isSecondary ? 16 : 22)
+            .padding(.vertical, isSecondary ? 10 : 12)
             .frame(maxWidth: .infinity)
             .background(
-                RoundedRectangle(cornerRadius: 14)
+                RoundedRectangle(cornerRadius: isSecondary ? 12 : 14)
                     .fill((configuration.isPressed ? tokens.pressedBackground : tokens.background).swiftUIColor)
             )
     }

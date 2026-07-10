@@ -101,6 +101,10 @@ final class TarneebLaunchUITests: XCTestCase {
         try assertTokenValue(screen.playArea, contains: "slotBorder=color.trickPlay.slot.border")
         try assertTokenValue(screen.playArea, contains: "shadowOpacity=effect.table.playArea.shadow.opacity")
         try assertTokenValue(screen.playArea, contains: "layout=tableCenter")
+        try assertTokenValue(screen.playArea, contains: "activeTargetSlot=none")
+        try assertTokenValue(screen.playArea, contains: "activeSlotTreatment=softRing")
+        try assertTokenValue(screen.playArea, contains: "activeSlotOutline=color.trickPlay.activeSeat.outline")
+        try assertTokenValue(screen.playArea, contains: "activeSlotOutlineOpacity=effect.trickPlay.activeSlot.outline.opacity")
         try assertTokenValue(screen.playArea, contains: "playedCardMotion=stationToCenter")
         try assertTokenValue(screen.playArea, contains: "playedCardTargets=south,west,north,east")
         try assertTokenValue(screen.playArea, contains: "playedCardTargetLayout=matchingSeatSlots")
@@ -180,10 +184,10 @@ final class TarneebLaunchUITests: XCTestCase {
             try assertTokenValue(station, contains: "trickCounterHeaderOffset=layout.trickPlay.counter.headerOffset")
             try assertTokenValue(station, contains: "trickCounterStationEdgeOffset=layout.trickPlay.counter.stationEdgeOffset")
         }
-        try assertTokenValue(screen.southSeatArea, contains: "trickCounterPlacement=stationBottomEdge")
-        try assertTokenValue(screen.northSeatArea, contains: "trickCounterPlacement=stationBottomEdge")
-        try assertTokenValue(screen.westSeatArea, contains: "trickCounterPlacement=stationBottomEdge")
-        try assertTokenValue(screen.eastSeatArea, contains: "trickCounterPlacement=stationBottomEdge")
+        try assertTokenValue(screen.southSeatArea, contains: "trickCounterPlacement=stationBottomDock")
+        try assertTokenValue(screen.northSeatArea, contains: "trickCounterPlacement=stationBottomDock")
+        try assertTokenValue(screen.westSeatArea, contains: "trickCounterPlacement=stationBottomDock")
+        try assertTokenValue(screen.eastSeatArea, contains: "trickCounterPlacement=stationBottomDock")
 
         for station in screen.nonDealerStationAreas {
             try assertTokenValue(station, contains: "shape=roundedSquare")
@@ -217,7 +221,9 @@ final class TarneebLaunchUITests: XCTestCase {
         XCTAssertFalse(screen.undealtDeckStack.exists)
         XCTAssertEqual(screen.deckStackCards.count, 0)
         XCTAssertTrue(screen.southVisibleHand.exists)
-        try assertTokenValue(screen.southVisibleHand, contains: "layout=suitSeparatedGrid")
+        try assertTokenValue(screen.southVisibleHand, contains: "layout=suitGroupedLanes")
+        try assertTokenValue(screen.southVisibleHand, contains: "laneCount=4")
+        try assertTokenValue(screen.southVisibleHand, contains: "suitLaneHeaders=visible")
         try assertTokenValue(screen.southVisibleHand, contains: "suitBoundarySpacing=8")
         try assertTokenValue(screen.southVisibleHand, contains: "ownership=player")
         try assertTokenValue(screen.southVisibleHand, contains: "ownershipSurface=baselineRail")
@@ -314,7 +320,9 @@ final class TarneebLaunchUITests: XCTestCase {
         XCTAssertTrue(screen.southRevealHand.exists)
         try assertTokenValue(screen.southRevealHand, contains: "backCount=13")
         try assertTokenValue(screen.southRevealHand, contains: "direction=leftToRight")
-        try assertTokenValue(screen.southRevealHand, contains: "layout=suitSeparatedGrid")
+        try assertTokenValue(screen.southRevealHand, contains: "layout=suitGroupedLanes")
+        try assertTokenValue(screen.southRevealHand, contains: "laneCount=4")
+        try assertTokenValue(screen.southRevealHand, contains: "suitLaneHeaders=visible")
         try assertTokenValue(screen.southRevealHand, contains: "suitBoundarySpacing=8")
         try assertTokenValue(screen.southRevealHand, contains: "ownership=player")
         try assertTokenValue(screen.southRevealHand, contains: "ownershipSurface=baselineRail")
@@ -605,6 +613,7 @@ final class TarneebLaunchUITests: XCTestCase {
         XCTAssertFalse(screen.westStationBid.exists)
         try assertTokenValue(screen.postBiddingSummary, contains: "placement=outsideTableUpperLeft")
         try assertTokenValue(screen.postBiddingSummary, contains: "display=contractBox")
+        try assertTokenValue(screen.postBiddingSummary, contains: "style=feltScoreboardPlaque")
         try assertTokenValue(screen.postBiddingSummary, contains: "highBidder=South")
         try assertTokenValue(screen.postBiddingSummary, contains: "bid=10")
         try assertTokenValue(screen.postBiddingSummary, contains: "tarneebLabel=Tarneeb")
@@ -613,6 +622,10 @@ final class TarneebLaunchUITests: XCTestCase {
         try assertTokenValue(screen.postBiddingSummary, contains: "tarneebSymbolBackground=color.card.background")
         try assertTokenValue(screen.postBiddingSummary, contains: "tarneebSymbolBorder=color.button.newGame.background")
         try assertTokenValue(screen.postBiddingSummary, contains: "tarneebSymbolChipTokens=background=color.card.background")
+        try assertTokenValue(screen.postBiddingSummary, contains: "backgroundOpacity=effect.postBiddingSummary.background.opacity")
+        try assertTokenValue(screen.postBiddingSummary, contains: "borderOpacity=effect.postBiddingSummary.border.opacity")
+        try assertTokenValue(screen.postBiddingSummary, contains: "shadowOpacity=effect.postBiddingSummary.shadow.opacity")
+        try assertTokenValue(screen.postBiddingSummary, contains: "suitChipHorizontalPadding=layout.postBiddingSummary.suitChip.padding.horizontal")
         assertContractBoxIsAnchoredOutsideUpperLeftTable(on: screen)
     }
 
@@ -1150,7 +1163,12 @@ final class TarneebLaunchUITests: XCTestCase {
         if value.contains("activeTurn=true") || value.contains("bidMotionCueActive=true") {
             XCTAssertTrue(value.contains("outline=color.station.outline.active"), "\(value) does not contain active outline", file: file, line: line)
         } else {
-            XCTAssertTrue(value.contains("outline=color.station.outline;"), "\(value) does not contain default outline", file: file, line: line)
+            XCTAssertTrue(
+                value.contains("outline=color.station.outline;") || value.contains("outline=color.station.outline.inactive"),
+                "\(value) does not contain default or inactive outline",
+                file: file,
+                line: line
+            )
         }
     }
 
