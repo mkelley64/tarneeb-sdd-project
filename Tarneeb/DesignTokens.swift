@@ -444,11 +444,17 @@ enum GameEffectToken: String, CaseIterable, Equatable, Hashable {
     case tablePlayAreaShadowOpacity = "effect.table.playArea.shadow.opacity"
     case trickPlaySlotBackgroundOpacity = "effect.trickPlay.slot.background.opacity"
     case trickPlaySlotBorderOpacity = "effect.trickPlay.slot.border.opacity"
+    case trickPlayActiveSlotBackgroundOpacity = "effect.trickPlay.activeSlot.background.opacity"
+    case trickPlayActiveSlotOutlineOpacity = "effect.trickPlay.activeSlot.outline.opacity"
     case trickPlayPlayedCardShadowOpacity = "effect.trickPlay.playedCard.shadow.opacity"
     case trickPlayLegalCardOutlineOpacity = "effect.trickPlay.legalCard.outline.opacity"
     case trickPlayUnavailableSouthCardOpacity = "effect.trickPlay.southCard.unavailable.opacity"
     case trickPlayWinnerHighlightOpacity = "effect.trickPlay.winnerHighlight.opacity"
     case trickPlayCountBackgroundOpacity = "effect.trickPlay.count.background.opacity"
+    case postBiddingSummaryBackgroundOpacity = "effect.postBiddingSummary.background.opacity"
+    case postBiddingSummaryBorderOpacity = "effect.postBiddingSummary.border.opacity"
+    case postBiddingSummaryShadowOpacity = "effect.postBiddingSummary.shadow.opacity"
+    case postBiddingSummaryShadowRadius = "effect.postBiddingSummary.shadow.radius"
     case southHandRailBackgroundOpacity = "effect.southHand.rail.background.opacity"
     case southHandRailStrokeOpacity = "effect.southHand.rail.stroke.opacity"
     case stationBackgroundDefaultOpacity = "effect.station.background.default.opacity"
@@ -465,6 +471,7 @@ enum GameEffectToken: String, CaseIterable, Equatable, Hashable {
     case phaseStatusBackgroundOpacity = "effect.phaseStatus.background.opacity"
     case statusPillBorderOpacity = "effect.statusPill.border.opacity"
     case bottomControlSeparatorOpacity = "effect.bottomControl.separator.opacity"
+    case bottomDealSecondaryOpacity = "effect.bottomControl.deal.secondary.opacity"
 
     var value: Double {
         switch self {
@@ -504,6 +511,10 @@ enum GameEffectToken: String, CaseIterable, Equatable, Hashable {
             return 0.34
         case .trickPlaySlotBorderOpacity:
             return 0.42
+        case .trickPlayActiveSlotBackgroundOpacity:
+            return 0.16
+        case .trickPlayActiveSlotOutlineOpacity:
+            return 0.88
         case .trickPlayPlayedCardShadowOpacity:
             return 0.28
         case .trickPlayLegalCardOutlineOpacity:
@@ -514,6 +525,14 @@ enum GameEffectToken: String, CaseIterable, Equatable, Hashable {
             return 0.30
         case .trickPlayCountBackgroundOpacity:
             return 0.68
+        case .postBiddingSummaryBackgroundOpacity:
+            return 0.86
+        case .postBiddingSummaryBorderOpacity:
+            return 0.34
+        case .postBiddingSummaryShadowOpacity:
+            return 0.20
+        case .postBiddingSummaryShadowRadius:
+            return 5
         case .southHandRailBackgroundOpacity:
             return 0.14
         case .southHandRailStrokeOpacity:
@@ -546,6 +565,8 @@ enum GameEffectToken: String, CaseIterable, Equatable, Hashable {
             return 0.55
         case .bottomControlSeparatorOpacity:
             return 0.35
+        case .bottomDealSecondaryOpacity:
+            return 0.62
         }
     }
 }
@@ -652,6 +673,8 @@ enum GameBidLayoutToken: String, CaseIterable, Equatable, Hashable {
     case postBiddingSummaryPadding = "layout.postBiddingSummary.padding"
     case postBiddingSummaryRowGap = "layout.postBiddingSummary.rowGap"
     case postBiddingSummaryCornerRadius = "layout.postBiddingSummary.cornerRadius"
+    case postBiddingSummarySuitChipHorizontalPadding = "layout.postBiddingSummary.suitChip.padding.horizontal"
+    case postBiddingSummarySuitChipVerticalPadding = "layout.postBiddingSummary.suitChip.padding.vertical"
     case postBiddingSummaryOutsideTableHorizontalOffsetRatio = "layout.postBiddingSummary.outsideTableHorizontalOffsetRatio"
     case postBiddingSummaryOutsideTableVerticalOffsetRatio = "layout.postBiddingSummary.outsideTableVerticalOffsetRatio"
 
@@ -687,10 +710,28 @@ enum GameBidLayoutToken: String, CaseIterable, Equatable, Hashable {
             return 6
         case .postBiddingSummaryCornerRadius:
             return 10
+        case .postBiddingSummarySuitChipHorizontalPadding:
+            return 4
+        case .postBiddingSummarySuitChipVerticalPadding:
+            return 0
         case .postBiddingSummaryOutsideTableHorizontalOffsetRatio:
             return 0.62
         case .postBiddingSummaryOutsideTableVerticalOffsetRatio:
             return 0.70
+        }
+    }
+}
+
+enum GameControlLayoutToken: String, CaseIterable, Equatable, Hashable {
+    case bottomControlButtonGap = "layout.bottomControl.button.gap"
+    case bottomControlSecondaryDealMaxWidth = "layout.bottomControl.deal.secondary.maxWidth"
+
+    var numericValue: Double {
+        switch self {
+        case .bottomControlButtonGap:
+            return 10
+        case .bottomControlSecondaryDealMaxWidth:
+            return 160
         }
     }
 }
@@ -722,7 +763,7 @@ enum GameTrickLayoutToken: String, CaseIterable, Equatable, Hashable {
         case .trickCounterHeaderOffset:
             return 4
         case .trickCounterStationEdgeOffset:
-            return 8
+            return 4
         }
     }
 }
@@ -742,6 +783,8 @@ struct CardSizeConfiguration: Equatable {
     let hiddenFanArcDepth: Double
     let southHandCardSpacing: Double
     let southHandSuitBoundarySpacing: Double
+    let southHandSuitLaneGap: Double
+    let southHandSuitLaneHeaderHeight: Double
 
     static let sharedBase = CardSizeConfiguration(
         category: .sharedBaseCard,
@@ -753,7 +796,9 @@ struct CardSizeConfiguration: Equatable {
         hiddenFanRotationStepDegrees: 0.35,
         hiddenFanArcDepth: 2.5,
         southHandCardSpacing: 4,
-        southHandSuitBoundarySpacing: 8
+        southHandSuitBoundarySpacing: 8,
+        southHandSuitLaneGap: 6,
+        southHandSuitLaneHeaderHeight: 18
     )
 
     var aspectRatio: Double {
@@ -893,8 +938,14 @@ struct PostBiddingSummaryTokenSet: Equatable {
     let padding = GameBidLayoutToken.postBiddingSummaryPadding
     let rowGap = GameBidLayoutToken.postBiddingSummaryRowGap
     let cornerRadius = GameBidLayoutToken.postBiddingSummaryCornerRadius
+    let suitChipHorizontalPadding = GameBidLayoutToken.postBiddingSummarySuitChipHorizontalPadding
+    let suitChipVerticalPadding = GameBidLayoutToken.postBiddingSummarySuitChipVerticalPadding
     let outsideTableHorizontalOffset = GameBidLayoutToken.postBiddingSummaryOutsideTableHorizontalOffsetRatio
     let outsideTableVerticalOffset = GameBidLayoutToken.postBiddingSummaryOutsideTableVerticalOffsetRatio
+    let backgroundOpacity = GameEffectToken.postBiddingSummaryBackgroundOpacity
+    let borderOpacity = GameEffectToken.postBiddingSummaryBorderOpacity
+    let shadowOpacity = GameEffectToken.postBiddingSummaryShadowOpacity
+    let shadowRadius = GameEffectToken.postBiddingSummaryShadowRadius
 
     var accessibilityValue: String {
         [
@@ -907,8 +958,14 @@ struct PostBiddingSummaryTokenSet: Equatable {
             "padding=\(padding.rawValue)",
             "rowGap=\(rowGap.rawValue)",
             "cornerRadius=\(cornerRadius.rawValue)",
+            "suitChipHorizontalPadding=\(suitChipHorizontalPadding.rawValue)",
+            "suitChipVerticalPadding=\(suitChipVerticalPadding.rawValue)",
             "outsideTableHorizontalOffset=\(outsideTableHorizontalOffset.rawValue)",
-            "outsideTableVerticalOffset=\(outsideTableVerticalOffset.rawValue)"
+            "outsideTableVerticalOffset=\(outsideTableVerticalOffset.rawValue)",
+            "backgroundOpacity=\(backgroundOpacity.rawValue)",
+            "borderOpacity=\(borderOpacity.rawValue)",
+            "shadowOpacity=\(shadowOpacity.rawValue)",
+            "shadowRadius=\(shadowRadius.rawValue)"
         ].joined(separator: ";")
     }
 }
@@ -923,6 +980,8 @@ struct TrickPlayTokenSet: Equatable {
     let countText = GameColorToken.trickPlayCountText
     let slotBackgroundOpacity = GameEffectToken.trickPlaySlotBackgroundOpacity
     let slotBorderOpacity = GameEffectToken.trickPlaySlotBorderOpacity
+    let activeSlotBackgroundOpacity = GameEffectToken.trickPlayActiveSlotBackgroundOpacity
+    let activeSlotOutlineOpacity = GameEffectToken.trickPlayActiveSlotOutlineOpacity
     let playedCardShadowOpacity = GameEffectToken.trickPlayPlayedCardShadowOpacity
     let legalCardOutlineOpacity = GameEffectToken.trickPlayLegalCardOutlineOpacity
     let unavailableSouthCardOpacity = GameEffectToken.trickPlayUnavailableSouthCardOpacity
@@ -951,6 +1010,8 @@ struct TrickPlayTokenSet: Equatable {
             "countText=\(countText.rawValue)",
             "slotBackgroundOpacity=\(slotBackgroundOpacity.rawValue)",
             "slotBorderOpacity=\(slotBorderOpacity.rawValue)",
+            "activeSlotBackgroundOpacity=\(activeSlotBackgroundOpacity.rawValue)",
+            "activeSlotOutlineOpacity=\(activeSlotOutlineOpacity.rawValue)",
             "playedCardShadowOpacity=\(playedCardShadowOpacity.rawValue)",
             "legalCardOutlineOpacity=\(legalCardOutlineOpacity.rawValue)",
             "unavailableSouthCardOpacity=\(unavailableSouthCardOpacity.rawValue)",
@@ -1222,6 +1283,7 @@ struct PostBiddingSummaryPresentation: Equatable {
             "visible=true",
             "placement=outsideTableUpperLeft",
             "display=contractBox",
+            "style=feltScoreboardPlaque",
             "highBidder=\(highBidderLabel)",
             "bid=\(bidValueLabel)",
             "team=\(teamLabel)",
@@ -1995,6 +2057,10 @@ struct DealerStationPresentation: Equatable {
             return .stationOutlineActive
         }
 
+        if seat == .south && (phase == .dealt || phase == .trickPlay || phase == .handComplete) {
+            return .stationOutlineInactive
+        }
+
         return .stationOutline
     }
 
@@ -2008,6 +2074,12 @@ struct DealerStationPresentation: Equatable {
         }
 
         return isActiveTurn ? 2 : 1
+    }
+
+    var southOwnershipOutlineTreatment: String {
+        seat == .south && (phase == .dealt || phase == .trickPlay || phase == .handComplete)
+            ? "softWhenInactive"
+            : "standard"
     }
 
     var stationBackgroundOpacityToken: GameEffectToken {
@@ -2082,6 +2154,8 @@ struct DealerStationPresentation: Equatable {
             "outlineRole=\(outlineColorRole.rawValue)",
             "outline=\(outlineToken.rawValue)",
             "outlineLineWidth=\(outlineLineWidth)",
+            "southOwnershipOutline=\(southOwnershipOutlineTreatment)",
+            "southOwnershipInactiveOutline=\(GameColorRole.stationOutlineInactive.token.rawValue)",
             "stationBackgroundOpacity=\(stationBackgroundOpacityToken.rawValue)",
             "stationBackgroundOpacityValue=\(stationBackgroundOpacity)",
             "stationScale=\(stationScale)",
@@ -2155,6 +2229,63 @@ enum SouthHandPresentation {
     ) -> SouthHandLayoutPresentation {
         SouthHandLayoutPresentation(cardCount: cardCount, sizeConfiguration: sizeConfiguration)
     }
+
+    static func suitGroups(
+        from cardPresentations: [CardPresentation]
+    ) -> [SouthHandSuitGroupPresentation] {
+        Suit.allCases
+            .sorted { $0.southDisplayOrder < $1.southDisplayOrder }
+            .map { suit in
+                SouthHandSuitGroupPresentation(
+                    suit: suit,
+                    cards: cardPresentations.filter { $0.card.suit == suit }
+                )
+            }
+    }
+
+    static func indexedSuitGroups(
+        from cardPresentations: [CardPresentation]
+    ) -> [SouthHandIndexedSuitGroupPresentation] {
+        let indexedCards = Array(cardPresentations.enumerated()).map {
+            SouthHandIndexedCardPresentation(index: $0.offset, cardPresentation: $0.element)
+        }
+
+        return Suit.allCases
+            .sorted { $0.southDisplayOrder < $1.southDisplayOrder }
+            .map { suit in
+                SouthHandIndexedSuitGroupPresentation(
+                    suit: suit,
+                    cards: indexedCards.filter { $0.cardPresentation.card.suit == suit }
+                )
+            }
+    }
+}
+
+struct SouthHandSuitGroupPresentation: Equatable, Identifiable {
+    let suit: Suit
+    let cards: [CardPresentation]
+
+    var id: Suit {
+        suit
+    }
+}
+
+struct SouthHandIndexedSuitGroupPresentation: Equatable, Identifiable {
+    let suit: Suit
+    let cards: [SouthHandIndexedCardPresentation]
+
+    var id: Suit {
+        suit
+    }
+}
+
+struct SouthHandIndexedCardPresentation: Equatable, Identifiable {
+    let index: Int
+    let cardPresentation: CardPresentation
+
+    var id: String {
+        cardPresentation.cardID
+    }
 }
 
 struct SouthHandLayoutPresentation: Equatable {
@@ -2173,10 +2304,26 @@ struct SouthHandLayoutPresentation: Equatable {
         sizeConfiguration.southHandAdditionalSuitBoundarySpacing
     }
 
+    var suitLaneCount: Int {
+        Suit.allCases.count
+    }
+
+    var suitLaneGap: Double {
+        sizeConfiguration.southHandSuitLaneGap
+    }
+
+    var suitLaneHeaderHeight: Double {
+        sizeConfiguration.southHandSuitLaneHeaderHeight
+    }
+
     var accessibilityValue: String {
         [
-            "layout=suitSeparatedGrid",
+            "layout=suitGroupedLanes",
             "count=\(cardCount)",
+            "laneCount=\(suitLaneCount)",
+            "suitLaneHeaders=visible",
+            "suitLaneGap=\(suitLaneGap)",
+            "suitLaneHeaderHeight=\(suitLaneHeaderHeight)",
             "cardSpacing=\(cardSpacing)",
             "suitBoundarySpacing=\(suitBoundarySpacing)",
             "additionalSuitBoundarySpacing=\(additionalSuitBoundarySpacing)"

@@ -177,12 +177,18 @@ final class TarneebTests: XCTestCase {
         XCTAssertEqual(GameEffectToken.tablePlayAreaShadowOpacity.value, 0.16)
         XCTAssertEqual(GameEffectToken.trickPlaySlotBackgroundOpacity.value, 0.34)
         XCTAssertEqual(GameEffectToken.trickPlaySlotBorderOpacity.value, 0.42)
+        XCTAssertEqual(GameEffectToken.trickPlayActiveSlotBackgroundOpacity.value, 0.16)
+        XCTAssertEqual(GameEffectToken.trickPlayActiveSlotOutlineOpacity.value, 0.88)
         XCTAssertEqual(GameEffectToken.trickPlayPlayedCardShadowOpacity.value, 0.28)
         XCTAssertEqual(GameEffectToken.trickPlayLegalCardOutlineOpacity.value, 0.95)
         XCTAssertEqual(GameEffectToken.trickPlayUnavailableSouthCardOpacity.value, 0.55)
         XCTAssertEqual(GameEffectToken.trickPlayWinnerHighlightOpacity.value, 0.30)
         XCTAssertEqual(GameEffectToken.southHandRailBackgroundOpacity.value, 0.14)
         XCTAssertEqual(GameEffectToken.southHandRailStrokeOpacity.value, 0.36)
+        XCTAssertEqual(GameEffectToken.postBiddingSummaryBackgroundOpacity.value, 0.86)
+        XCTAssertEqual(GameEffectToken.postBiddingSummaryBorderOpacity.value, 0.34)
+        XCTAssertEqual(GameEffectToken.postBiddingSummaryShadowOpacity.value, 0.20)
+        XCTAssertEqual(GameEffectToken.postBiddingSummaryShadowRadius.value, 5)
         XCTAssertEqual(GameEffectToken.stationBackgroundDefaultOpacity.value, 0.08)
         XCTAssertEqual(GameEffectToken.stationBackgroundActiveOpacity.value, 0.24)
         XCTAssertEqual(GameEffectToken.bidStationCueBackgroundOpacity.value, 0.34)
@@ -197,6 +203,7 @@ final class TarneebTests: XCTestCase {
         XCTAssertEqual(GameEffectToken.statusPillBorderOpacity.value, 0.55)
         XCTAssertEqual(GameEffectToken.phaseStatusBackgroundOpacity.value, 0.72)
         XCTAssertEqual(GameEffectToken.bottomControlSeparatorOpacity.value, 0.35)
+        XCTAssertEqual(GameEffectToken.bottomDealSecondaryOpacity.value, 0.62)
     }
 
     func testUndealtDeckLayoutTokensAreAvailable() {
@@ -239,6 +246,8 @@ final class TarneebTests: XCTestCase {
             "layout.postBiddingSummary.padding",
             "layout.postBiddingSummary.rowGap",
             "layout.postBiddingSummary.cornerRadius",
+            "layout.postBiddingSummary.suitChip.padding.horizontal",
+            "layout.postBiddingSummary.suitChip.padding.vertical",
             "layout.postBiddingSummary.outsideTableHorizontalOffsetRatio",
             "layout.postBiddingSummary.outsideTableVerticalOffsetRatio"
         ]
@@ -263,6 +272,8 @@ final class TarneebTests: XCTestCase {
         XCTAssertEqual(GameBidLayoutToken.postBiddingSummaryPadding.numericValue, 12)
         XCTAssertEqual(GameBidLayoutToken.postBiddingSummaryRowGap.numericValue, 6)
         XCTAssertEqual(GameBidLayoutToken.postBiddingSummaryCornerRadius.numericValue, 10)
+        XCTAssertEqual(GameBidLayoutToken.postBiddingSummarySuitChipHorizontalPadding.numericValue, 4)
+        XCTAssertEqual(GameBidLayoutToken.postBiddingSummarySuitChipVerticalPadding.numericValue, 0)
         XCTAssertEqual(GameBidLayoutToken.postBiddingSummaryOutsideTableHorizontalOffsetRatio.numericValue, 0.62)
         XCTAssertEqual(GameBidLayoutToken.postBiddingSummaryOutsideTableVerticalOffsetRatio.numericValue, 0.70)
         XCTAssertEqual(bidAreaTokens.background, .bidAreaBackground)
@@ -291,6 +302,12 @@ final class TarneebTests: XCTestCase {
         XCTAssertEqual(summaryTokens.teamText, .postBiddingSummaryTeamText)
         XCTAssertEqual(summaryTokens.bidText, .postBiddingSummaryBidText)
         XCTAssertEqual(summaryTokens.tarneebText, .postBiddingSummaryTarneebText)
+        XCTAssertEqual(summaryTokens.suitChipHorizontalPadding, .postBiddingSummarySuitChipHorizontalPadding)
+        XCTAssertEqual(summaryTokens.suitChipVerticalPadding, .postBiddingSummarySuitChipVerticalPadding)
+        XCTAssertEqual(summaryTokens.backgroundOpacity, .postBiddingSummaryBackgroundOpacity)
+        XCTAssertEqual(summaryTokens.borderOpacity, .postBiddingSummaryBorderOpacity)
+        XCTAssertEqual(summaryTokens.shadowOpacity, .postBiddingSummaryShadowOpacity)
+        XCTAssertEqual(summaryTokens.shadowRadius, .postBiddingSummaryShadowRadius)
         XCTAssertEqual(summaryTokens.bidText.hexValue, GameColorToken.buttonNewGameBackground.hexValue)
         XCTAssertTrue(bidAreaTokens.accessibilityValue.contains("background=color.bidArea.background"))
         XCTAssertTrue(selectorTokens.accessibilityValue.contains("background=color.bidSelector.background"))
@@ -299,12 +316,26 @@ final class TarneebTests: XCTestCase {
         XCTAssertTrue(suitSelectorTokens.accessibilityValue.contains("selectedBackground=color.card.background"))
         XCTAssertTrue(suitSelectorTokens.accessibilityValue.contains("focusRing=color.button.newGame.background"))
         XCTAssertTrue(summaryTokens.accessibilityValue.contains("background=color.postBiddingSummary.background"))
+        XCTAssertTrue(summaryTokens.accessibilityValue.contains("suitChipHorizontalPadding=layout.postBiddingSummary.suitChip.padding.horizontal"))
+        XCTAssertTrue(summaryTokens.accessibilityValue.contains("backgroundOpacity=effect.postBiddingSummary.background.opacity"))
+        XCTAssertTrue(summaryTokens.accessibilityValue.contains("shadowOpacity=effect.postBiddingSummary.shadow.opacity"))
         XCTAssertTrue(summaryTokens.accessibilityValue.contains("outsideTableHorizontalOffset=layout.postBiddingSummary.outsideTableHorizontalOffsetRatio"))
         XCTAssertTrue(summaryTokens.accessibilityValue.contains("outsideTableVerticalOffset=layout.postBiddingSummary.outsideTableVerticalOffsetRatio"))
         XCTAssertFalse(bidAreaTokens.accessibilityValue.contains("#"))
         XCTAssertFalse(selectorTokens.accessibilityValue.contains("#"))
         XCTAssertFalse(suitSelectorTokens.accessibilityValue.contains("#"))
         XCTAssertFalse(summaryTokens.accessibilityValue.contains("#"))
+    }
+
+    func testBottomControlLayoutTokensAreAvailable() {
+        let requiredLayoutTokenKeys = [
+            "layout.bottomControl.button.gap",
+            "layout.bottomControl.deal.secondary.maxWidth"
+        ]
+
+        XCTAssertEqual(Set(GameControlLayoutToken.allCases.map(\.rawValue)), Set(requiredLayoutTokenKeys))
+        XCTAssertEqual(GameControlLayoutToken.bottomControlButtonGap.numericValue, 10)
+        XCTAssertEqual(GameControlLayoutToken.bottomControlSecondaryDealMaxWidth.numericValue, 160)
     }
 
     func testTrickPlayTokensAreAvailable() {
@@ -328,7 +359,7 @@ final class TarneebTests: XCTestCase {
         XCTAssertEqual(GameTrickLayoutToken.trickCounterMinimumWidth.numericValue, 34)
         XCTAssertEqual(GameTrickLayoutToken.trickCounterHeight.numericValue, 18)
         XCTAssertEqual(GameTrickLayoutToken.trickCounterHeaderOffset.numericValue, 4)
-        XCTAssertEqual(GameTrickLayoutToken.trickCounterStationEdgeOffset.numericValue, 8)
+        XCTAssertEqual(GameTrickLayoutToken.trickCounterStationEdgeOffset.numericValue, 4)
         XCTAssertEqual(tokens.slotBackground, .trickPlaySlotBackground)
         XCTAssertEqual(tokens.slotBorder, .trickPlaySlotBorder)
         XCTAssertEqual(tokens.activeSeatOutline, .trickPlayActiveSeatOutline)
@@ -337,11 +368,15 @@ final class TarneebTests: XCTestCase {
         XCTAssertEqual(tokens.countBackground, .trickPlayCountBackground)
         XCTAssertEqual(tokens.countText, .trickPlayCountText)
         XCTAssertEqual(tokens.countBackgroundOpacity, .trickPlayCountBackgroundOpacity)
+        XCTAssertEqual(tokens.activeSlotBackgroundOpacity, .trickPlayActiveSlotBackgroundOpacity)
+        XCTAssertEqual(tokens.activeSlotOutlineOpacity, .trickPlayActiveSlotOutlineOpacity)
         XCTAssertEqual(tokens.counterStationEdgeOffset, .trickCounterStationEdgeOffset)
         XCTAssertEqual(tokens.playedCardFlight, .trickPlayedCardFlightDuration)
         XCTAssertEqual(tokens.clearPause, .trickClearPauseDuration)
         XCTAssertEqual(tokens.clearFade, .trickClearFadeDuration)
         XCTAssertTrue(tokens.accessibilityValue.contains("slotBackground=color.trickPlay.slot.background"))
+        XCTAssertTrue(tokens.accessibilityValue.contains("activeSlotBackgroundOpacity=effect.trickPlay.activeSlot.background.opacity"))
+        XCTAssertTrue(tokens.accessibilityValue.contains("activeSlotOutlineOpacity=effect.trickPlay.activeSlot.outline.opacity"))
         XCTAssertTrue(tokens.accessibilityValue.contains("countBackgroundOpacity=effect.trickPlay.count.background.opacity"))
         XCTAssertTrue(tokens.accessibilityValue.contains("counterHeaderOffset=layout.trickPlay.counter.headerOffset"))
         XCTAssertTrue(tokens.accessibilityValue.contains("counterStationEdgeOffset=layout.trickPlay.counter.stationEdgeOffset"))
@@ -2270,7 +2305,7 @@ final class TarneebTests: XCTestCase {
         XCTAssertEqual(unsortedHand.map(\.id), ["spades-A", "diamonds-2", "hearts-A", "clubs-K", "hearts-2", "spades-2", "diamonds-A", "clubs-2"])
     }
 
-    func testSouthHandPresentationUsesReadableSuitSeparatedGridAfterReveal() {
+    func testSouthHandPresentationUsesReadableSuitGroupedLanesAfterReveal() {
         let hand = [
             Card(suit: .hearts, rank: .two),
             Card(suit: .hearts, rank: .ace),
@@ -2283,18 +2318,38 @@ final class TarneebTests: XCTestCase {
         ]
         let cardPresentations = SouthHandPresentation.cardPresentations(from: hand)
         let layout = SouthHandPresentation.readableLayout(cardCount: cardPresentations.count)
+        let suitGroups = SouthHandPresentation.suitGroups(from: cardPresentations)
+        let indexedSuitGroups = SouthHandPresentation.indexedSuitGroups(from: cardPresentations)
 
         XCTAssertEqual(layout.cardSpacing, 4)
         XCTAssertEqual(layout.suitBoundarySpacing, 8)
         XCTAssertEqual(layout.additionalSuitBoundarySpacing, 4)
+        XCTAssertEqual(layout.suitLaneCount, 4)
+        XCTAssertEqual(layout.suitLaneGap, 6)
+        XCTAssertEqual(layout.suitLaneHeaderHeight, 18)
         XCTAssertEqual(layout.additionalLeadingSpacing(beforeCardAt: 0, in: cardPresentations), 0)
         XCTAssertEqual(layout.additionalLeadingSpacing(beforeCardAt: 1, in: cardPresentations), 0)
         XCTAssertEqual(layout.additionalLeadingSpacing(beforeCardAt: 2, in: cardPresentations), 4)
         XCTAssertEqual(layout.additionalLeadingSpacing(beforeCardAt: 3, in: cardPresentations), 0)
         XCTAssertEqual(layout.additionalLeadingSpacing(beforeCardAt: 4, in: cardPresentations), 4)
         XCTAssertEqual(layout.additionalLeadingSpacing(beforeCardAt: 6, in: cardPresentations), 4)
-        XCTAssertTrue(layout.accessibilityValue.contains("layout=suitSeparatedGrid"))
+        XCTAssertEqual(suitGroups.map(\.suit), [.hearts, .clubs, .diamonds, .spades])
+        XCTAssertEqual(suitGroups.map { $0.cards.map(\.displayLabel) }, [
+            ["2♥", "A♥"],
+            ["2♣", "K♣"],
+            ["2♦", "A♦"],
+            ["2♠", "A♠"]
+        ])
+        XCTAssertEqual(indexedSuitGroups.map { $0.cards.map(\.index) }, [
+            [0, 1],
+            [2, 3],
+            [4, 5],
+            [6, 7]
+        ])
+        XCTAssertTrue(layout.accessibilityValue.contains("layout=suitGroupedLanes"))
         XCTAssertTrue(layout.accessibilityValue.contains("count=8"))
+        XCTAssertTrue(layout.accessibilityValue.contains("laneCount=4"))
+        XCTAssertTrue(layout.accessibilityValue.contains("suitLaneHeaders=visible"))
         XCTAssertTrue(layout.accessibilityValue.contains("suitBoundarySpacing=8"))
     }
 
@@ -2884,6 +2939,7 @@ final class TarneebTests: XCTestCase {
         XCTAssertEqual(presentation.tokens.background, .postBiddingSummaryBackground)
         XCTAssertTrue(presentation.accessibilityValue.contains("placement=outsideTableUpperLeft"))
         XCTAssertTrue(presentation.accessibilityValue.contains("display=contractBox"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("style=feltScoreboardPlaque"))
         XCTAssertTrue(presentation.accessibilityValue.contains("highBidder=West"))
         XCTAssertTrue(presentation.accessibilityValue.contains("bid=10"))
         XCTAssertTrue(presentation.accessibilityValue.contains("team=East-West"))
@@ -2895,6 +2951,10 @@ final class TarneebTests: XCTestCase {
         XCTAssertTrue(presentation.accessibilityValue.contains("tarneebSymbolChipTokens=background=color.card.background"))
         XCTAssertTrue(presentation.accessibilityValue.contains("focusRing=color.button.newGame.background"))
         XCTAssertTrue(presentation.accessibilityValue.contains("background=color.postBiddingSummary.background"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("backgroundOpacity=effect.postBiddingSummary.background.opacity"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("borderOpacity=effect.postBiddingSummary.border.opacity"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("shadowOpacity=effect.postBiddingSummary.shadow.opacity"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("suitChipHorizontalPadding=layout.postBiddingSummary.suitChip.padding.horizontal"))
 
         let warmSummary = PostBiddingSummary(
             highBidderSeat: .south,
