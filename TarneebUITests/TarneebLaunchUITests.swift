@@ -1,5 +1,750 @@
 import XCTest
 
+final class TarneebFullMatchUITests: XCTestCase {
+    override func setUpWithError() throws { continueAfterFailure = false }
+
+    func testMixedSuitHandFromDealThroughRoundResults() {
+        let app = XCUIApplication()
+        app.launchEnvironment["TARNEEB_OPENING_FIXTURE"] = "1"
+        app.launchEnvironment["TARNEEB_INITIAL_DEALER"] = "west"
+        app.launchEnvironment["TARNEEB_SIMULATED_BIDS"] = "east:pass,north:pass,west:pass"
+        app.launchEnvironment["TARNEEB_REDUCE_MOTION"] = "0"
+        app.launch()
+        app.buttons["tarneeb-deal-button"].tap()
+        XCTAssertTrue(app.buttons["tarneeb-bid-button-south"].waitForExistence(timeout: 30))
+        app.buttons["tarneeb-opening-bid-picker"].tap()
+        app.buttons["7"].tap()
+        app.buttons["tarneeb-bid-button-south"].tap()
+        let set = app.buttons["tarneeb-post-bidding-suit-button-south"]
+        XCTAssertTrue(set.waitForExistence(timeout: 20))
+        app.buttons["tarneeb-bid-suit-option-spades"].tap()
+        set.tap()
+        XCTAssertTrue(app.otherElements["tarneeb-live-table"].waitForExistence(timeout: 5))
+        let cards = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "tarneeb-live-card-"))
+        for remaining in stride(from: 13, through: 2, by: -1) {
+            let legal = cards.matching(NSPredicate(format: "enabled == true")).firstMatch
+            XCTAssertTrue(legal.waitForExistence(timeout: 20))
+            XCTAssertEqual(cards.count, remaining)
+            if remaining == 13 || remaining == 7 || remaining == 2 {
+                capture("Mixed hand \(remaining) cards", app)
+            }
+            legal.doubleTap()
+            expectation(for: NSPredicate { _, _ in cards.count < remaining }, evaluatedWith: cards)
+            waitForExpectations(timeout: 6)
+        }
+        XCTAssertTrue(app.otherElements["tarneeb-round-result"].waitForExistence(timeout: 25))
+        XCTAssertTrue(app.buttons["tarneeb-next-hand"].isHittable)
+        XCTAssertFalse(app.buttons["tarneeb-new-match"].exists)
+        XCTAssertEqual(cards.count, 0)
+        capture("Mixed hand round result", app)
+        app.buttons["tarneeb-last-trick"].tap()
+        XCTAssertTrue(app.buttons["tarneeb-close-last-trick"].waitForExistence(timeout: 3))
+        for seat in ["south", "east", "north", "west"] {
+            XCTAssertTrue(app.otherElements["tarneeb-recalled-\(seat)"].exists)
+        }
+        capture("Mixed hand result recall", app)
+    }
+
+    func testOpeningThroughTwoCompleteHandsMatchWinAndNewGame() {
+        let app = XCUIApplication()
+        app.launchEnvironment["TARNEEB_OPENING_FIXTURE"] = "sweep"
+        app.launchEnvironment["TARNEEB_INITIAL_DEALER"] = "west"
+        app.launchEnvironment["TARNEEB_SIMULATED_BIDS"] = "east:pass,north:pass,west:pass"
+        app.launchEnvironment["TARNEEB_REDUCE_MOTION"] = "0"
+        app.launchEnvironment["TARNEEB_SAVE_TEST_ID"] = UUID().uuidString
+        app.launch()
+        let cards = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "tarneeb-live-card-"))
+        let ownTricks = app.staticTexts["tarneeb-live-south-tricks"]
+        capture("01 Opening", app)
+        app.buttons["tarneeb-deal-button"].tap()
+
+        for round in 1...2 {
+            let bid = app.buttons["tarneeb-bid-button-south"]
+            XCTAssertTrue(bid.waitForExistence(timeout: 30))
+            XCTAssertTrue(bid.isHittable)
+            if round == 1 {
+                XCTAssertTrue(app.otherElements["tarneeb-opening-station-west"].label.contains("dealer"))
+            } else {
+                XCTAssertTrue(app.otherElements["tarneeb-opening-south-dealer"].exists)
+            }
+            XCTAssertTrue(app.staticTexts["North South score \((round - 1) * 16)"].exists)
+            capture("Round \(round) bidding", app)
+            app.buttons["tarneeb-opening-bid-picker"].tap()
+            app.buttons["7"].tap()
+            bid.tap()
+            let set = app.buttons["tarneeb-post-bidding-suit-button-south"]
+            XCTAssertTrue(set.waitForExistence(timeout: 20))
+            app.buttons["tarneeb-bid-suit-option-spades"].tap()
+            capture("Round \(round) trump", app)
+            set.tap()
+            XCTAssertTrue(app.otherElements["tarneeb-live-table"].waitForExistence(timeout: 5))
+            XCTAssertEqual(app.staticTexts["tarneeb-live-contract-bid"].label, "You bid 7")
+            if round == 1 {
+                XCTAssertTrue(app.otherElements["tarneeb-live-station-west"].label.contains("dealer"))
+            } else {
+                XCTAssertTrue(app.staticTexts["tarneeb-live-dealer-south"].exists)
+                XCTAssertFalse(app.otherElements["tarneeb-live-station-west"].label.contains("dealer"))
+            }
+            XCTAssertEqual(cards.count, 13)
+            XCTAssertEqual(ownTricks.value as? String, "0")
+
+            for (index, rank) in ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"].enumerated() {
+                let card = app.buttons["tarneeb-live-card-spades-\(rank)"]
+                expectation(for: NSPredicate(format: "enabled == true"), evaluatedWith: card)
+                waitForExpectations(timeout: 15)
+                if index == 0 {
+                    card.tap()
+                    expectation(for: NSPredicate(format: "value == %@", "Selected"), evaluatedWith: card)
+                    waitForExpectations(timeout: 3)
+                    capture("Round \(round) selected card", app)
+                }
+                if index == 5 {
+                    card.press(forDuration: 0.05, thenDragTo: app.otherElements["tarneeb-live-trick"])
+                } else {
+                    card.doubleTap()
+                }
+                if index < 11 {
+                    expectation(for: NSPredicate(format: "value == %@", "\(index + 1)"), evaluatedWith: ownTricks)
+                    waitForExpectations(timeout: 15)
+                    XCTAssertEqual(cards.count, 12 - index)
+                    let expectedProgress = index < 5 ? "\(index + 1) / 7 tricks" : (index == 5 ? "One more trick" : "Contract secured")
+                    XCTAssertEqual(app.staticTexts["tarneeb-contract-progress"].label, expectedProgress)
+                    XCTAssertTrue((app.staticTexts["tarneeb-contract-progress"].value as? String ?? "").contains("\(index + 1) of 7"))
+                    if index == 5 {
+                        capture("Round \(round) mid-hand", app)
+                        app.buttons["tarneeb-last-trick"].tap()
+                        let close = app.buttons["tarneeb-close-last-trick"]
+                        XCTAssertTrue(close.waitForExistence(timeout: 3))
+                        capture("Round \(round) recall", app)
+                        close.tap()
+                        XCUIDevice.shared.press(.home)
+                        app.activate()
+                        XCTAssertEqual(ownTricks.value as? String, "6")
+                    }
+                }
+            }
+            // The final ace is played automatically; no fixture skips tricks or scoring.
+            let result = app.otherElements["tarneeb-round-result"]
+            XCTAssertTrue(result.waitForExistence(timeout: 25))
+            XCTAssertEqual(cards.count, 0)
+            XCTAssertTrue(app.staticTexts["North South score \(round * 16)"].exists)
+            XCTAssertTrue(app.staticTexts["East West score 0"].exists)
+            XCTAssertTrue(app.staticTexts["North-South round change +16"].exists)
+            capture("Round \(round) result", app)
+            if round == 1 {
+                XCTAssertEqual(app.staticTexts["tarneeb-result-title"].label, "Contract made")
+                let next = app.buttons["tarneeb-next-hand"]
+                XCTAssertTrue(next.isHittable)
+                next.coordinate(withNormalizedOffset: CGVector(dx: 0.1, dy: 0.5)).tap()
+                XCTAssertTrue(app.otherElements["tarneeb-opening-table"].waitForExistence(timeout: 5))
+            } else {
+                XCTAssertEqual(app.staticTexts["tarneeb-result-title"].label, "You and North win!")
+                XCTAssertFalse(app.buttons["tarneeb-next-hand"].exists)
+            }
+        }
+
+        app.terminate()
+        app.launchEnvironment.removeValue(forKey: "TARNEEB_OPENING_FIXTURE")
+        app.launch()
+        XCTAssertTrue(app.buttons["tarneeb-new-match"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["North South score 32"].exists)
+        XCTAssertFalse(app.alerts["Match storage"].exists)
+        app.buttons["tarneeb-new-match"].coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+        XCTAssertTrue(app.buttons["tarneeb-deal-button"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["North South score 0"].exists)
+        XCTAssertTrue(app.staticTexts["East West score 0"].exists)
+        XCTAssertEqual(app.otherElements["tarneeb-opening-deck"].value as? String, "52 cards")
+        capture("New game after match", app)
+    }
+
+    private func capture(_ name: String, _ app: XCUIApplication) {
+        if !name.contains("recall") {
+            let target = app.staticTexts["tarneeb-match-target"]
+            XCTAssertTrue(target.waitForExistence(timeout: 5))
+            XCTAssertEqual(target.label, "First to 31")
+            XCTAssertTrue(app.frame.contains(target.frame))
+        }
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = name
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
+    }
+}
+
+final class TarneebContinuedPlayUITests: XCTestCase {
+    override func setUpWithError() throws { continueAfterFailure = false }
+
+    private func launch(_ fixture: String, key: String = "TARNEEB_LIVE_FIXTURE", saved: Bool = false) -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchEnvironment[key] = fixture
+        app.launchEnvironment["TARNEEB_REDUCE_MOTION"] = "1"
+        app.launchEnvironment["TARNEEB_INITIAL_DEALER"] = "west"
+        app.launchEnvironment["TARNEEB_SIMULATED_BIDS"] = "east:pass,north:pass,west:pass"
+        if saved { app.launchEnvironment["TARNEEB_SAVE_TEST_ID"] = UUID().uuidString }
+        app.launch()
+        return app
+    }
+
+    private func relaunchSaved(_ app: XCUIApplication) {
+        app.terminate()
+        for key in ["TARNEEB_LIVE_FIXTURE", "TARNEEB_OPENING_FIXTURE", "TARNEEB_RESULT_FIXTURE"] {
+            app.launchEnvironment.removeValue(forKey: key)
+        }
+        app.launch()
+        XCTAssertFalse(app.alerts["Match storage"].exists)
+    }
+
+    private func verifyRecall(_ app: XCUIApplication) {
+        app.buttons["tarneeb-last-trick"].tap()
+        let close = app.buttons["tarneeb-close-last-trick"]
+        XCTAssertTrue(close.waitForExistence(timeout: 3))
+        for seat in ["south", "east", "north", "west"] {
+            let recalled = app.otherElements["tarneeb-recalled-\(seat)"]
+            XCTAssertTrue(recalled.exists)
+            XCTAssertTrue(app.frame.contains(recalled.frame))
+        }
+        XCTAssertTrue(app.frame.contains(close.frame))
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = "Last trick recall"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
+    }
+
+    func testRecallPausesSurvivesBackgroundAndResumesWithoutPlaying() {
+        let app = launch("1")
+        XCTAssertFalse(app.buttons["tarneeb-last-trick"].isEnabled)
+        app.buttons["tarneeb-live-card-spades-2"].doubleTap()
+        let count = app.staticTexts["tarneeb-live-south-tricks"]
+        expectation(for: NSPredicate(format: "value == %@", "1"), evaluatedWith: count)
+        waitForExpectations(timeout: 12)
+        verifyRecall(app)
+        XCUIDevice.shared.press(.home)
+        app.activate()
+        XCTAssertTrue(app.buttons["tarneeb-close-last-trick"].waitForExistence(timeout: 3))
+        app.buttons["tarneeb-close-last-trick"].tap()
+        XCTAssertTrue(app.buttons["tarneeb-live-card-spades-3"].waitForExistence(timeout: 3))
+        XCTAssertEqual(count.value as? String, "1")
+        app.buttons["tarneeb-live-card-spades-3"].doubleTap()
+        expectation(for: NSPredicate(format: "value == %@", "2"), evaluatedWith: count)
+        waitForExpectations(timeout: 12)
+    }
+
+    func testLiveMatchRestoresFromDiskWithoutFixture() {
+        let app = launch("balanced", saved: true)
+        app.buttons["tarneeb-live-card-spades-A"].doubleTap()
+        expectation(for: NSPredicate(format: "value == %@", "1"), evaluatedWith: app.staticTexts["tarneeb-live-south-tricks"])
+        waitForExpectations(timeout: 12)
+        relaunchSaved(app)
+        XCTAssertTrue(app.otherElements["tarneeb-live-table"].waitForExistence(timeout: 5))
+        XCTAssertEqual(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "tarneeb-live-card-")).count, 12)
+        XCTAssertFalse(app.buttons["tarneeb-live-card-spades-A"].exists)
+        XCTAssertEqual(app.staticTexts["tarneeb-live-south-tricks"].value as? String, "1")
+        XCTAssertEqual(app.staticTexts["tarneeb-live-status"].label, "Your turn")
+        verifyRecall(app)
+        app.buttons["tarneeb-close-last-trick"].tap()
+    }
+
+    func testBiddingAndTrumpSelectionRestoreFromDisk() {
+        let app = launch("1", key: "TARNEEB_OPENING_FIXTURE", saved: true)
+        app.buttons["tarneeb-deal-button"].tap()
+        XCTAssertTrue(app.buttons["tarneeb-bid-button-south"].waitForExistence(timeout: 25))
+        relaunchSaved(app)
+        XCTAssertTrue(app.buttons["tarneeb-bid-button-south"].waitForExistence(timeout: 5))
+        app.buttons["tarneeb-opening-bid-picker"].tap()
+        app.buttons["7"].tap()
+        app.buttons["tarneeb-bid-button-south"].tap()
+        XCTAssertTrue(app.buttons["tarneeb-post-bidding-suit-button-south"].waitForExistence(timeout: 20))
+        relaunchSaved(app)
+        let set = app.buttons["tarneeb-post-bidding-suit-button-south"]
+        XCTAssertTrue(set.waitForExistence(timeout: 5))
+        app.buttons["tarneeb-bid-suit-option-spades"].tap()
+        set.tap()
+        XCTAssertTrue(app.otherElements["tarneeb-live-table"].waitForExistence(timeout: 5))
+    }
+
+    func testMatchResultRecallAndResetSurviveRelaunch() {
+        let app = launch("match-win", key: "TARNEEB_RESULT_FIXTURE", saved: true)
+        XCTAssertTrue(app.buttons["tarneeb-new-match"].waitForExistence(timeout: 5))
+        relaunchSaved(app)
+        XCTAssertTrue(app.staticTexts["North South score 32"].waitForExistence(timeout: 5))
+        verifyRecall(app)
+        app.buttons["tarneeb-close-last-trick"].tap()
+        app.buttons["tarneeb-new-match"].tap()
+        XCTAssertTrue(app.buttons["tarneeb-deal-button"].waitForExistence(timeout: 5))
+        relaunchSaved(app)
+        XCTAssertTrue(app.buttons["tarneeb-deal-button"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["North South score 0"].exists)
+    }
+}
+
+final class TarneebRoundResultUITests: XCTestCase {
+    override func setUpWithError() throws { continueAfterFailure = false }
+
+    private func launch(_ fixture: String, reducedMotion: Bool = false) -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchEnvironment["TARNEEB_RESULT_FIXTURE"] = fixture
+        app.launchEnvironment["TARNEEB_REDUCE_MOTION"] = reducedMotion ? "1" : "0"
+        app.launch()
+        XCTAssertTrue(app.otherElements["tarneeb-round-result"].waitForExistence(timeout: 5))
+        return app
+    }
+
+    private func verifyVisibleResult(_ app: XCUIApplication, command: String) {
+        let button = app.buttons[command]
+        XCTAssertTrue(button.isHittable)
+        XCTAssertGreaterThanOrEqual(button.frame.height, 48)
+        XCTAssertGreaterThan(button.frame.width, app.frame.width * 0.8)
+        XCTAssertTrue(app.frame.contains(button.frame))
+        XCTAssertTrue(app.frame.contains(app.staticTexts["tarneeb-result-title"].frame))
+        XCTAssertTrue(app.staticTexts["North-South bid"].exists)
+        XCTAssertTrue(app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH %@", "Bid 7, Tarneeb ")).firstMatch.exists)
+        XCTAssertFalse(app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS[c] %@", "trump")).firstMatch.exists)
+        XCTAssertFalse(app.scrollViews.firstMatch.exists)
+        for text in app.staticTexts.allElementsBoundByIndex where text.isHittable {
+            XCTAssertTrue(app.frame.contains(text.frame), text.label)
+        }
+        let shot = XCTAttachment(screenshot: app.screenshot())
+        shot.name = app.staticTexts["tarneeb-result-title"].label
+        shot.lifetime = .keepAlways
+        add(shot)
+    }
+
+    func testRoundResultWaitsForNextHandAndPreservesScores() {
+        let app = launch("round-made", reducedMotion: true)
+        XCTAssertEqual(app.staticTexts["tarneeb-result-title"].label, "Contract made")
+        XCTAssertTrue(app.staticTexts["North South score 16"].exists)
+        XCTAssertTrue(app.staticTexts["North-South round change +16"].exists)
+        verifyVisibleResult(app, command: "tarneeb-next-hand")
+        let autoAdvance = expectation(for: NSPredicate(format: "exists == true"), evaluatedWith: app.otherElements["tarneeb-opening-table"])
+        autoAdvance.isInverted = true
+        waitForExpectations(timeout: 3)
+        app.buttons["tarneeb-next-hand"].coordinate(withNormalizedOffset: CGVector(dx: 0.1, dy: 0.5)).tap()
+        XCTAssertTrue(app.otherElements["tarneeb-opening-table"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["North South score 16"].exists)
+        XCTAssertTrue(app.buttons["tarneeb-bid-button-south"].waitForExistence(timeout: 25))
+        XCTAssertFalse(app.buttons["tarneeb-next-hand"].exists)
+    }
+
+    func testMissedContractRetainsNegativeScoresAfterBackgrounding() {
+        let app = launch("round-missed")
+        XCTAssertEqual(app.staticTexts["tarneeb-result-title"].label, "Contract missed")
+        XCTAssertTrue(app.staticTexts["North South score -7"].exists)
+        XCTAssertTrue(app.staticTexts["East West score 16"].exists)
+        verifyVisibleResult(app, command: "tarneeb-next-hand")
+        XCUIDevice.shared.press(.home)
+        app.activate()
+        XCTAssertTrue(app.buttons["tarneeb-next-hand"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["North South score -7"].exists)
+        XCTAssertTrue(app.staticTexts["East West score 16"].exists)
+    }
+
+    func testPlayerMatchWinShowsFinalScoresAndResets() {
+        let app = launch("match-win")
+        XCTAssertEqual(app.staticTexts["tarneeb-result-title"].label, "You and North win!")
+        XCTAssertTrue(app.staticTexts["North South score 32"].exists)
+        XCTAssertFalse(app.buttons["tarneeb-next-hand"].exists)
+        verifyVisibleResult(app, command: "tarneeb-new-match")
+        app.buttons["tarneeb-new-match"].coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+        XCTAssertTrue(app.buttons["tarneeb-deal-button"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["North South score 0"].exists)
+        XCTAssertTrue(app.staticTexts["East West score 0"].exists)
+        XCTAssertEqual(app.otherElements["tarneeb-opening-deck"].value as? String, "52 cards")
+    }
+
+    func testOpponentMatchWinWithReducedMotionShowsCorrectWinner() {
+        let app = launch("match-loss", reducedMotion: true)
+        XCTAssertEqual(app.staticTexts["tarneeb-result-title"].label, "East-West win")
+        XCTAssertTrue(app.staticTexts["East West score 32"].exists)
+        XCTAssertTrue(app.staticTexts["North South score -14"].exists)
+        XCTAssertFalse(app.buttons["tarneeb-next-hand"].exists)
+        verifyVisibleResult(app, command: "tarneeb-new-match")
+    }
+}
+
+final class TarneebOpeningTableUITests: XCTestCase {
+    override func setUpWithError() throws { continueAfterFailure = false }
+
+    private func launch(reducedMotion: Bool = false, dealer: String = "west", bids: String = "east:pass,north:pass,west:pass") -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchEnvironment["TARNEEB_OPENING_FIXTURE"] = "1"
+        app.launchEnvironment["TARNEEB_INITIAL_DEALER"] = dealer
+        app.launchEnvironment["TARNEEB_SIMULATED_BIDS"] = bids
+        app.launchEnvironment["TARNEEB_REDUCE_MOTION"] = reducedMotion ? "1" : "0"
+        app.launch()
+        XCTAssertTrue(app.otherElements["tarneeb-opening-table"].waitForExistence(timeout: 5))
+        return app
+    }
+
+    private func waitForBid(_ app: XCUIApplication) {
+        XCTAssertTrue(app.buttons["tarneeb-bid-button-south"].waitForExistence(timeout: 45))
+        let cards = app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH %@", "tarneeb-opening-card-"))
+        XCTAssertEqual(cards.count, 13)
+        for card in cards.allElementsBoundByIndex { XCTAssertTrue(app.frame.contains(card.frame)) }
+        XCTAssertTrue(app.frame.contains(app.buttons["tarneeb-bid-button-south"].frame))
+        XCTAssertFalse(app.otherElements["tarneeb-opening-deck"].exists)
+        XCTAssertFalse(app.scrollViews.firstMatch.exists)
+    }
+
+    func testDealBidTrumpAndLivePlayWithoutScrolling() { verifyOpening(reducedMotion: false) }
+    func testReducedMotionDealBidTrumpAndLivePlayWithoutScrolling() { verifyOpening(reducedMotion: true) }
+
+    private func verifyOpening(reducedMotion: Bool) {
+        let app = launch(reducedMotion: reducedMotion)
+        let score = app.staticTexts["North South score 0"]
+        XCTAssertTrue(score.exists)
+        XCTAssertTrue(app.staticTexts["East West score 0"].exists)
+        XCTAssertFalse(score.frame.intersects(app.buttons["tarneeb-game-options"].frame))
+        let opening = XCTAttachment(screenshot: app.screenshot())
+        opening.name = "Finished opening table"
+        opening.lifetime = .keepAlways
+        add(opening)
+        XCTAssertEqual(app.otherElements["tarneeb-opening-deck"].value as? String, "52 cards")
+        XCTAssertGreaterThanOrEqual(app.buttons["tarneeb-deal-button"].frame.height, 44)
+        app.buttons["tarneeb-deal-button"].coordinate(withNormalizedOffset: CGVector(dx: 0.1, dy: 0.5)).tap()
+        XCTAssertFalse(app.buttons["tarneeb-deal-button"].isEnabled)
+        waitForBid(app)
+        XCTAssertEqual(app.staticTexts["tarneeb-opening-status"].label, "Talab · Bidding")
+        let shot = XCTAttachment(screenshot: app.screenshot())
+        shot.name = "Opening readable hand and bidding"
+        shot.lifetime = .keepAlways
+        add(shot)
+        app.buttons["tarneeb-opening-bid-picker"].tap()
+        app.buttons["7"].tap()
+        XCTAssertEqual(app.buttons["tarneeb-bid-button-south"].label, "Bid 7")
+        XCTAssertFalse(app.buttons["tarneeb-bid-suit-option-spades"].exists)
+        app.buttons["tarneeb-bid-button-south"].tap()
+        let set = app.buttons["tarneeb-post-bidding-suit-button-south"]
+        XCTAssertTrue(set.waitForExistence(timeout: 25))
+        XCTAssertEqual(app.staticTexts["tarneeb-suit-heading"].label, "Tarneeb")
+        XCTAssertTrue(app.frame.contains(app.staticTexts["tarneeb-suit-heading"].frame))
+        XCTAssertFalse(app.staticTexts["Trump"].exists)
+        XCTAssertFalse(set.isEnabled)
+        for suit in ["clubs", "diamonds", "hearts", "spades"] {
+            let button = app.buttons["tarneeb-bid-suit-option-\(suit)"]
+            XCTAssertTrue(button.isHittable)
+            XCTAssertTrue(app.frame.contains(button.frame))
+            XCTAssertGreaterThanOrEqual(button.frame.height, 44)
+        }
+        app.buttons["tarneeb-bid-suit-option-spades"].tap()
+        XCTAssertTrue(set.isEnabled)
+        let trump = XCTAttachment(screenshot: app.screenshot())
+        trump.name = "Visible Tarneeb controls"
+        trump.lifetime = .keepAlways
+        add(trump)
+        set.tap()
+        XCTAssertTrue(app.otherElements["tarneeb-live-table"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Tarneeb spades"].exists)
+        XCTAssertFalse(app.staticTexts["Trump spades"].exists)
+        XCTAssertEqual(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "tarneeb-live-card-")).count, 13)
+    }
+
+    func testBackgroundDuringDealSettlesAndNewGameResets() {
+        let app = launch()
+        app.buttons["tarneeb-deal-button"].tap()
+        XCUIDevice.shared.press(.home)
+        app.activate()
+        waitForBid(app)
+        XCTAssertFalse(app.otherElements["tarneeb-opening-packet"].exists)
+        app.buttons["tarneeb-game-options"].tap()
+        app.buttons["New Game"].tap()
+        XCTAssertTrue(app.alerts.buttons["Keep Playing"].waitForExistence(timeout: 3))
+        tapAlert("Keep Playing", app: app)
+        XCTAssertTrue(app.buttons["tarneeb-bid-button-south"].waitForExistence(timeout: 3))
+        app.buttons["tarneeb-game-options"].tap()
+        app.buttons["New Game"].tap()
+        tapAlert("Cancel Game", app: app)
+        XCTAssertTrue(app.buttons["tarneeb-deal-button"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["tarneeb-deal-button"].isEnabled)
+        XCTAssertEqual(app.otherElements["tarneeb-opening-deck"].value as? String, "52 cards")
+    }
+
+    func testAllPassRedealsAndReturnsToBidding() {
+        let app = launch(reducedMotion: true)
+        app.buttons["tarneeb-deal-button"].tap()
+        waitForBid(app)
+        app.buttons["tarneeb-bid-button-south"].tap()
+        // Observe the durable dealer rotation rather than a brief reduced-motion packet.
+        expectation(for: NSPredicate(format: "label == %@", "West"), evaluatedWith: app.otherElements["tarneeb-opening-station-west"])
+        waitForExpectations(timeout: 25)
+        waitForBid(app)
+    }
+
+    func testRaisedBidMenuOnlyOffersLegalValues() {
+        let app = launch(reducedMotion: true, dealer: "south", bids: "east:8,north:pass,west:pass")
+        app.buttons["tarneeb-deal-button"].tap()
+        waitForBid(app)
+        XCTAssertEqual(app.staticTexts["tarneeb-opening-status"].label, "Talab · East leads with 8")
+        app.buttons["tarneeb-opening-bid-picker"].tap()
+        XCTAssertFalse(app.buttons["7"].exists)
+        XCTAssertFalse(app.buttons["8"].exists)
+        XCTAssertTrue(app.buttons["9"].exists)
+        app.buttons["13"].tap()
+        app.buttons["tarneeb-bid-button-south"].tap()
+        XCTAssertTrue(app.buttons["tarneeb-post-bidding-suit-button-south"].waitForExistence(timeout: 8))
+    }
+
+    func testTwoDigitBidValuesRemainOnOneLine() {
+        let app = launch(reducedMotion: true)
+        app.buttons["tarneeb-deal-button"].tap()
+        waitForBid(app)
+        let picker = app.buttons["tarneeb-opening-bid-picker"]
+        let initialFrame = picker.frame
+        let singleLineHeight = picker.staticTexts["Pass"].frame.height
+        var singleDigitWidth: CGFloat = 0
+        for bid in ["7", "10", "11", "12", "13", "Pass"] {
+            picker.tap()
+            app.buttons[bid].tap()
+            let value = picker.staticTexts[bid]
+            XCTAssertTrue(value.exists)
+            XCTAssertLessThanOrEqual(value.frame.height, singleLineHeight + 1)
+            if bid == "7" { singleDigitWidth = value.frame.width }
+            if bid.count == 2 { XCTAssertGreaterThanOrEqual(value.frame.width, singleDigitWidth * 1.5) }
+            XCTAssertEqual(picker.frame.width, initialFrame.width, accuracy: 1)
+            XCTAssertEqual(picker.frame.height, initialFrame.height, accuracy: 1)
+            XCTAssertTrue(picker.frame.contains(value.frame))
+            XCTAssertEqual(app.buttons["tarneeb-bid-button-south"].label, bid == "Pass" ? "Pass" : "Bid \(bid)")
+            if bid == "10" {
+                let shot = XCTAttachment(screenshot: app.screenshot())
+                shot.name = "Two-digit bid stays on one line"
+                shot.lifetime = .keepAlways
+                add(shot)
+            }
+        }
+    }
+
+    private func tapAlert(_ title: String, app: XCUIApplication) {
+        let button = app.alerts.buttons[title]
+        var previousFrame: CGRect?
+        expectation(for: NSPredicate { _, _ in
+            guard button.exists, button.isHittable else { return false }
+            let frame = button.frame
+            defer { previousFrame = frame }
+            return previousFrame == frame
+        }, evaluatedWith: button)
+        waitForExpectations(timeout: 4)
+        button.tap()
+        expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: button)
+        waitForExpectations(timeout: 4)
+    }
+}
+
+final class TarneebLiveTableUITests: XCTestCase {
+    override func setUpWithError() throws {
+        continueAfterFailure = false
+    }
+
+    private func launchLiveTable(reducedMotion: Bool = false, fixture: String = "1") -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchEnvironment["TARNEEB_LIVE_FIXTURE"] = fixture
+        app.launchEnvironment["TARNEEB_REDUCE_MOTION"] = reducedMotion ? "1" : "0"
+        app.launch()
+        XCTAssertTrue(app.otherElements["tarneeb-live-table"].waitForExistence(timeout: 5))
+        return app
+    }
+
+    func testReadableHandSelectionAndOneCompleteTrick() {
+        verifyOneTrick(reducedMotion: false)
+    }
+
+    func testContractMilestoneAcknowledgesSeventhTrickWithoutStoppingPlay() {
+        verifyContractMilestone(reducedMotion: false)
+    }
+
+    func testReducedMotionContractMilestonePreservesProgress() {
+        verifyContractMilestone(reducedMotion: true)
+    }
+
+    private func verifyContractMilestone(reducedMotion: Bool) {
+        let app = launchLiveTable(reducedMotion: reducedMotion, fixture: "contract-six")
+        let progress = app.staticTexts["tarneeb-contract-progress"]
+        XCTAssertEqual(progress.label, "One more trick")
+        XCTAssertTrue((progress.value as? String ?? "").contains("6 of 7"))
+        XCTAssertTrue(app.frame.contains(progress.frame))
+        XCTAssertFalse(progress.frame.intersects(app.staticTexts["tarneeb-live-contract-bid"].frame))
+        let before = XCTAttachment(screenshot: app.screenshot())
+        before.name = "One trick from contract"
+        before.lifetime = .keepAlways
+        add(before)
+        app.buttons["tarneeb-live-card-spades-8"].doubleTap()
+        expectation(for: NSPredicate(format: "label == %@", "Contract secured"), evaluatedWith: progress)
+        waitForExpectations(timeout: 12)
+        XCTAssertTrue((progress.value as? String ?? "").contains("7 of 7"))
+        expectation(for: NSPredicate(format: "label == %@", "Your turn"), evaluatedWith: app.staticTexts["tarneeb-live-status"])
+        waitForExpectations(timeout: 8)
+        XCTAssertEqual(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "tarneeb-live-card-")).count, 6)
+        let after = XCTAttachment(screenshot: app.screenshot())
+        after.name = "Contract secured and play continues"
+        after.lifetime = .keepAlways
+        add(after)
+        app.buttons["tarneeb-live-card-spades-9"].doubleTap()
+        expectation(for: NSPredicate(format: "value CONTAINS %@", "8 of 7"), evaluatedWith: progress)
+        waitForExpectations(timeout: 12)
+        XCTAssertEqual(progress.label, "Contract secured")
+    }
+
+    func testLastCardPlaysAutomaticallyAfterPreviousTrickCollection() {
+        let app = launchLiveTable(fixture: "last-two")
+        let cards = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "tarneeb-live-card-"))
+        XCTAssertEqual(cards.count, 2)
+        app.buttons["tarneeb-live-card-spades-K"].doubleTap()
+        XCTAssertTrue(app.staticTexts["North South score 16"].waitForExistence(timeout: 25))
+    }
+
+    func testLastCardPlaysAutomaticallyWithReducedMotionAndResume() {
+        let app = launchLiveTable(reducedMotion: true, fixture: "last-one")
+        XCUIDevice.shared.press(.home)
+        app.activate()
+        XCTAssertTrue(app.staticTexts["North South score 16"].waitForExistence(timeout: 20))
+    }
+
+    func testReducedMotionCompletesTheSameTrick() {
+        verifyOneTrick(reducedMotion: true)
+    }
+
+    private func verifyOneTrick(reducedMotion: Bool) {
+        let app = launchLiveTable(reducedMotion: reducedMotion)
+        let score = app.staticTexts["North South score 0"]
+        XCTAssertTrue(score.exists)
+        XCTAssertTrue(app.staticTexts["East West score 0"].exists)
+        XCTAssertTrue(app.frame.contains(score.frame))
+        XCTAssertFalse(score.frame.intersects(app.buttons["tarneeb-last-trick"].frame))
+        let cards = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "tarneeb-live-card-"))
+        XCTAssertEqual(cards.count, 13)
+        let ownTricks = app.staticTexts["tarneeb-live-south-tricks"]
+        XCTAssertTrue(ownTricks.exists)
+        XCTAssertEqual(ownTricks.value as? String, "0")
+        XCTAssertTrue(app.frame.contains(ownTricks.frame))
+        for card in cards.allElementsBoundByIndex {
+            XCTAssertTrue(app.frame.contains(card.frame))
+            XCTAssertGreaterThanOrEqual(card.frame.width, 44)
+            XCTAssertGreaterThanOrEqual(card.frame.height, 44)
+            XCTAssertTrue(card.isHittable)
+        }
+        let button = app.buttons["tarneeb-play-card"]
+        XCTAssertFalse(button.exists)
+        let first = app.buttons["tarneeb-live-card-spades-2"]
+        let originalY = first.frame.minY
+        first.tap()
+        expectation(for: NSPredicate(format: "value == %@", "Selected"), evaluatedWith: first)
+        waitForExpectations(timeout: 3)
+        XCTAssertEqual(cards.count, 13)
+        XCTAssertLessThan(first.frame.minY, originalY)
+        XCTAssertEqual(first.value as? String, "Selected")
+        let lifted = NSPredicate { _, _ in first.frame.minY <= originalY - 11 }
+        expectation(for: lifted, evaluatedWith: first)
+        waitForExpectations(timeout: 3)
+        let selected = XCTAttachment(screenshot: app.screenshot())
+        selected.name = "Readable selected hand"
+        selected.lifetime = .keepAlways
+        add(selected)
+        first.doubleTap()
+        XCTAssertTrue(app.staticTexts["tarneeb-live-status"].waitForExistence(timeout: 8))
+        let completed = NSPredicate(format: "label == %@", "1 / 7 tricks")
+        expectation(for: completed, evaluatedWith: app.staticTexts["tarneeb-contract-progress"])
+        waitForExpectations(timeout: 12)
+        expectation(for: NSPredicate(format: "value == %@", "1"), evaluatedWith: ownTricks)
+        waitForExpectations(timeout: 5)
+        XCTAssertEqual(ownTricks.value as? String, "1")
+        XCTAssertFalse(ownTricks.frame.intersects(app.staticTexts["tarneeb-live-status"].frame))
+        XCTAssertEqual(cards.count, 12)
+        XCTAssertFalse(first.exists)
+        XCTAssertFalse(button.exists)
+        XCTAssertEqual(app.staticTexts["tarneeb-live-status"].label, "Your turn")
+        XCTAssertEqual(app.otherElements.matching(NSPredicate(format: "identifier BEGINSWITH %@", "tarneeb-live-played-")).count, 0)
+    }
+
+    func testOptionsConfirmationResumesAndResetReturnsToOpeningDeal() {
+        let app = launchLiveTable()
+        app.buttons["tarneeb-game-options"].tap()
+        app.buttons["New Game"].tap()
+        if app.buttons["Keep Playing"].exists {
+            tapSettledConfirmation("Keep Playing", in: app)
+        } else {
+            // iOS 26 presents this as a popover with tap-outside cancellation.
+            app.staticTexts["tarneeb-contract-progress"].tap()
+        }
+        let card = app.buttons["tarneeb-live-card-spades-2"]
+        expectation(for: NSPredicate(format: "enabled == true"), evaluatedWith: card)
+        waitForExpectations(timeout: 4)
+        card.tap()
+        expectation(for: NSPredicate(format: "value == %@", "Selected"), evaluatedWith: card)
+        waitForExpectations(timeout: 3)
+        XCTAssertFalse(app.buttons["tarneeb-play-card"].exists)
+        app.buttons["tarneeb-game-options"].tap()
+        app.buttons["New Game"].tap()
+        tapSettledConfirmation("Cancel Game", in: app)
+        XCTAssertTrue(app.buttons["tarneeb-deal-button"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.otherElements["tarneeb-live-table"].exists)
+    }
+
+    private func tapSettledConfirmation(_ title: String, in app: XCUIApplication) {
+        let button = app.buttons[title]
+        var previousFrame: CGRect?
+        // Older runtimes publish sheet button frames before their presentation finishes.
+        let settled = NSPredicate { _, _ in
+            guard button.exists, button.isHittable else { return false }
+            let frame = button.frame
+            defer { previousFrame = frame }
+            return previousFrame == frame
+        }
+        expectation(for: settled, evaluatedWith: button)
+        waitForExpectations(timeout: 4)
+        button.tap()
+        expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: button)
+        waitForExpectations(timeout: 4)
+    }
+
+    func testBackgroundingDuringPlayResumesWithoutDuplicatingCards() {
+        let app = launchLiveTable()
+        app.buttons["tarneeb-live-card-spades-2"].doubleTap()
+        XCUIDevice.shared.press(.home)
+        app.activate()
+        let completed = NSPredicate(format: "label == %@", "1 / 7 tricks")
+        expectation(for: completed, evaluatedWith: app.staticTexts["tarneeb-contract-progress"])
+        waitForExpectations(timeout: 12)
+        expectation(for: NSPredicate(format: "label == %@", "Your turn"), evaluatedWith: app.staticTexts["tarneeb-live-status"])
+        waitForExpectations(timeout: 5)
+        XCTAssertEqual(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "tarneeb-live-card-")).count, 12)
+        XCTAssertEqual(app.staticTexts["tarneeb-live-status"].label, "Your turn")
+    }
+
+    func testMixedSuitHandAndDragPlayRespectFollowingSuit() {
+        let app = launchLiveTable(fixture: "balanced")
+        let initial = XCTAttachment(screenshot: app.screenshot())
+        initial.name = "Mixed-suit live table"
+        initial.lifetime = .keepAlways
+        add(initial)
+        let draggedCard = app.buttons["tarneeb-live-card-spades-2"]
+        draggedCard.press(forDuration: 0.05, thenDragTo: app.otherElements["tarneeb-live-trick"])
+        expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: draggedCard)
+        waitForExpectations(timeout: 4)
+        let turn = NSPredicate(format: "label == %@", "Your turn")
+        expectation(for: turn, evaluatedWith: app.staticTexts["tarneeb-live-status"])
+        waitForExpectations(timeout: 15)
+        XCTAssertFalse(app.buttons["tarneeb-live-card-spades-2"].exists)
+        XCTAssertFalse(app.buttons["tarneeb-live-card-spades-6"].isEnabled)
+        XCTAssertTrue(app.buttons["tarneeb-live-card-diamonds-3"].isEnabled)
+        XCTAssertEqual(app.staticTexts["tarneeb-live-south-tricks"].value as? String, "0")
+        app.buttons["tarneeb-live-card-spades-6"].doubleTap()
+        XCTAssertTrue(app.buttons["tarneeb-live-card-spades-6"].exists)
+        XCTAssertEqual(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "tarneeb-live-card-")).count, 12)
+        XCTAssertEqual(app.staticTexts["tarneeb-live-status"].label, "Your turn")
+    }
+
+    func testQuickDragOutsideTableDoesNotPlayOrRemoveCard() {
+        let app = launchLiveTable()
+        let card = app.buttons["tarneeb-live-card-spades-2"]
+        card.press(forDuration: 0.05, thenDragTo: app.staticTexts["tarneeb-live-south-tricks"])
+        XCTAssertTrue(card.exists)
+        XCTAssertEqual(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "tarneeb-live-card-")).count, 13)
+        XCTAssertEqual(app.staticTexts["tarneeb-live-south-tricks"].value as? String, "0")
+        XCTAssertEqual(app.staticTexts["tarneeb-live-status"].label, "Your turn")
+        card.doubleTap()
+        expectation(for: NSPredicate(format: "value == %@", "1"), evaluatedWith: app.staticTexts["tarneeb-live-south-tricks"])
+        waitForExpectations(timeout: 12)
+    }
+}
+
 final class TarneebLaunchUITests: XCTestCase {
     override func setUpWithError() throws {
         continueAfterFailure = false
@@ -40,7 +785,8 @@ final class TarneebLaunchUITests: XCTestCase {
         XCTAssertTrue(screen.dealButton.isHittable)
         XCTAssertTrue(screen.newGameButton.exists)
         XCTAssertEqual(screen.newGameButton.label, "New Game")
-        XCTAssertTrue(screen.newGameButton.isHittable)
+        XCTAssertFalse(screen.newGameButton.isEnabled)
+        XCTAssertFalse(screen.gameScore.exists)
         XCTAssertGreaterThan(app.frame.height, app.frame.width)
 
         XCTAssertEqual(screen.visibleCards.count, 0)
@@ -246,8 +992,15 @@ final class TarneebLaunchUITests: XCTestCase {
         assertBidAreaShowsLegalValues(on: screen)
         XCTAssertTrue(screen.dealButton.exists)
         XCTAssertEqual(screen.dealButton.label, "Deal")
+        XCTAssertFalse(screen.dealButton.isEnabled)
         XCTAssertTrue(screen.newGameButton.exists)
         XCTAssertEqual(screen.newGameButton.label, "New Game")
+        XCTAssertTrue(screen.newGameButton.isEnabled)
+        XCTAssertTrue(screen.gameScore.exists)
+        try assertTokenValue(screen.gameScore, contains: "northSouth=0")
+        try assertTokenValue(screen.gameScore, contains: "eastWest=0")
+        try assertTokenValue(screen.gameScore, contains: "winningScore=31")
+        try assertTokenValue(screen.gameScore, contains: "winner=none")
         XCTAssertEqual(screen.dealerStationAreas.count, 1)
         XCTAssertEqual(screen.dealerStationAreas.first?.identifier, "tarneeb-seat-area-south")
         XCTAssertEqual(screen.dealerPills.count, 0)
@@ -676,7 +1429,7 @@ final class TarneebLaunchUITests: XCTestCase {
         XCTAssertFalse(screen.postBiddingSummary.exists)
     }
 
-    func testDealButtonReplacesCompletedDealWithAnotherCompletedDeal() throws {
+    func testDealButtonIsDisabledAfterOpeningDeal() throws {
         let app = launchApp()
         let screen = TarneebScreen(app: app)
 
@@ -684,22 +1437,20 @@ final class TarneebLaunchUITests: XCTestCase {
         let firstSouthHand = screen.visibleCardLabels
         XCTAssertEqual(firstSouthHand.count, 13)
 
-        screen.dealButton.tap()
-
-        XCTAssertTrue(screen.dealCompleteMessage.waitForExistence(timeout: 8))
         XCTAssertTrue(screen.dealButton.exists)
         XCTAssertEqual(screen.dealButton.label, "Deal")
+        XCTAssertFalse(screen.dealButton.isEnabled)
+        screen.dealButton.tap()
+
         XCTAssertEqual(screen.visibleCards.count, 13)
         XCTAssertEqual(screen.hiddenCardBacks.count, 39)
         XCTAssertTrue(screen.bidArea.exists)
         assertBidAreaShowsLegalValues(on: screen)
         XCTAssertFalse(screen.undealtDeckStack.exists)
-        try assertTokenValue(screen.southSeatArea, contains: "dealerSeat=east")
+        try assertTokenValue(screen.southSeatArea, contains: "dealerSeat=south")
         XCTAssertEqual(screen.dealerStationAreas.count, 1)
-        XCTAssertEqual(screen.dealerStationAreas.first?.identifier, "tarneeb-seat-area-east")
-        try assertTokenValue(screen.eastSeatArea, contains: "dealerSeat=east")
-        try assertTokenValue(screen.eastSeatArea, contains: "dealerPillVisible=false")
-        XCTAssertNotEqual(screen.visibleCardLabels, firstSouthHand)
+        XCTAssertEqual(screen.dealerStationAreas.first?.identifier, "tarneeb-seat-area-south")
+        XCTAssertEqual(screen.visibleCardLabels, firstSouthHand)
         XCTAssertFalse(screen.oldDealCardsButton.exists)
         XCTAssertFalse(screen.oldNewDealButton.exists)
     }
@@ -711,6 +1462,17 @@ final class TarneebLaunchUITests: XCTestCase {
         deal(on: screen)
 
         screen.newGameButton.tap()
+
+        XCTAssertTrue(screen.cancelGameAlert.waitForExistence(timeout: 2))
+        XCTAssertTrue(screen.keepPlayingButton.exists)
+        XCTAssertTrue(screen.cancelGameButton.exists)
+        screen.keepPlayingButton.tap()
+        XCTAssertTrue(screen.gameScore.exists)
+        XCTAssertFalse(screen.undealtDeckStack.exists)
+
+        screen.newGameButton.tap()
+        XCTAssertTrue(screen.cancelGameAlert.waitForExistence(timeout: 2))
+        screen.cancelGameButton.tap()
 
         XCTAssertTrue(screen.undealtDeckStack.waitForExistence(timeout: 5))
         XCTAssertEqual(screen.deckStackCards.count, 52)
@@ -725,6 +1487,9 @@ final class TarneebLaunchUITests: XCTestCase {
         XCTAssertTrue(screen.newGameButton.exists)
         XCTAssertEqual(screen.dealButton.label, "Deal")
         XCTAssertEqual(screen.newGameButton.label, "New Game")
+        XCTAssertTrue(screen.dealButton.isEnabled)
+        XCTAssertFalse(screen.newGameButton.isEnabled)
+        XCTAssertFalse(screen.gameScore.exists)
         XCTAssertEqual(screen.dealerStationAreas.count, 1)
         XCTAssertEqual(screen.dealerStationAreas.first?.identifier, "tarneeb-seat-area-south")
         XCTAssertEqual(screen.dealerPills.count, 1)
@@ -736,7 +1501,7 @@ final class TarneebLaunchUITests: XCTestCase {
         assertInitialStationsAreRoundedSquares(on: screen)
     }
 
-    func testDealAndReplacementDealRemainResponsive() throws {
+    func testOpeningDealLeavesOnlyNewGameLive() throws {
         let app = launchApp()
         let screen = TarneebScreen(app: app)
 
@@ -744,14 +1509,9 @@ final class TarneebLaunchUITests: XCTestCase {
         screen.dealButton.tap()
 
         XCTAssertTrue(screen.dealCompleteMessage.waitForExistence(timeout: 8))
-        XCTAssertTrue(screen.dealButton.isHittable)
-        XCTAssertTrue(screen.newGameButton.isHittable)
-
-        screen.dealButton.tap()
-
-        XCTAssertTrue(screen.dealCompleteMessage.waitForExistence(timeout: 8))
-        XCTAssertTrue(screen.dealButton.isHittable)
-        XCTAssertTrue(screen.newGameButton.isHittable)
+        XCTAssertFalse(screen.dealButton.isEnabled)
+        XCTAssertTrue(screen.newGameButton.isEnabled)
+        XCTAssertTrue(screen.gameScore.exists)
         XCTAssertEqual(screen.visibleCards.count, 13)
         XCTAssertEqual(screen.hiddenCardBacks.count, 39)
         XCTAssertTrue(screen.bidArea.exists)
@@ -1358,6 +2118,30 @@ private struct TarneebScreen {
 
     var newGameButton: XCUIElement {
         app.buttons.matching(identifier: "tarneeb-new-game-button").firstMatch
+    }
+
+    var gameScore: XCUIElement {
+        element(identifier: "tarneeb-game-score")
+    }
+
+    var roundScoreMessage: XCUIElement {
+        element(identifier: "tarneeb-round-score-message")
+    }
+
+    var gameWinnerMessage: XCUIElement {
+        element(identifier: "tarneeb-game-winner-message")
+    }
+
+    var cancelGameAlert: XCUIElement {
+        app.alerts["Cancel current game?"]
+    }
+
+    var keepPlayingButton: XCUIElement {
+        cancelGameAlert.buttons["Keep Playing"]
+    }
+
+    var cancelGameButton: XCUIElement {
+        cancelGameAlert.buttons["Cancel Game"]
     }
 
     var oldDealCardsButton: XCUIElement {

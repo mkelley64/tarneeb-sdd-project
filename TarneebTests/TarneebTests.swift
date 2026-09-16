@@ -1,7 +1,615 @@
 import Foundation
+import AVFoundation
+import ImageIO
 import XCTest
 
 final class TarneebTests: XCTestCase {
+    func testContractProgressMilestonesRespectDeclaringTeamAndRemainingTricks() throws {
+        for seat in Seat.allCases {
+            let summary = PostBiddingSummary(highBidderSeat: seat, bidValue: .seven, tarneebSuit: .spades)
+            let teammate = Seat.allCases.first { $0 != seat && Team.forSeat($0) == Team.forSeat(seat) }!
+            let opponent = Seat.allCases.first { Team.forSeat($0) != Team.forSeat(seat) }!
+            for (wins, losses, expected) in [(0, 0, ContractProgressPresentation.Milestone.building),
+                                           (6, 0, .oneAway), (7, 0, .secured), (8, 0, .secured),
+                                           (6, 7, .missed), (2, 7, .missed)] {
+                let tricks = (0..<(wins + losses)).map { index in
+                    CompletedTrick(leaderSeat: seat, winnerSeat: index < wins ? teammate : opponent, ledSuit: .spades, playedCards: [])
+                }
+                let progress = try XCTUnwrap(ContractProgressPresentation(summary: summary, trick: TrickPlayState(declarerSeat: seat, tarneebSuit: .spades, completedTricks: tricks)))
+                XCTAssertEqual(progress.won, wins)
+                XCTAssertEqual(progress.remaining, 13 - wins - losses)
+                XCTAssertEqual(progress.milestone, expected)
+                XCTAssertTrue(progress.visibleLabel.contains("\(wins) / 7"))
+                XCTAssertEqual(progress.fraction, min(1, Double(wins) / 7), accuracy: 0.001)
+                XCTAssertTrue(progress.accessibilityValue.contains(summary.teamLabel))
+            }
+        }
+        XCTAssertNil(ContractProgressPresentation(summary: nil, trick: nil))
+        XCTAssertNil(ContractProgressPresentation(summary: PostBiddingSummary(highBidderSeat: .south, bidValue: .pass, tarneebSuit: .spades), trick: TrickPlayState(declarerSeat: .south, tarneebSuit: .spades)))
+    }
+
+    func testPendingWinningTrickSecuresContractWithoutDoubleCountingOnCollection() throws {
+        for bid in [BidValue.seven, .thirteen] {
+            let target = try XCTUnwrap(bid.numericValue)
+            let summary = PostBiddingSummary(highBidderSeat: .south, bidValue: bid, tarneebSuit: .spades)
+            let winner = CompletedTrick(leaderSeat: .south, winnerSeat: .south, ledSuit: .spades, playedCards: [])
+            let tricks = Array(repeating: winner, count: target - 1)
+            let before = try XCTUnwrap(ContractProgressPresentation(summary: summary, trick: TrickPlayState(declarerSeat: .south, tarneebSuit: .spades, completedTricks: tricks)))
+            let pending = try XCTUnwrap(ContractProgressPresentation(summary: summary, trick: TrickPlayState(declarerSeat: .south, tarneebSuit: .spades, pendingCompletedTrick: winner, completedTricks: tricks)))
+            let collected = try XCTUnwrap(ContractProgressPresentation(summary: summary, trick: TrickPlayState(declarerSeat: .south, tarneebSuit: .spades, completedTricks: tricks + [winner])))
+            XCTAssertEqual(before.milestone, .oneAway)
+            XCTAssertEqual(pending.milestone, .secured)
+            XCTAssertEqual(pending, collected)
+        }
+    }
+
+    func testCircularFeltFitsAvailableSpaceAndSharesTrickCenter() {
+        for size in [CGSize(width: 351, height: 232), CGSize(width: 369, height: 500), CGSize(width: 560, height: 300)] {
+            let felt = CircularTableGeometry(size: size)
+            XCTAssertEqual(felt.diameter, min(size.width - 36, size.height - 40))
+            let circle = CGRect(x: felt.center.x - felt.diameter / 2, y: felt.center.y - felt.diameter / 2, width: felt.diameter, height: felt.diameter)
+            XCTAssertTrue(CGRect(origin: .zero, size: size).contains(circle))
+            let slots = LiveTrickGeometry(size: size)
+            XCTAssertEqual((slots.slot(.east).x + slots.slot(.west).x) / 2, felt.center.x)
+            XCTAssertEqual((slots.slot(.north).y + slots.slot(.south).y) / 2, felt.center.y)
+        }
+        XCTAssertEqual(CircularTableGeometry(size: .zero).diameter, 0)
+    }
+
+    func testTableFinishRemainsSubtleAndUsesSpacedStaticWeave() {
+        XCTAssertGreaterThan(TableFinishToken.weaveSpacing, TableFinishToken.weaveLength * 2)
+        XCTAssertGreaterThan(TableFinishToken.weaveLength, 0)
+        XCTAssertLessThanOrEqual(TableFinishToken.weaveOpacity, 0.05)
+        XCTAssertGreaterThan(TableFinishToken.rimInset, TableFinishToken.hairline)
+        XCTAssertLessThanOrEqual(TableFinishToken.rimOpacity, 0.2)
+        for opacity in [TableFinishToken.fillOpacity, TableFinishToken.edgeOpacity,
+                        TableFinishToken.rimOpacity, TableFinishToken.dividerOpacity] {
+            XCTAssertTrue((0...1).contains(opacity))
+        }
+    }
+
+    func testTableCommandFinishFitsExistingTouchTargets() {
+        XCTAssertLessThanOrEqual(TableCommandToken.cornerRadius, 8)
+        XCTAssertGreaterThan(TableCommandToken.rimInset, 0)
+        XCTAssertLessThan(TableCommandToken.rimInset, TableCommandToken.cornerRadius)
+        XCTAssertGreaterThan(TableCommandToken.depth, 0)
+        XCTAssertLessThan(TableCommandToken.depth, OpeningTableToken.controlHeight / 8)
+        XCTAssertGreaterThanOrEqual(OpeningTableToken.controlHeight, 44)
+        XCTAssertGreaterThanOrEqual(RoundResultToken.commandHeight, 44)
+        XCTAssertLessThanOrEqual(TableCommandToken.pressDuration, 0.2)
+        XCTAssertTrue((0...1).contains(TableCommandToken.rimOpacity))
+        XCTAssertTrue((0...1).contains(TableCommandToken.disabledOpacity))
+    }
+
+    @MainActor
+    func testCardPlayersUseQuickerPlaybackWithoutChangingChimesOrVolume() throws {
+        for event in TableFeedback.Event.allCases {
+            for index in 0..<PaperSoundVariation.count {
+                let player = try TableFeedback.makePlayer(event, variation: PaperSoundVariation(index: index), bundle: Bundle(for: TarneebTests.self))
+                XCTAssertEqual(player.volume, event.volume)
+                if event.recordingPrefix != nil {
+                    XCTAssertTrue(player.enableRate)
+                    XCTAssertEqual(player.rate, 1.2, accuracy: 0.001)
+                    XCTAssertLessThan(player.duration / Double(player.rate), event == .collect ? 0.60 : 0.20)
+                } else {
+                    XCTAssertFalse(player.enableRate)
+                    XCTAssertEqual(player.rate, 1)
+                }
+            }
+        }
+    }
+
+    func testQuickerCardTimingRetainsReadableWinnerAndReducedMotion() {
+        XCTAssertEqual(LiveTableToken.flightDuration, 0.40)
+        XCTAssertEqual(LiveTableToken.landingPause, 0.10)
+        XCTAssertEqual(LiveTableToken.winnerHold, 0.85)
+        XCTAssertEqual(LiveTableToken.collectionDuration, 0.44)
+        XCTAssertEqual(LiveTableToken.reducedMotionDuration, 0.12)
+        XCTAssertGreaterThan(LiveTableToken.winnerHold, LiveTableToken.collectionDuration)
+        let revealDuration = 12 * GameAnimationToken.dealSouthRevealFlipStagger.seconds + GameAnimationToken.dealSouthRevealFlipDuration.seconds
+        XCTAssertEqual(revealDuration, GameAnimationToken.dealSouthRevealTotalDuration.seconds, accuracy: 0.001)
+    }
+
+    @MainActor
+    func testBundledCardRecordingsDecodeAndVaryWithoutClipping() throws {
+        let bundle = Bundle(for: TarneebTests.self)
+        for event in [TableFeedback.Event.select, .land, .collect] {
+            var variants = Set<Data>()
+            for index in 0..<PaperSoundVariation.count {
+                let variation = PaperSoundVariation(index: index)
+                let url = try XCTUnwrap(TableFeedback.recordingURL(event, variation: variation, bundle: bundle))
+                let data = TableFeedback.soundData(event, variation: variation, bundle: bundle)
+                XCTAssertEqual(data, try Data(contentsOf: url), "Must use bundled foley, not synthesized fallback")
+                variants.insert(data)
+                let player = try AVAudioPlayer(data: data)
+                XCTAssertGreaterThan(player.duration, 0.08)
+                XCTAssertLessThan(player.duration, event == .collect ? 0.75 : 0.25)
+                let file = try AVAudioFile(forReading: url)
+                let buffer = try XCTUnwrap(AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: AVAudioFrameCount(file.length)))
+                try file.read(into: buffer)
+                let channel = try XCTUnwrap(buffer.floatChannelData?[0])
+                let values = Array(UnsafeBufferPointer(start: channel, count: Int(buffer.frameLength)))
+                let peak = values.map { abs($0) }.max() ?? 0
+                XCTAssertGreaterThan(peak, 0.1)
+                XCTAssertLessThanOrEqual(peak, 0.61)
+                XCTAssertLessThan(abs(values.first ?? 1), 0.001)
+                XCTAssertLessThan(abs(values.last ?? 1), 0.001)
+            }
+            XCTAssertEqual(variants.count, PaperSoundVariation.count)
+            XCTAssertGreaterThan(event.volume, 0)
+            XCTAssertLessThan(event.volume, 1)
+        }
+    }
+
+    @MainActor
+    func testMissingCardRecordingsFallBackAndResultChimesStayUnchanged() {
+        let withoutRecordings = Bundle(for: NSObject.self)
+        let variation = PaperSoundVariation(index: 0)
+        for event in TableFeedback.Event.allCases {
+            XCTAssertNil(TableFeedback.recordingURL(event, variation: variation, bundle: withoutRecordings))
+            XCTAssertEqual(TableFeedback.soundData(event, variation: variation, bundle: withoutRecordings),
+                           TableFeedback.synthesizedSoundData(event, variation: variation))
+        }
+        for event in [TableFeedback.Event.roundWin, .roundLoss, .matchWin] {
+            XCTAssertNil(TableFeedback.recordingURL(event, variation: variation, bundle: Bundle(for: TarneebTests.self)))
+            XCTAssertEqual(TableFeedback.soundData(event, variation: variation, bundle: Bundle(for: TarneebTests.self)),
+                           TableFeedback.synthesizedSoundData(event, variation: variation))
+            XCTAssertEqual(event.volume, 1)
+        }
+    }
+
+    @MainActor
+    func testGeneratedPaperSoundsHaveDistinctValidSamplesAndStableResultChimes() {
+        for event in TableFeedback.Event.allCases {
+            let samples = (0..<3).map { TableFeedback.synthesizedSoundData(event, variation: PaperSoundVariation(index: $0)) }
+            for data in samples {
+                XCTAssertEqual(String(data: data.prefix(4), encoding: .utf8), "RIFF")
+                XCTAssertEqual(String(data: data[8..<12], encoding: .utf8), "WAVE")
+                XCTAssertEqual(data.count, 44 + Int(event.duration * 22_050) * 2)
+                XCTAssertTrue(data.dropFirst(44).contains { $0 != 0 })
+            }
+            switch event {
+            case .select, .land, .collect: XCTAssertEqual(Set(samples).count, 3)
+            case .roundWin, .roundLoss, .matchWin: XCTAssertEqual(Set(samples).count, 1)
+            }
+        }
+    }
+
+    func testPublicHistoryPromotesWinnersAndAvoidsKnownVoidOpponents() {
+        let king = Card(suit: .clubs, rank: .king)
+        let discard = Card(suit: .diamonds, rank: .two)
+        let options = [king, discard]
+        let safeHistory = CompletedTrick(leaderSeat: .south, winnerSeat: .south, ledSuit: .clubs, playedCards: [
+            PlayedCard(seat: .south, card: Card(suit: .clubs, rank: .ace)),
+            PlayedCard(seat: .east, card: Card(suit: .clubs, rank: .two)),
+            PlayedCard(seat: .north, card: Card(suit: .clubs, rank: .three)),
+            PlayedCard(seat: .west, card: Card(suit: .clubs, rank: .four))
+        ])
+        XCTAssertEqual(AutomatedCardSelector.select(from: options, for: .east, currentTrick: [], tarneebSuit: .spades, ownHand: options), discard)
+        XCTAssertEqual(AutomatedCardSelector.select(from: options, for: .east, currentTrick: [], tarneebSuit: .spades, ownHand: options, completedTricks: [safeHistory]), king)
+        let voidHistory = CompletedTrick(leaderSeat: .south, winnerSeat: .north, ledSuit: .clubs, playedCards: [
+            safeHistory.playedCards[0], safeHistory.playedCards[1],
+            PlayedCard(seat: .north, card: Card(suit: .spades, rank: .two)), safeHistory.playedCards[3]
+        ])
+        XCTAssertEqual(AutomatedCardSelector.select(from: options, for: .east, currentTrick: [], tarneebSuit: .spades, ownHand: options, completedTricks: [voidHistory]), discard)
+        let allRemainingTrump = Rank.allCases.filter { $0 != .two }.map { Card(suit: .spades, rank: $0) }
+        XCTAssertEqual(AutomatedCardSelector.select(from: options, for: .east, currentTrick: [], tarneebSuit: .spades, ownHand: options + allRemainingTrump, completedTricks: [voidHistory]), king)
+    }
+
+    func testThirdSeatStrengthensVulnerablePartnerButKeepsSafePartnerWinner() {
+        let ace = Card(suit: .clubs, rank: .ace)
+        let low = Card(suit: .clubs, rank: .two)
+        let options = [ace, low]
+        let queenLead = [PlayedCard(seat: .south, card: Card(suit: .clubs, rank: .queen)), PlayedCard(seat: .east, card: Card(suit: .clubs, rank: .three))]
+        XCTAssertEqual(AutomatedCardSelector.select(from: options, for: .north, currentTrick: queenLead, tarneebSuit: .spades, ownHand: options), ace)
+        let kingLead = [PlayedCard(seat: .south, card: Card(suit: .clubs, rank: .king)), queenLead[1]]
+        XCTAssertEqual(AutomatedCardSelector.select(from: options, for: .north, currentTrick: kingLead, tarneebSuit: .spades, ownHand: options), low)
+    }
+
+    func testOpponentPacingAndPaperVariationsAreBounded() {
+        let low = Card(suit: .clubs, rank: .two)
+        let high = Card(suit: .clubs, rank: .ace)
+        let trick = [PlayedCard(seat: .south, card: Card(suit: .clubs, rank: .king))]
+        let forced = OpponentPacing.delay(legalCards: [low], selected: low, seat: .east, trick: trick, trump: .spades)
+        let discard = OpponentPacing.delay(legalCards: [low, high], selected: low, seat: .east, trick: trick, trump: .spades)
+        let win = OpponentPacing.delay(legalCards: [low, high], selected: high, seat: .east, trick: trick, trump: .spades)
+        XCTAssertGreaterThan(forced, 0)
+        XCTAssertLessThan(forced, discard)
+        XCTAssertLessThan(discard, win)
+        XCTAssertLessThanOrEqual(win, 0.6)
+        XCTAssertEqual(Set((0..<3).map { PaperSoundVariation(index: $0).seed }).count, 3)
+        for index in -6...6 {
+            let variation = PaperSoundVariation(index: index)
+            XCTAssertTrue((0..<3).contains(variation.index))
+            XCTAssertTrue((0.6...0.7).contains(variation.smoothing))
+            XCTAssertEqual(variation.seed, PaperSoundVariation(index: index + 3).seed)
+        }
+    }
+
+    func testSavedMatchRoundTripsCommandsAndPendingFinalCollectionExactlyOnce() throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).appendingPathComponent("match.json")
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        let store = MatchStore(url: url)
+        XCTAssertNil(try store.load())
+        let game = TarneebPresentationState(
+            dealService: DealService(shuffler: CardShuffler { $0 }, handLogger: HandLogger { _ in }),
+            dealerSelector: EnvironmentDealerSelector(environment: ["TARNEEB_INITIAL_DEALER": "west"]),
+            biddingService: BiddingService(bidGenerator: BidGenerator { _ in .pass })
+        )
+        game.enablePersistence(store)
+        func verifyRestore() throws {
+            XCTAssertEqual(try store.load(), game.snapshot)
+            let restored = TarneebPresentationState()
+            restored.enablePersistence(store)
+            XCTAssertNil(restored.saveNotice)
+            XCTAssertEqual(restored.snapshot, game.snapshot)
+        }
+        game.deal()
+        try verifyRestore()
+        game.submitSouthBid(.seven)
+        for _ in 0..<3 { game.resolveNextSimulatedBid(); try verifyRestore() }
+        XCTAssertNil(game.gameState.postBiddingSummary)
+        game.submitSouthTarneebSuit(.spades)
+        try verifyRestore()
+        game.startTrickPlayIfReady()
+        for round in 0..<13 {
+            for _ in 0..<4 {
+                let state = game.gameState
+                if state.currentTrickTurnSeat == .south {
+                    game.playSouthCard(try XCTUnwrap(TrickPlayRules.legalCards(for: .south, in: state).first))
+                } else { game.resolveNextSimulatedTrickPlay() }
+                try verifyRestore()
+            }
+            if round < 12 { game.clearCompletedTrickIfNeeded(); try verifyRestore() }
+        }
+        XCTAssertEqual(game.completedRoundCount, 0)
+        let resumed = TarneebPresentationState()
+        resumed.enablePersistence(store)
+        resumed.clearCompletedTrickIfNeeded()
+        XCTAssertEqual(resumed.completedRoundCount, 1)
+        XCTAssertEqual(resumed.gameScore.northSouth, 16)
+        resumed.markRoundAnnounced()
+        let scored = TarneebPresentationState()
+        scored.enablePersistence(store)
+        scored.clearCompletedTrickIfNeeded()
+        XCTAssertEqual(scored.snapshot, resumed.snapshot)
+        XCTAssertEqual(scored.announcedRound, 1)
+        scored.startNextRound()
+        XCTAssertEqual(scored.gameScore.northSouth, 16)
+        XCTAssertEqual(scored.gameState.dealerSeat, .south)
+        XCTAssertNotNil(try store.load())
+        scored.newGame()
+        let reset = TarneebPresentationState()
+        reset.enablePersistence(store)
+        XCTAssertEqual(reset.gameState.phase, .notStarted)
+        XCTAssertEqual(reset.gameScore, GameScore())
+        XCTAssertNil(reset.announcedRound)
+    }
+
+    func testSavedMatchRejectsCorruptionVersionsIllegalPlayAndStorageFailures() throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).appendingPathComponent("match.json")
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        let store = MatchStore(url: url)
+        let initial = TarneebPresentationState(dealerSelector: EnvironmentDealerSelector(environment: ["TARNEEB_INITIAL_DEALER": "west"]))
+        try store.save(initial.snapshot)
+        var version = initial.snapshot
+        version.version = 99
+        try store.save(version)
+        XCTAssertThrowsError(try store.load())
+        let invalidScore = MatchSnapshot(game: initial.gameState, score: GameScore(northSouth: Int.min), lastRound: nil, completedRounds: 0, hasStarted: false, announcedRound: nil)
+        XCTAssertThrowsError(try invalidScore.validated())
+        try Data("not json".utf8).write(to: url)
+        let fallback = TarneebPresentationState()
+        fallback.enablePersistence(store)
+        XCTAssertNotNil(fallback.saveNotice)
+        XCTAssertEqual(fallback.gameState.phase, .notStarted)
+        let blockedStore = MatchStore(url: url.appendingPathComponent("unwritable.json"))
+        fallback.enablePersistence(blockedStore, restoring: false)
+        XCTAssertNotNil(fallback.saveNotice)
+
+        let dealt = try makeRoundRobinCompletedDeal()
+        let contract = try makeContractState(from: dealt, highBidderSeat: .south, bidValue: .seven, tarneebSuit: .hearts)
+        let valid = TrickPlayService().playSouthCard(Card(suit: .spades, rank: .six), in: contract.startingTrickPlayIfReady())
+        let wrongTurn = TrickPlayState(declarerSeat: .south, tarneebSuit: .hearts, currentTurnSeat: .west, currentTrick: try XCTUnwrap(valid.trickPlayState).currentTrick)
+        let invalidGame = try XCTUnwrap(GameState(phase: .trickPlay, players: valid.players, dealerSeat: valid.dealerSeat, deck: [], biddingState: valid.biddingState, postBiddingSummary: valid.postBiddingSummary, trickPlayState: wrongTurn))
+        let invalidSnapshot = MatchSnapshot(game: invalidGame, score: GameScore(), lastRound: nil, completedRounds: 0, hasStarted: true, announcedRound: nil)
+        XCTAssertThrowsError(try invalidSnapshot.validated())
+        let noTrump = BiddingState(bids: [.south: .resolved(.pass), .east: .resolved(.seven), .north: .resolved(.pass), .west: .resolved(.pass)], currentTurnSeat: nil, highestBidSeat: .east, highestBidValue: .seven, status: .complete)
+        let stalled = try XCTUnwrap(GameState(phase: .dealt, players: dealt.players, dealerSeat: dealt.dealerSeat, deck: [], biddingState: noTrump))
+        XCTAssertThrowsError(try MatchSnapshot(game: stalled, score: GameScore(), lastRound: nil, completedRounds: 0, hasStarted: true, announcedRound: nil).validated())
+    }
+
+    func testOpponentTacticalChoicesAndStableOrdering() {
+        func card(_ suit: Suit, _ rank: Rank) -> Card { Card(suit: suit, rank: rank) }
+        func play(_ seat: Seat, _ suit: Suit, _ rank: Rank) -> PlayedCard {
+            PlayedCard(seat: seat, card: card(suit, rank))
+        }
+        let cases: [(String, Seat, [PlayedCard], [Card], Card?)] = [
+            ("North preserves South's winner", .north,
+             [play(.south, .clubs, .king), play(.east, .clubs, .three)],
+             [card(.clubs, .ace), card(.clubs, .two)], card(.clubs, .two)),
+            ("West preserves East's winner", .west,
+             [play(.south, .clubs, .three), play(.east, .clubs, .nine), play(.north, .clubs, .two)],
+             [card(.clubs, .king), card(.clubs, .four)], card(.clubs, .four)),
+            ("Do not trump a partner", .north,
+             [play(.south, .clubs, .ace), play(.east, .clubs, .three)],
+             [card(.spades, .two), card(.diamonds, .nine)], card(.diamonds, .nine)),
+            ("Do not overtrump a partner", .west,
+             [play(.south, .clubs, .ace), play(.east, .spades, .seven), play(.north, .clubs, .two)],
+             [card(.spades, .eight), card(.spades, .two)], card(.spades, .two)),
+            ("Cheapest second-seat winner", .east, [play(.south, .clubs, .six)],
+             [card(.clubs, .queen), card(.clubs, .two), card(.clubs, .seven)], card(.clubs, .seven)),
+            ("Cheapest last-seat winner", .west,
+             [play(.south, .clubs, .nine), play(.east, .clubs, .two), play(.north, .clubs, .jack)],
+             [card(.clubs, .ace), card(.clubs, .three), card(.clubs, .queen)], card(.clubs, .queen)),
+            ("Following suit cannot beat a trump", .north,
+             [play(.south, .clubs, .king), play(.east, .spades, .five)],
+             [card(.clubs, .ace), card(.clubs, .two)], card(.clubs, .two)),
+            ("Trump an opponent cheaply when void", .east, [play(.south, .clubs, .king)],
+             [card(.diamonds, .two), card(.spades, .queen), card(.spades, .three)], card(.spades, .three)),
+            ("Overtrump an opponent cheaply", .west,
+             [play(.south, .clubs, .king), play(.east, .clubs, .two), play(.north, .spades, .five)],
+             [card(.diamonds, .two), card(.spades, .three), card(.spades, .queen), card(.spades, .six)], card(.spades, .six)),
+            ("Cannot overtrump: save remaining trump", .west,
+             [play(.south, .clubs, .king), play(.east, .clubs, .two), play(.north, .spades, .ace)],
+             [card(.spades, .two), card(.diamonds, .seven)], card(.diamonds, .seven)),
+            ("Cannot overtrump with only trumps left", .west,
+             [play(.south, .clubs, .king), play(.east, .clubs, .two), play(.north, .spades, .ace)],
+             [card(.spades, .king), card(.spades, .two)], card(.spades, .two)),
+            ("Off-suit ace is not a winner", .east, [play(.south, .clubs, .king)],
+             [card(.diamonds, .ace), card(.diamonds, .two)], card(.diamonds, .two)),
+            ("Trump-led trick still uses cheapest winner", .east, [play(.south, .spades, .six)],
+             [card(.spades, .ace), card(.spades, .two), card(.spades, .seven)], card(.spades, .seven)),
+            ("Lead policy stays conservative", .east, [],
+             [card(.spades, .two), card(.clubs, .nine), card(.diamonds, .two)], card(.diamonds, .two)),
+            ("Forced losing card", .east, [play(.south, .clubs, .ace)],
+             [card(.clubs, .king)], card(.clubs, .king)),
+            ("No legal moves", .east, [], [], nil)
+        ]
+        for (name, seat, trick, legal, expected) in cases {
+            for options in [legal, Array(legal.reversed())] {
+                XCTAssertEqual(AutomatedCardSelector.select(from: options, for: seat, currentTrick: trick, tarneebSuit: .spades), expected, name)
+            }
+        }
+        let tiedDiscards = [card(.diamonds, .two), card(.clubs, .two)]
+        XCTAssertEqual(
+            AutomatedCardSelector.select(from: tiedDiscards, for: .east, currentTrick: [], tarneebSuit: .spades),
+            AutomatedCardSelector.select(from: Array(tiedDiscards.reversed()), for: .east, currentTrick: [], tarneebSuit: .spades)
+        )
+    }
+
+    func testOpponentServiceFollowsSuitWinsEconomicallyAndCannotSeeHiddenHands() throws {
+        let dealt = try makeRoundRobinCompletedDeal()
+        let contract = try makeContractState(from: dealt, highBidderSeat: .south, bidValue: .seven, tarneebSuit: .hearts)
+        let service = TrickPlayService()
+        let aceLead = service.playSouthCard(Card(suit: .spades, rank: .ace), in: contract.startingTrickPlayIfReady())
+        XCTAssertTrue(try player(in: aceLead, seat: .east).hand.contains { $0.suit == .hearts })
+        XCTAssertEqual(
+            service.playSimulatedTurn(in: aceLead).trickPlayState?.playedCard(for: .east)?.card,
+            Card(suit: .spades, rank: .three)
+        )
+        let state = service.playSouthCard(Card(suit: .spades, rank: .six), in: contract.startingTrickPlayIfReady())
+        let result = service.playSimulatedTurn(in: state)
+        let expected = Card(suit: .spades, rank: .seven)
+        XCTAssertEqual(result.trickPlayState?.playedCard(for: .east)?.card, expected)
+        XCTAssertEqual(result.currentTrickTurnSeat, .north)
+        XCTAssertEqual(try player(in: result, seat: .east).hand.count, 12)
+        for seat in [Seat.south, .north, .west] {
+            XCTAssertEqual(try player(in: state, seat: seat), try player(in: result, seat: seat))
+        }
+
+        var swappedPlayers = state.players
+        let north = try XCTUnwrap(swappedPlayers.firstIndex { $0.seat == .north })
+        let west = try XCTUnwrap(swappedPlayers.firstIndex { $0.seat == .west })
+        let northHand = swappedPlayers[north].hand
+        swappedPlayers[north].hand = swappedPlayers[west].hand
+        swappedPlayers[west].hand = northHand
+        let swapped = try XCTUnwrap(GameState(
+            phase: state.phase, players: swappedPlayers, dealerSeat: state.dealerSeat, deck: state.deck,
+            biddingState: state.biddingState, postBiddingSummary: state.postBiddingSummary, trickPlayState: state.trickPlayState
+        ))
+        XCTAssertEqual(service.playSimulatedTurn(in: swapped).trickPlayState?.playedCard(for: .east)?.card, expected)
+    }
+
+    func testOpponentServiceLeavesHumanAndCollectionBoundariesUntouched() throws {
+        let service = TrickPlayService()
+        let initial = GameState.initial(dealerSeat: .south)
+        XCTAssertEqual(service.playSimulatedTurn(in: initial), initial)
+        let dealt = try makeRoundRobinCompletedDeal()
+        XCTAssertEqual(service.playSimulatedTurn(in: dealt), dealt)
+        let contract = try makeContractState(from: dealt, highBidderSeat: .south, bidValue: .seven, tarneebSuit: .hearts)
+        var state = contract.startingTrickPlayIfReady()
+        XCTAssertEqual(service.playSimulatedTurn(in: state), state)
+        let card = try XCTUnwrap(service.legalCards(for: .south, in: state).first)
+        state = service.playSouthCard(card, in: state)
+        for _ in 0..<3 { state = service.playSimulatedTurn(in: state) }
+        XCTAssertTrue(state.isCurrentTrickComplete)
+        XCTAssertEqual(service.playSimulatedTurn(in: state), state)
+    }
+
+    func testTacticalOpponentsCompleteHandsForEveryDeclarerAndTrumpWithoutLosingCards() throws {
+        let service = TrickPlayService()
+        for declarer in Seat.allCases {
+            for trump in Suit.allCases {
+                let dealt = try makeRoundRobinCompletedDeal()
+                let contract = try makeContractState(from: dealt, highBidderSeat: declarer, bidValue: .seven, tarneebSuit: trump)
+                var state = contract.startingTrickPlayIfReady()
+                for _ in 0..<65 {
+                    let before = state
+                    if state.isCurrentTrickComplete {
+                        state = service.clearCompletedTrickIfNeeded(in: state)
+                    } else {
+                        let seat = try XCTUnwrap(state.currentTrickTurnSeat)
+                        let legal = service.legalCards(for: seat, in: state)
+                        if seat == .south {
+                            state = service.playSouthCard(try XCTUnwrap(legal.first), in: state)
+                        } else {
+                            state = service.playSimulatedTurn(in: state)
+                        }
+                        let played = try XCTUnwrap(state.trickPlayState?.playedCard(for: seat)?.card)
+                        XCTAssertTrue(legal.contains(played))
+                        XCTAssertEqual(state.players.flatMap(\.hand).count, before.players.flatMap(\.hand).count - 1)
+                    }
+                    XCTAssertNotEqual(state, before)
+                    let cards = state.players.flatMap(\.hand) + (state.trickPlayState?.playedCards.map(\.card) ?? [])
+                    XCTAssertEqual(cards.count, 52)
+                    XCTAssertEqual(Set(cards), Set(DeckFactory.makeCanonicalDeck()))
+                }
+                XCTAssertEqual(state.phase, .handComplete)
+                XCTAssertEqual(state.trickPlayState?.completedTrickCount, 13)
+                XCTAssertTrue(state.players.allSatisfy { $0.hand.isEmpty })
+                XCTAssertEqual(service.playSimulatedTurn(in: state), state)
+                let result = try XCTUnwrap(TarneebScoringService().scoreRound(in: state))
+                var score = GameScore()
+                score.apply(result)
+                let snapshot = MatchSnapshot(game: state, score: score, lastRound: result, completedRounds: 1, hasStarted: true, announcedRound: nil)
+                XCTAssertNoThrow(try snapshot.validated())
+                let corruptScore = MatchSnapshot(game: state, score: GameScore(), lastRound: result, completedRounds: 1, hasStarted: true, announcedRound: nil)
+                XCTAssertThrowsError(try corruptScore.validated())
+            }
+        }
+    }
+
+    func testRoundResultPresentationPreservesAllScoringOutcomesAndPartnerships() throws {
+        let service = TarneebScoringService()
+        for team in [Team.teamA, .teamB] {
+            for (bid, tricks) in [(7, 9), (8, 5), (7, 13), (7, 0), (13, 13), (13, 11)] {
+                let result = try XCTUnwrap(service.scoreRound(declaringTeam: team, bid: bid, declaringTricks: tricks))
+                let before = GameScore(northSouth: -12, eastWest: 4)
+                var after = before
+                after.apply(result)
+                let summary = RoundResultPresentation(result: result, score: after)
+                XCTAssertEqual(summary.contractMade, tricks >= bid)
+                XCTAssertEqual(summary.contractTitle, tricks >= bid ? "Contract made" : "Contract missed")
+                XCTAssertEqual(summary.playerSucceeded, (tricks >= bid) == (team == .teamA))
+                XCTAssertFalse(summary.detail.isEmpty)
+                for partnership in [Team.teamA, .teamB] {
+                    XCTAssertEqual(summary.previousScore(for: partnership), before.points(for: partnership))
+                    XCTAssertEqual(Int(summary.change(for: partnership)), result.scoreDelta(for: partnership))
+                }
+            }
+        }
+    }
+
+    func testRoundResultPresentationIdentifiesEitherMatchWinner() throws {
+        let result = try XCTUnwrap(TarneebScoringService().scoreRound(declaringTeam: .teamA, bid: 7, declaringTricks: 9))
+        XCTAssertEqual(RoundResultPresentation(result: result, score: GameScore(northSouth: 31)).title, "You and North win!")
+        XCTAssertEqual(RoundResultPresentation(result: result, score: GameScore(eastWest: 31)).title, "East-West win")
+    }
+
+    func testAutomaticSouthPlayRequiresLastCardAndItsLegalTurn() throws {
+        let presentation = TarneebPresentationState(
+            dealService: DealService(shuffler: CardShuffler { $0 }, handLogger: HandLogger { _ in }),
+            dealerSelector: EnvironmentDealerSelector(environment: ["TARNEEB_INITIAL_DEALER": "west"]),
+            biddingService: BiddingService(bidGenerator: BidGenerator { _ in .pass })
+        )
+        XCTAssertNil(TrickPlayRules.automaticSouthPlay(in: presentation.gameState))
+        presentation.deal()
+        presentation.submitSouthBid(.seven, selectedTarneebSuit: .spades)
+        for _ in 0..<3 { presentation.resolveNextSimulatedBid() }
+        presentation.startTrickPlayIfReady()
+        for _ in 0..<12 {
+            let state = presentation.gameState
+            XCTAssertNil(TrickPlayRules.automaticSouthPlay(in: state))
+            let card = try XCTUnwrap(state.players.first { $0.seat == .south }?.hand.first)
+            presentation.playSouthCard(card)
+            XCTAssertNil(TrickPlayRules.automaticSouthPlay(in: presentation.gameState))
+            for _ in 0..<3 { presentation.resolveNextSimulatedTrickPlay() }
+            XCTAssertNil(TrickPlayRules.automaticSouthPlay(in: presentation.gameState))
+            presentation.clearCompletedTrickIfNeeded()
+        }
+        let state = presentation.gameState
+        let card = try XCTUnwrap(TrickPlayRules.automaticSouthPlay(in: state))
+        XCTAssertEqual(state.players.first { $0.seat == .south }?.hand, [card])
+        presentation.playSouthCard(card)
+        let afterPlay = presentation.gameState
+        XCTAssertNil(TrickPlayRules.automaticSouthPlay(in: afterPlay))
+        presentation.playSouthCard(card)
+        XCTAssertEqual(presentation.gameState, afterPlay)
+        for _ in 0..<3 { presentation.resolveNextSimulatedTrickPlay() }
+        presentation.clearCompletedTrickIfNeeded()
+        XCTAssertEqual(presentation.gameState.phase, .handComplete)
+        XCTAssertNil(TrickPlayRules.automaticSouthPlay(in: presentation.gameState))
+    }
+
+    func testOpeningHandAndActionsFitSmallestPortraitHeight() {
+        let hand = LiveHandLayout(width: 351)
+        let fixedHeight = 36 + 24 + hand.height + OpeningTableToken.actionHeight + 16 + 8
+        XCTAssertLessThanOrEqual(fixedHeight + OpeningTableToken.minimumTableHeight, 647)
+        XCTAssertGreaterThanOrEqual(OpeningTableToken.controlHeight, 44)
+    }
+
+    func testLiveHandKeepsIndicesAndTouchTargetsExposedAtPhoneWidths() {
+        for width in [351.0, 369, 406, 560] {
+            let layout = LiveHandLayout(width: width)
+            XCTAssertEqual(layout.columns, 7)
+            XCTAssertGreaterThanOrEqual(layout.stride, LiveTableToken.minimumHitWidth)
+            for count in 1...13 {
+                for index in 0..<count {
+                    let center = layout.center(at: index, cardCount: count)
+                    XCTAssertGreaterThanOrEqual(center.x - LiveTableToken.cardWidth / 2, 0)
+                    XCTAssertLessThanOrEqual(center.x + LiveTableToken.cardWidth / 2, width)
+                    XCTAssertLessThanOrEqual(center.y + LiveTableToken.cardHeight / 2, layout.height)
+                    if index % layout.columns != 0 {
+                        let previous = layout.center(at: index - 1, cardCount: count)
+                        XCTAssertGreaterThanOrEqual(center.x - previous.x, 44)
+                    }
+                }
+            }
+            XCTAssertEqual(layout.height, 180)
+        }
+    }
+
+    func testLiveTrickSlotsDoNotOverlapAndRemainInsideTable() {
+        for size in [CGSize(width: 351, height: 232), CGSize(width: 369, height: 350), CGSize(width: 560, height: 500)] {
+            let geometry = LiveTrickGeometry(size: size)
+            let rects = Seat.allCases.map { seat in
+                let point = geometry.slot(seat)
+                return CGRect(x: point.x - 32, y: point.y - 45, width: 64, height: 90)
+            }
+            for (index, rect) in rects.enumerated() {
+                XCTAssertTrue(CGRect(origin: .zero, size: size).contains(rect))
+                for other in rects.dropFirst(index + 1) { XCTAssertFalse(rect.intersects(other)) }
+            }
+        }
+    }
+
+    func testLiveTrickPresentationCanHoldEachLandingAndCollectExactlyOnce() throws {
+        let presentation = TarneebPresentationState(
+            dealService: DealService(shuffler: CardShuffler { $0 }, handLogger: HandLogger { _ in }),
+            dealerSelector: EnvironmentDealerSelector(environment: ["TARNEEB_INITIAL_DEALER": "west"]),
+            biddingService: BiddingService(bidGenerator: BidGenerator { _ in .pass })
+        )
+        presentation.deal()
+        presentation.submitSouthBid(.seven, selectedTarneebSuit: .spades)
+        for _ in 0..<3 { presentation.resolveNextSimulatedBid() }
+        presentation.startTrickPlayIfReady()
+        var visible = presentation.gameState
+        let card = try XCTUnwrap(visible.players.first { $0.seat == .south }?.hand.first)
+        for seat in Seat.dealOrder {
+            if seat == .south { presentation.playSouthCard(card) }
+            else { presentation.resolveNextSimulatedTrickPlay() }
+            let next = presentation.gameState
+            let played = try XCTUnwrap(next.trickPlayState?.playedCard(for: seat))
+            var flight = LiveCardFlight(play: played)
+            XCTAssertFalse(flight.arrived)
+            XCTAssertTrue(visible.players.first { $0.seat == seat }!.hand.contains(played.card))
+            XCTAssertFalse(next.players.first { $0.seat == seat }!.hand.contains(played.card))
+            flight.arrived = true
+            visible = next
+            let allCards = visible.players.flatMap(\.hand) + (visible.trickPlayState?.playedCards.map(\.card) ?? [])
+            XCTAssertEqual(allCards.count, 52)
+            XCTAssertEqual(Set(allCards).count, 52)
+        }
+        XCTAssertEqual(visible.trickPlayState?.completedTricks.count, 0)
+        XCTAssertEqual(visible.trickPlayState?.pendingCompletedTrick?.winnerSeat, .south)
+        presentation.clearCompletedTrickIfNeeded()
+        XCTAssertEqual(presentation.gameState.trickPlayState?.completedTricks.count, 1)
+        XCTAssertEqual(presentation.gameState.currentTrickTurnSeat, .south)
+        presentation.clearCompletedTrickIfNeeded()
+        XCTAssertEqual(presentation.gameState.trickPlayState?.completedTricks.count, 1)
+    }
+
     func testUnitTestTargetRunsWithApplicationHost() {
         XCTAssertEqual(Bundle.main.bundleIdentifier, "com.mkelley.Tarneeb")
     }
@@ -338,6 +946,31 @@ final class TarneebTests: XCTestCase {
         XCTAssertEqual(GameControlLayoutToken.bottomControlSecondaryDealMaxWidth.numericValue, 160)
     }
 
+    func testGameScoreTokensAreAvailable() {
+        let requiredLayoutTokenKeys = [
+            "layout.gameScore.padding.horizontal",
+            "layout.gameScore.padding.vertical",
+            "layout.gameScore.team.gap",
+            "layout.gameScore.cornerRadius",
+            "layout.gameScore.minimumHeight"
+        ]
+        let tokens = GameScoreTokenSet()
+
+        XCTAssertEqual(Set(GameScoreLayoutToken.allCases.map(\.rawValue)), Set(requiredLayoutTokenKeys))
+        XCTAssertEqual(GameScoreLayoutToken.horizontalPadding.numericValue, 12)
+        XCTAssertEqual(GameScoreLayoutToken.verticalPadding.numericValue, 8)
+        XCTAssertEqual(GameScoreLayoutToken.teamGap.numericValue, 12)
+        XCTAssertEqual(GameScoreLayoutToken.cornerRadius.numericValue, 8)
+        XCTAssertEqual(GameScoreLayoutToken.minimumHeight.numericValue, 44)
+        XCTAssertEqual(tokens.background, .postBiddingSummaryBackground)
+        XCTAssertEqual(tokens.border, .postBiddingSummaryBorder)
+        XCTAssertEqual(tokens.teamText, .postBiddingSummaryLabelText)
+        XCTAssertEqual(tokens.scoreText, .postBiddingSummaryTeamText)
+        XCTAssertEqual(tokens.winnerText, .buttonNewGameBackground)
+        XCTAssertTrue(tokens.accessibilityValue.contains("minimumHeight=layout.gameScore.minimumHeight"))
+        XCTAssertFalse(tokens.accessibilityValue.contains("#"))
+    }
+
     func testTrickPlayTokensAreAvailable() {
         let requiredLayoutTokenKeys = [
             "layout.trickPlay.slot.width",
@@ -400,7 +1033,8 @@ final class TarneebTests: XCTestCase {
             "animation.bid.area.fadeOut.duration",
             "animation.trick.playedCard.flight.duration",
             "animation.trick.clear.pause.duration",
-            "animation.trick.clear.fade.duration"
+            "animation.trick.clear.fade.duration",
+            "animation.round.scoreDisplay.duration"
         ]
 
         XCTAssertEqual(Set(GameAnimationToken.allCases.map(\.rawValue)), Set(requiredAnimationTokenKeys))
@@ -421,12 +1055,13 @@ final class TarneebTests: XCTestCase {
         XCTAssertGreaterThan(GameAnimationToken.trickPlayedCardFlightDuration.nanoseconds, 0)
         XCTAssertGreaterThan(GameAnimationToken.trickClearPauseDuration.nanoseconds, 0)
         XCTAssertGreaterThan(GameAnimationToken.trickClearFadeDuration.nanoseconds, 0)
-        XCTAssertEqual(GameAnimationToken.dealStackFlightDuration.seconds, 0.36)
-        XCTAssertEqual(GameAnimationToken.dealStationExpansionDuration.seconds, 0.16)
-        XCTAssertEqual(GameAnimationToken.dealStepPauseDuration.seconds, 0.06)
-        XCTAssertEqual(GameAnimationToken.dealSouthRevealTotalDuration.seconds, 1.5)
-        XCTAssertEqual(GameAnimationToken.dealSouthRevealFlipDuration.seconds, 0.18)
-        XCTAssertEqual(GameAnimationToken.dealSouthRevealFlipStagger.seconds, 0.11)
+        XCTAssertGreaterThan(GameAnimationToken.roundScoreDisplayDuration.nanoseconds, 0)
+        XCTAssertEqual(GameAnimationToken.dealStackFlightDuration.seconds, 0.30)
+        XCTAssertEqual(GameAnimationToken.dealStationExpansionDuration.seconds, 0.14)
+        XCTAssertEqual(GameAnimationToken.dealStepPauseDuration.seconds, 0.05)
+        XCTAssertEqual(GameAnimationToken.dealSouthRevealTotalDuration.seconds, 1.23)
+        XCTAssertEqual(GameAnimationToken.dealSouthRevealFlipDuration.seconds, 0.15)
+        XCTAssertEqual(GameAnimationToken.dealSouthRevealFlipStagger.seconds, 0.09)
         XCTAssertEqual(GameAnimationToken.bidSimulatedTurnDelay.seconds, 1.0)
         XCTAssertEqual(GameAnimationToken.bidStationCuePulseDuration.seconds, 0.24)
         XCTAssertEqual(GameAnimationToken.bidValueFadeOutDuration.seconds, 0.5)
@@ -435,6 +1070,7 @@ final class TarneebTests: XCTestCase {
         XCTAssertEqual(GameAnimationToken.trickPlayedCardFlightDuration.seconds, 0.30)
         XCTAssertEqual(GameAnimationToken.trickClearPauseDuration.seconds, 0.75)
         XCTAssertEqual(GameAnimationToken.trickClearFadeDuration.seconds, 0.20)
+        XCTAssertEqual(GameAnimationToken.roundScoreDisplayDuration.seconds, 2.0)
         XCTAssertEqual(GameAnimationToken.bidValueFadeOutDuration.seconds + GameAnimationToken.bidValueFadeInDuration.seconds, 1.0)
         XCTAssertEqual(
             GameAnimationToken.dealSouthRevealFlipStagger.seconds * 12
@@ -1253,6 +1889,106 @@ final class TarneebTests: XCTestCase {
         XCTAssertEqual(presentation.northSouthTrickCount, 1)
         XCTAssertTrue(presentation.accessibilityValue.contains("individualTricks=south:0,west:0,north:1,east:0"))
         XCTAssertTrue(presentation.accessibilityValue.contains("northSouthTricks=1"))
+    }
+
+    func testScoringServiceScoresMadeAndFailedContracts() throws {
+        let service = TarneebScoringService()
+        let made = try XCTUnwrap(service.scoreRound(declaringTeam: .teamA, bid: 8, declaringTricks: 9))
+        let failed = try XCTUnwrap(service.scoreRound(declaringTeam: .teamB, bid: 10, declaringTricks: 7))
+
+        XCTAssertEqual(made.outcome, .contractMade)
+        XCTAssertEqual(made.declaringScoreDelta, 9)
+        XCTAssertEqual(made.defendingScoreDelta, 0)
+        XCTAssertEqual(made.scoreDelta(for: .teamA), 9)
+        XCTAssertEqual(made.scoreDelta(for: .teamB), 0)
+
+        XCTAssertEqual(failed.outcome, .contractFailed)
+        XCTAssertEqual(failed.declaringScoreDelta, -10)
+        XCTAssertEqual(failed.defendingScoreDelta, 6)
+        XCTAssertEqual(failed.scoreDelta(for: .teamA), 6)
+        XCTAssertEqual(failed.scoreDelta(for: .teamB), -10)
+    }
+
+    func testScoringServiceScoresKabootAndBidThirteenSpecialCases() throws {
+        let service = TarneebScoringService()
+        let declaringKaboot = try XCTUnwrap(service.scoreRound(declaringTeam: .teamA, bid: 12, declaringTricks: 13))
+        let madeThirteen = try XCTUnwrap(service.scoreRound(declaringTeam: .teamA, bid: 13, declaringTricks: 13))
+        let failedThirteen = try XCTUnwrap(service.scoreRound(declaringTeam: .teamA, bid: 13, declaringTricks: 11))
+        let defendingKaboot = try XCTUnwrap(service.scoreRound(declaringTeam: .teamA, bid: 8, declaringTricks: 0))
+        let defendingKabootAgainstThirteen = try XCTUnwrap(service.scoreRound(declaringTeam: .teamA, bid: 13, declaringTricks: 0))
+
+        XCTAssertEqual(declaringKaboot.outcome, .declaringKaboot)
+        XCTAssertEqual(declaringKaboot.declaringScoreDelta, 16)
+        XCTAssertEqual(declaringKaboot.defendingScoreDelta, 0)
+
+        XCTAssertEqual(madeThirteen.outcome, .bidThirteenMade)
+        XCTAssertEqual(madeThirteen.declaringScoreDelta, 26)
+        XCTAssertEqual(madeThirteen.defendingScoreDelta, 0)
+
+        XCTAssertEqual(failedThirteen.outcome, .bidThirteenFailed)
+        XCTAssertEqual(failedThirteen.declaringScoreDelta, -16)
+        XCTAssertEqual(failedThirteen.defendingScoreDelta, 4)
+
+        XCTAssertEqual(defendingKaboot.outcome, .defendingKaboot)
+        XCTAssertEqual(defendingKaboot.declaringScoreDelta, -8)
+        XCTAssertEqual(defendingKaboot.defendingScoreDelta, 16)
+
+        XCTAssertEqual(defendingKabootAgainstThirteen.outcome, .defendingKaboot)
+        XCTAssertEqual(defendingKabootAgainstThirteen.declaringScoreDelta, -16)
+        XCTAssertEqual(defendingKabootAgainstThirteen.defendingScoreDelta, 16)
+    }
+
+    func testScoringServiceRejectsInvalidBidOrTrickCount() {
+        let service = TarneebScoringService()
+
+        XCTAssertNil(service.scoreRound(declaringTeam: .teamA, bid: 6, declaringTricks: 8))
+        XCTAssertNil(service.scoreRound(declaringTeam: .teamA, bid: 14, declaringTricks: 8))
+        XCTAssertNil(service.scoreRound(declaringTeam: .teamA, bid: 8, declaringTricks: -1))
+        XCTAssertNil(service.scoreRound(declaringTeam: .teamA, bid: 8, declaringTricks: 14))
+    }
+
+    func testGameScoreAccumulatesRoundDeltasAndDeclaresWinnerAtThirtyOne() throws {
+        let service = TarneebScoringService()
+        var score = GameScore(northSouth: 25, eastWest: 12)
+        let result = try XCTUnwrap(service.scoreRound(declaringTeam: .teamA, bid: 7, declaringTricks: 7))
+
+        score.apply(result)
+
+        XCTAssertEqual(score.northSouth, 32)
+        XCTAssertEqual(score.eastWest, 12)
+        XCTAssertEqual(score.points(for: .teamA), 32)
+        XCTAssertEqual(score.points(for: .teamB), 12)
+        XCTAssertEqual(score.winnerTeam, .teamA)
+        XCTAssertEqual(GameScore.winningScore, 31)
+    }
+
+    func testGameScorePresentationAppearsAfterFirstDealAndCallsOutWinner() throws {
+        XCTAssertNil(GameScorePresentation(
+            hasStartedGame: false,
+            score: GameScore(),
+            completedRoundCount: 0,
+            lastRoundScore: nil
+        ))
+
+        let result = try XCTUnwrap(
+            TarneebScoringService().scoreRound(declaringTeam: .teamB, bid: 13, declaringTricks: 13)
+        )
+        var score = GameScore(northSouth: 4, eastWest: 10)
+        score.apply(result)
+        let presentation = try XCTUnwrap(GameScorePresentation(
+            hasStartedGame: true,
+            score: score,
+            completedRoundCount: 2,
+            lastRoundScore: result
+        ))
+
+        XCTAssertEqual(presentation.northSouthScore, 4)
+        XCTAssertEqual(presentation.eastWestScore, 36)
+        XCTAssertEqual(presentation.winnerTeam, .teamB)
+        XCTAssertEqual(presentation.winnerLabel, "East-West wins!")
+        XCTAssertEqual(presentation.lastRoundResultLabel, "Round 2: North-South 0, East-West +26")
+        XCTAssertTrue(presentation.accessibilityValue.contains("winningScore=31"))
+        XCTAssertTrue(presentation.accessibilityValue.contains("winner=teamB"))
     }
 
     func testAutomatedBidRecommenderUsesHandStrengthPreferredSuitAndConfidence() {
@@ -3045,6 +3781,13 @@ final class TarneebTests: XCTestCase {
                 && image.idiom == "universal"
                 && image.scale == "1x"
         })
+        for (scale, name) in [(1, "card_back.png"), (2, "card_back@2x.png"), (3, "card_back@3x.png")] {
+            XCTAssertTrue(contents.images.contains { $0.filename == name && $0.scale == "\(scale)x" })
+            let source = try XCTUnwrap(CGImageSourceCreateWithURL(imageSetURL.appendingPathComponent(name) as CFURL, nil))
+            let image = try XCTUnwrap(CGImageSourceCreateImageAtIndex(source, 0, nil))
+            XCTAssertEqual(image.width, 64 * scale)
+            XCTAssertEqual(image.height, 90 * scale)
+        }
     }
 
     func testCardFaceAssetCatalogExposesXCardsFaceImages() throws {
@@ -3167,6 +3910,12 @@ final class TarneebTests: XCTestCase {
         XCTAssertEqual(tableTitle.text, "طرنيب")
         XCTAssertNil(BidAreaPresentation(phase: presentation.gameState.phase, biddingState: presentation.gameState.biddingState))
         XCTAssertEqual(presentation.availableActions, [.newGame, .deal])
+        XCTAssertTrue(presentation.canDeal)
+        XCTAssertFalse(presentation.canStartNewGame)
+        XCTAssertFalse(presentation.hasStartedGame)
+        XCTAssertFalse(presentation.isGameInProgress)
+        XCTAssertEqual(presentation.gameScore, GameScore())
+        XCTAssertNil(presentation.winnerTeam)
         XCTAssertEqual(PresentationAction.newGame.visibleLabel, "New Game")
         XCTAssertEqual(PresentationAction.deal.visibleLabel, "Deal")
     }
@@ -3191,6 +3940,10 @@ final class TarneebTests: XCTestCase {
         XCTAssertEqual(Set(presentation.gameState.bids.keys), Set(Seat.allCases))
         XCTAssertNotNil(BidAreaPresentation(phase: presentation.gameState.phase, biddingState: presentation.gameState.biddingState))
         XCTAssertEqual(presentation.availableActions, [.newGame, .deal])
+        XCTAssertFalse(presentation.canDeal)
+        XCTAssertTrue(presentation.canStartNewGame)
+        XCTAssertTrue(presentation.hasStartedGame)
+        XCTAssertTrue(presentation.isGameInProgress)
         XCTAssertEqual(UndealtDeckStackPresentation(phase: presentation.gameState.phase).hiddenCardCount, 0)
     }
 
@@ -3211,7 +3964,7 @@ final class TarneebTests: XCTestCase {
         XCTAssertEqual(Set(presentation.gameState.players.flatMap(\.hand).map(\.id)).count, 52)
     }
 
-    func testVisibleDealActionReplacesCompletedDeal() throws {
+    func testDealActionIsIgnoredAfterGameBegins() throws {
         let firstDeal = try makeCompletedDeal(dealerSeat: .south)
         let secondDeal = try makeCompletedDeal(shuffler: CardShuffler { Array($0.reversed()) }, dealerSeat: .east)
         let service = QueuedDealService(results: [firstDeal, secondDeal])
@@ -3227,18 +3980,19 @@ final class TarneebTests: XCTestCase {
         presentation.deal()
         let secondSouthHand = try player(in: presentation.gameState, seat: .south).hand
 
-        XCTAssertEqual(service.callCount, 2)
-        XCTAssertEqual(service.receivedDealerSeats, [.south, .east])
+        XCTAssertEqual(service.callCount, 1)
+        XCTAssertEqual(service.receivedDealerSeats, [.south])
         XCTAssertEqual(presentation.gameState.phase, .dealt)
-        XCTAssertEqual(presentation.gameState.dealerSeat, .east)
+        XCTAssertEqual(presentation.gameState.dealerSeat, .south)
         XCTAssertEqual(presentation.gameState.players.map(\.hand.count), [13, 13, 13, 13])
         XCTAssertEqual(Set(presentation.gameState.bids.keys), Set(Seat.allCases))
-        XCTAssertNotEqual(firstSouthHand, secondSouthHand)
+        XCTAssertEqual(firstSouthHand, secondSouthHand)
         XCTAssertEqual(UndealtDeckStackPresentation(phase: presentation.gameState.phase).hiddenCardCount, 0)
         XCTAssertEqual(presentation.availableActions, [.newGame, .deal])
+        XCTAssertFalse(presentation.canDeal)
     }
 
-    func testReplacementDealClearsPreviousHandsBeforeRequestingReplacement() throws {
+    func testNextRoundActionIsIgnoredBeforeHandCompletes() throws {
         let firstDeal = try makeCompletedDeal(dealerSeat: .west)
         let secondDeal = try makeCompletedDeal(shuffler: CardShuffler { Array($0.reversed()) }, dealerSeat: .south)
         let service = QueuedDealService(results: [firstDeal, secondDeal])
@@ -3248,21 +4002,65 @@ final class TarneebTests: XCTestCase {
         )
 
         presentation.deal()
+        let stateBeforeNextRound = presentation.gameState
 
-        var observedStateBeforeSecondDeal: GameState?
-        service.onDeal = {
-            observedStateBeforeSecondDeal = presentation.gameState
-        }
+        presentation.startNextRound()
+
+        XCTAssertEqual(service.callCount, 1)
+        XCTAssertEqual(presentation.gameState, stateBeforeNextRound)
+        XCTAssertEqual(presentation.gameState.phase, .dealt)
+        XCTAssertEqual(presentation.gameState.dealerSeat, .west)
+    }
+
+    func testCompletedHandScoresOnceAndNextRoundPreservesScore() throws {
+        let presentation = TarneebPresentationState(
+            dealService: DealService(shuffler: CardShuffler { $0 }),
+            dealerSelector: QueuedDealerSelector(seats: [.west]),
+            biddingService: BiddingService(bidGenerator: BidGenerator { _ in .pass })
+        )
 
         presentation.deal()
+        presentation.submitSouthBid(.seven)
+        presentation.resolveNextSimulatedBid()
+        presentation.resolveNextSimulatedBid()
+        presentation.resolveNextSimulatedBid()
+        presentation.submitSouthTarneebSuit(.spades)
+        presentation.startTrickPlayIfReady()
 
-        let observedState = try XCTUnwrap(observedStateBeforeSecondDeal)
-        XCTAssertEqual(observedState.phase, .notStarted)
-        XCTAssertEqual(observedState.dealerSeat, .south)
-        XCTAssertTrue(observedState.players.allSatisfy(\.hand.isEmpty))
-        XCTAssertTrue(observedState.bids.isEmpty)
+        var guardrail = 0
+        while presentation.gameState.phase == .trickPlay, guardrail < 1000 {
+            if presentation.gameState.isCurrentTrickComplete {
+                presentation.clearCompletedTrickIfNeeded()
+            } else if presentation.gameState.currentTrickTurnSeat == .south {
+                let legalCard = try XCTUnwrap(
+                    TrickPlayService().legalCards(for: .south, in: presentation.gameState).first
+                )
+                presentation.playSouthCard(legalCard)
+            } else {
+                presentation.resolveNextSimulatedTrickPlay()
+            }
+            guardrail += 1
+        }
+
+        XCTAssertLessThan(guardrail, 1000)
+        XCTAssertEqual(presentation.gameState.phase, .handComplete)
+        XCTAssertEqual(presentation.completedRoundCount, 1)
+        let roundResult = try XCTUnwrap(presentation.lastRoundScore)
+        var expectedScore = GameScore()
+        expectedScore.apply(roundResult)
+        XCTAssertEqual(presentation.gameScore, expectedScore)
+        XCTAssertNil(presentation.winnerTeam)
+
+        presentation.clearCompletedTrickIfNeeded()
+        XCTAssertEqual(presentation.completedRoundCount, 1)
+        XCTAssertEqual(presentation.gameScore, expectedScore)
+
+        presentation.startNextRound()
         XCTAssertEqual(presentation.gameState.phase, .dealt)
         XCTAssertEqual(presentation.gameState.dealerSeat, .south)
+        XCTAssertEqual(presentation.gameScore, expectedScore)
+        XCTAssertEqual(presentation.completedRoundCount, 1)
+        XCTAssertFalse(presentation.canDeal)
     }
 
     func testNewGameActionResetsPresentationStateToOriginalLaunchState() throws {
@@ -3290,6 +4088,10 @@ final class TarneebTests: XCTestCase {
             52
         )
         XCTAssertEqual(presentation.availableActions, [.newGame, .deal])
+        XCTAssertTrue(presentation.canDeal)
+        XCTAssertFalse(presentation.canStartNewGame)
+        XCTAssertFalse(presentation.hasStartedGame)
+        XCTAssertEqual(presentation.gameScore, GameScore())
     }
 
     func testNewGameFromInitialStateDoesNotStartADeal() {
@@ -3306,6 +4108,8 @@ final class TarneebTests: XCTestCase {
         XCTAssertTrue(presentation.gameState.players.allSatisfy(\.hand.isEmpty))
         XCTAssertTrue(presentation.gameState.bids.isEmpty)
         XCTAssertEqual(presentation.availableActions, [.newGame, .deal])
+        XCTAssertTrue(presentation.canDeal)
+        XCTAssertFalse(presentation.canStartNewGame)
     }
 
     func testPresentationStateSubmitsSouthBidOnlyOnSouthTurn() throws {
@@ -3347,7 +4151,7 @@ final class TarneebTests: XCTestCase {
         XCTAssertEqual(presentation.gameState.phase, .dealt)
     }
 
-    func testReplacementDealRefreshesBiddingRoundAndResetsSouthBid() throws {
+    func testRepeatedDealDoesNotRefreshBiddingRound() throws {
         var bidSequence: [BidValue] = [.seven, .eight, .nine]
         let shuffler = RecordingShuffler(outputs: [
             DeckFactory.makeCanonicalDeck(),
@@ -3369,22 +4173,18 @@ final class TarneebTests: XCTestCase {
 
         presentation.submitSouthBid(.thirteen, selectedTarneebSuit: .spades)
         XCTAssertEqual(presentation.gameState.bids[.south], .resolved(.thirteen))
+        let completedBids = presentation.gameState.bids
 
         presentation.deal()
-        let secondBids = presentation.gameState.bids
 
         XCTAssertEqual(firstBids[.east], .resolved(.seven))
         XCTAssertEqual(firstBids[.north], .resolved(.eight))
         XCTAssertEqual(firstBids[.west], .resolved(.nine))
         XCTAssertEqual(firstBids[.south], .pending)
-        XCTAssertEqual(secondBids[.south], .pending)
-        XCTAssertEqual(secondBids[.east], .pending)
-        XCTAssertEqual(secondBids[.north], .pending)
-        XCTAssertEqual(secondBids[.west], .pending)
-        XCTAssertNotEqual(firstBids.filter { $0.key != .south }, secondBids.filter { $0.key != .south })
-        XCTAssertEqual(presentation.gameState.currentBiddingSeat, .north)
-        XCTAssertEqual(presentation.gameState.dealerSeat, .east)
-        XCTAssertEqual(shuffler.receivedDecks.count, 2)
+        XCTAssertEqual(presentation.gameState.bids, completedBids)
+        XCTAssertEqual(presentation.gameState.currentBiddingSeat, nil)
+        XCTAssertEqual(presentation.gameState.dealerSeat, .south)
+        XCTAssertEqual(shuffler.receivedDecks.count, 1)
     }
 
     func testAllPassCompletionAutomaticallyRedealsWithDealerOnRight() throws {
@@ -3450,7 +4250,7 @@ final class TarneebTests: XCTestCase {
         XCTAssertEqual(shuffler.receivedDecks.count, 1)
     }
 
-    func testReplacementDealUsesFreshCompleteDeckAndShufflesBeforeAssigningCards() throws {
+    func testDisabledDealDoesNotRequestAnotherShuffle() throws {
         let canonicalDeck = DeckFactory.makeCanonicalDeck()
         let reversedDeck = Array(canonicalDeck.reversed())
         let shuffler = RecordingShuffler(outputs: [canonicalDeck, reversedDeck])
@@ -3465,16 +4265,15 @@ final class TarneebTests: XCTestCase {
         presentation.deal()
         let secondSouthHand = try player(in: presentation.gameState, seat: .south).hand
 
-        XCTAssertEqual(shuffler.receivedDecks.count, 2)
-        XCTAssertEqual(presentation.gameState.dealerSeat, .east)
+        XCTAssertEqual(shuffler.receivedDecks.count, 1)
+        XCTAssertEqual(presentation.gameState.dealerSeat, .south)
         for receivedDeck in shuffler.receivedDecks {
             XCTAssertEqual(receivedDeck, canonicalDeck)
             XCTAssertEqual(receivedDeck.count, 52)
             XCTAssertEqual(Set(receivedDeck.map(\.id)).count, 52)
         }
         XCTAssertEqual(firstSouthHand, Array(canonicalDeck[0..<13]))
-        XCTAssertEqual(secondSouthHand, Array(reversedDeck[0..<13]))
-        XCTAssertNotEqual(firstSouthHand, secondSouthHand)
+        XCTAssertEqual(secondSouthHand, firstSouthHand)
     }
 
     func testPresentationStateOnlyExposesMVPTableActions() {

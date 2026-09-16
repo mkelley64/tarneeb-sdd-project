@@ -7,6 +7,15 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		1A2B3C4D5E6F700000000012 /* CardSounds in Resources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F700000000117; };
+		1A2B3C4D5E6F700000000013 /* CardSounds in Resources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F700000000117; };
+		1A2B3C4D5E6F700000000011 /* TableFeedback.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F700000000113; };
+		1A2B3C4D5E6F70000000000F /* MatchPersistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F700000000116; };
+		1A2B3C4D5E6F700000000010 /* MatchPersistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F700000000116; };
+		1A2B3C4D5E6F70000000000B /* LiveTableView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F700000000112; };
+		1A2B3C4D5E6F70000000000C /* TableFeedback.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F700000000113; };
+		1A2B3C4D5E6F70000000000D /* OpeningTableView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F700000000114; };
+		1A2B3C4D5E6F70000000000E /* RoundResultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F700000000115; };
 		1A2B3C4D5E6F700000000001 /* TarneebApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F700000000101 /* TarneebApp.swift */; };
 		1A2B3C4D5E6F700000000002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F700000000102 /* ContentView.swift */; };
 		1A2B3C4D5E6F700000000003 /* TarneebLaunchUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F700000000103 /* TarneebLaunchUITests.swift */; };
@@ -37,6 +46,12 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		1A2B3C4D5E6F700000000117 /* CardSounds */ = {isa = PBXFileReference; lastKnownFileType = folder; path = CardSounds; sourceTree = "<group>"; };
+		1A2B3C4D5E6F700000000116 /* MatchPersistence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MatchPersistence.swift; sourceTree = "<group>"; };
+		1A2B3C4D5E6F700000000112 /* LiveTableView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveTableView.swift; sourceTree = "<group>"; };
+		1A2B3C4D5E6F700000000113 /* TableFeedback.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TableFeedback.swift; sourceTree = "<group>"; };
+		1A2B3C4D5E6F700000000114 /* OpeningTableView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpeningTableView.swift; sourceTree = "<group>"; };
+		1A2B3C4D5E6F700000000115 /* RoundResultView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoundResultView.swift; sourceTree = "<group>"; };
 		1A2B3C4D5E6F700000000101 /* TarneebApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TarneebApp.swift; sourceTree = "<group>"; };
 		1A2B3C4D5E6F700000000102 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		1A2B3C4D5E6F700000000103 /* TarneebLaunchUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TarneebLaunchUITests.swift; sourceTree = "<group>"; };
@@ -90,6 +105,12 @@
 			children = (
 				1A2B3C4D5E6F700000000101 /* TarneebApp.swift */,
 				1A2B3C4D5E6F700000000102 /* ContentView.swift */,
+				1A2B3C4D5E6F700000000112 /* LiveTableView.swift */,
+				1A2B3C4D5E6F700000000113 /* TableFeedback.swift */,
+				1A2B3C4D5E6F700000000117 /* CardSounds */,
+				1A2B3C4D5E6F700000000114 /* OpeningTableView.swift */,
+				1A2B3C4D5E6F700000000115 /* RoundResultView.swift */,
+				1A2B3C4D5E6F700000000116 /* MatchPersistence.swift */,
 				1A2B3C4D5E6F700000000108 /* DomainModels.swift */,
 				1A2B3C4D5E6F700000000111 /* DesignTokens.swift */,
 				1A2B3C4D5E6F700000000110 /* Assets.xcassets */,
@@ -229,6 +250,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				1A2B3C4D5E6F700000000008 /* Assets.xcassets in Resources */,
+				1A2B3C4D5E6F700000000012 /* CardSounds in Resources */,
 				1A2B3C4D5E6F700000000007 /* card_back.png in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -244,6 +266,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				1A2B3C4D5E6F700000000013 /* CardSounds in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -257,6 +280,11 @@
 				1A2B3C4D5E6F700000000005 /* DomainModels.swift in Sources */,
 				1A2B3C4D5E6F700000000009 /* DesignTokens.swift in Sources */,
 				1A2B3C4D5E6F700000000002 /* ContentView.swift in Sources */,
+				1A2B3C4D5E6F70000000000B /* LiveTableView.swift in Sources */,
+				1A2B3C4D5E6F70000000000C /* TableFeedback.swift in Sources */,
+				1A2B3C4D5E6F70000000000D /* OpeningTableView.swift in Sources */,
+				1A2B3C4D5E6F70000000000E /* RoundResultView.swift in Sources */,
+				1A2B3C4D5E6F70000000000F /* MatchPersistence.swift in Sources */,
 				1A2B3C4D5E6F700000000001 /* TarneebApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -274,6 +302,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				1A2B3C4D5E6F700000000006 /* DomainModels.swift in Sources */,
+				1A2B3C4D5E6F700000000010 /* MatchPersistence.swift in Sources */,
+				1A2B3C4D5E6F700000000011 /* TableFeedback.swift in Sources */,
 				1A2B3C4D5E6F70000000000A /* DesignTokens.swift in Sources */,
 				1A2B3C4D5E6F700000000004 /* TarneebTests.swift in Sources */,
 			);
