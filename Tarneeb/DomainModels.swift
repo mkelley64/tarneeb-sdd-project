@@ -1,6 +1,6 @@
 import Foundation
 
-enum Suit: String, CaseIterable, Equatable, Hashable {
+enum Suit: String, CaseIterable, Equatable, Hashable, Codable {
     case spades
     case clubs
     case hearts
@@ -20,7 +20,7 @@ enum Suit: String, CaseIterable, Equatable, Hashable {
     }
 }
 
-enum Rank: String, CaseIterable, Equatable, Hashable {
+enum Rank: String, CaseIterable, Equatable, Hashable, Codable {
     case two = "2"
     case three = "3"
     case four = "4"
@@ -40,7 +40,7 @@ enum Rank: String, CaseIterable, Equatable, Hashable {
     }
 }
 
-struct Card: Identifiable, Equatable, Hashable {
+struct Card: Identifiable, Equatable, Hashable, Codable {
     let suit: Suit
     let rank: Rank
 
@@ -91,7 +91,7 @@ protocol HandLogging {
     func logHands(_ players: [Player])
 }
 
-enum BidValue: String, CaseIterable, Equatable, Hashable {
+enum BidValue: String, CaseIterable, Equatable, Hashable, Codable {
     case pass = "Pass"
     case seven = "7"
     case eight = "8"
@@ -144,7 +144,7 @@ enum BidValue: String, CaseIterable, Equatable, Hashable {
     }
 }
 
-struct BidRecommendation: Equatable, Hashable {
+struct BidRecommendation: Equatable, Hashable, Codable {
     let bid: BidValue
     let preferredTarneebSuit: Suit?
     let confidence: Double
@@ -163,7 +163,7 @@ struct BidRecommendation: Equatable, Hashable {
     }
 }
 
-enum BidHighBidGate: String, Equatable, Hashable {
+enum BidHighBidGate: String, Equatable, Hashable, Codable {
     case none
     case belowSeven
     case ninePlus
@@ -172,7 +172,7 @@ enum BidHighBidGate: String, Equatable, Hashable {
     case twelveOrThirteen
 }
 
-struct SuitBidEvaluation: Equatable, Hashable {
+struct SuitBidEvaluation: Equatable, Hashable, Codable {
     let suit: Suit
     let expectedTricks: Double
     let safeBidCeiling: Double
@@ -186,7 +186,7 @@ struct SuitBidEvaluation: Equatable, Hashable {
     let riskSummary: String
 }
 
-struct BidRecommendationDiagnostics: Equatable, Hashable {
+struct BidRecommendationDiagnostics: Equatable, Hashable, Codable {
     let selectedSuit: Suit?
     let suitEvaluations: [SuitBidEvaluation]
     let finalBid: BidValue
@@ -1128,7 +1128,7 @@ struct AutomatedBidRecommender: BidRecommending {
     }
 }
 
-enum BidState: Equatable, Hashable {
+enum BidState: Equatable, Hashable, Codable {
     case pending
     case resolved(BidValue)
 
@@ -1155,7 +1155,7 @@ enum BidState: Equatable, Hashable {
     }
 }
 
-enum BiddingRoundStatus: String, Equatable, Hashable {
+enum BiddingRoundStatus: String, Equatable, Hashable, Codable {
     case inProgress
     case complete
 }
@@ -1165,7 +1165,7 @@ enum BiddingCompletionOutcome: String, Equatable, Hashable {
     case allPassRedeal
 }
 
-struct BiddingState: Equatable, Hashable {
+struct BiddingState: Equatable, Hashable, Codable {
     private(set) var bids: [Seat: BidState]
     private(set) var bidRecommendations: [Seat: BidRecommendation]
     private(set) var currentTurnSeat: Seat?
@@ -1554,9 +1554,14 @@ struct TrickPlayService {
         }
 
         let legalCards = legalCards(for: currentTurnSeat, in: gameState)
-        guard let selectedCard = TrickPlayRules
-            .sortedLegalCardsForSimulatedPlay(legalCards, tarneebSuit: trickPlayState.tarneebSuit)
-            .first else {
+        guard let selectedCard = AutomatedCardSelector.select(
+            from: legalCards,
+            for: currentTurnSeat,
+            currentTrick: trickPlayState.currentTrick,
+            tarneebSuit: trickPlayState.tarneebSuit,
+            ownHand: gameState.players.first { $0.seat == currentTurnSeat }?.hand ?? [],
+            completedTricks: trickPlayState.completedTricks
+        ) else {
             return gameState
         }
 
@@ -1686,7 +1691,7 @@ struct BiddingSimulationReporter {
     }
 }
 
-enum Seat: String, CaseIterable, Equatable, Hashable {
+enum Seat: String, CaseIterable, Equatable, Hashable, Codable {
     case south
     case west
     case north
@@ -1785,26 +1790,196 @@ struct EnvironmentDealerSelector: DealerSelecting {
     }
 }
 
-enum PlayerType: String, CaseIterable, Equatable, Hashable {
+enum PlayerType: String, CaseIterable, Equatable, Hashable, Codable {
     case human
     case simulated
 }
 
-enum Team: String, CaseIterable, Equatable, Hashable {
+enum Team: String, CaseIterable, Equatable, Hashable, Codable {
     case teamA
     case teamB
 
     var displayLabel: String {
         switch self {
         case .teamA:
-            return "Team A"
+            return "North-South"
         case .teamB:
-            return "Team B"
+            return "East-West"
+        }
+    }
+
+    var opponent: Team {
+        self == .teamA ? .teamB : .teamA
+    }
+
+    static func forSeat(_ seat: Seat) -> Team {
+        switch seat {
+        case .south, .north:
+            return .teamA
+        case .east, .west:
+            return .teamB
         }
     }
 }
 
-struct Player: Identifiable, Equatable, Hashable {
+enum RoundScoringOutcome: String, CaseIterable, Equatable, Hashable, Codable {
+    case contractMade
+    case contractFailed
+    case declaringKaboot
+    case defendingKaboot
+    case bidThirteenMade
+    case bidThirteenFailed
+}
+
+struct RoundScoreResult: Equatable, Hashable, Codable {
+    let declaringTeam: Team
+    let defendingTeam: Team
+    let bid: Int
+    let declaringTricks: Int
+    let defendingTricks: Int
+    let declaringScoreDelta: Int
+    let defendingScoreDelta: Int
+    let outcome: RoundScoringOutcome
+
+    func scoreDelta(for team: Team) -> Int {
+        team == declaringTeam ? declaringScoreDelta : defendingScoreDelta
+    }
+}
+
+struct RoundResultPresentation {
+    let result: RoundScoreResult
+    let score: GameScore
+
+    var contractMade: Bool { result.declaringTricks >= result.bid }
+    var contractTitle: String { contractMade ? "Contract made" : "Contract missed" }
+    var playerSucceeded: Bool { contractMade == (result.declaringTeam == .teamA) }
+    var title: String {
+        guard let winner = score.winnerTeam else { return contractTitle }
+        return winner == .teamA ? "You and North win!" : "East-West win"
+    }
+    var detail: String {
+        switch result.outcome {
+        case .declaringKaboot: return "\(result.declaringTeam.displayLabel) took all 13 tricks"
+        case .defendingKaboot: return "\(result.defendingTeam.displayLabel) took all 13 tricks"
+        case .bidThirteenMade: return "Bid 13. Won all 13."
+        case .bidThirteenFailed: return "The bid of 13 was missed"
+        case .contractMade: return "\(result.declaringTeam.displayLabel) made the contract"
+        case .contractFailed: return "\(result.declaringTeam.displayLabel) missed the contract"
+        }
+    }
+    func previousScore(for team: Team) -> Int { score.points(for: team) - result.scoreDelta(for: team) }
+    func change(for team: Team) -> String {
+        let delta = result.scoreDelta(for: team)
+        return delta > 0 ? "+\(delta)" : "\(delta)"
+    }
+}
+
+struct GameScore: Equatable, Hashable, Codable {
+    static let winningScore = 31
+
+    private(set) var northSouth: Int
+    private(set) var eastWest: Int
+
+    init(northSouth: Int = 0, eastWest: Int = 0) {
+        self.northSouth = northSouth
+        self.eastWest = eastWest
+    }
+
+    func points(for team: Team) -> Int {
+        switch team {
+        case .teamA:
+            return northSouth
+        case .teamB:
+            return eastWest
+        }
+    }
+
+    mutating func apply(_ result: RoundScoreResult) {
+        northSouth += result.scoreDelta(for: .teamA)
+        eastWest += result.scoreDelta(for: .teamB)
+    }
+
+    var winnerTeam: Team? {
+        if northSouth >= Self.winningScore {
+            return .teamA
+        }
+
+        if eastWest >= Self.winningScore {
+            return .teamB
+        }
+
+        return nil
+    }
+}
+
+struct TarneebScoringService {
+    func scoreRound(in gameState: GameState) -> RoundScoreResult? {
+        guard gameState.phase == .handComplete,
+              gameState.isHandComplete,
+              let highBidderSeat = gameState.highestBidSeat,
+              let bid = gameState.highestBidValue?.numericValue,
+              let trickPlayState = gameState.trickPlayState else {
+            return nil
+        }
+
+        return scoreRound(
+            declaringTeam: Team.forSeat(highBidderSeat),
+            bid: bid,
+            declaringTricks: trickPlayState.partnershipTrickCount(for: highBidderSeat)
+        )
+    }
+
+    func scoreRound(
+        declaringTeam: Team,
+        bid: Int,
+        declaringTricks: Int
+    ) -> RoundScoreResult? {
+        guard (7...13).contains(bid), (0...13).contains(declaringTricks) else {
+            return nil
+        }
+
+        let defendingTeam = declaringTeam.opponent
+        let defendingTricks = 13 - declaringTricks
+        let declaringScoreDelta: Int
+        let defendingScoreDelta: Int
+        let outcome: RoundScoringOutcome
+
+        if declaringTricks == 13 {
+            declaringScoreDelta = bid == 13 ? 26 : 16
+            defendingScoreDelta = 0
+            outcome = bid == 13 ? .bidThirteenMade : .declaringKaboot
+        } else if defendingTricks == 13 {
+            declaringScoreDelta = bid == 13 ? -16 : -bid
+            defendingScoreDelta = 16
+            outcome = .defendingKaboot
+        } else if bid == 13 {
+            declaringScoreDelta = -16
+            defendingScoreDelta = defendingTricks * 2
+            outcome = .bidThirteenFailed
+        } else if declaringTricks >= bid {
+            declaringScoreDelta = declaringTricks
+            defendingScoreDelta = 0
+            outcome = .contractMade
+        } else {
+            declaringScoreDelta = -bid
+            defendingScoreDelta = defendingTricks
+            outcome = .contractFailed
+        }
+
+        return RoundScoreResult(
+            declaringTeam: declaringTeam,
+            defendingTeam: defendingTeam,
+            bid: bid,
+            declaringTricks: declaringTricks,
+            defendingTricks: defendingTricks,
+            declaringScoreDelta: declaringScoreDelta,
+            defendingScoreDelta: defendingScoreDelta,
+            outcome: outcome
+        )
+    }
+}
+
+struct Player: Identifiable, Equatable, Hashable, Codable {
     let id: String
     let seat: Seat
     let type: PlayerType
@@ -1824,14 +1999,14 @@ struct Player: Identifiable, Equatable, Hashable {
     }
 }
 
-enum GamePhase: String, CaseIterable, Equatable, Hashable {
+enum GamePhase: String, CaseIterable, Equatable, Hashable, Codable {
     case notStarted
     case dealt
     case trickPlay
     case handComplete
 }
 
-struct PostBiddingSummary: Equatable, Hashable {
+struct PostBiddingSummary: Equatable, Hashable, Codable {
     let highBidderSeat: Seat
     let teamLabel: String
     let bidValue: BidValue
@@ -1849,7 +2024,48 @@ struct PostBiddingSummary: Equatable, Hashable {
     }
 }
 
-struct PlayedCard: Identifiable, Equatable, Hashable {
+struct ContractProgressPresentation: Equatable {
+    enum Milestone: Equatable { case building, oneAway, secured, missed }
+    let team: Team
+    let target: Int
+    let won: Int
+    let remaining: Int
+
+    init?(summary: PostBiddingSummary?, trick: TrickPlayState?) {
+        guard let summary, let target = summary.bidValue.numericValue, let trick else { return nil }
+        let team = Team.forSeat(summary.highBidderSeat)
+        self.team = team
+        self.target = target
+        self.won = trick.resolvedTricks.filter { Team.forSeat($0.winnerSeat) == team }.count
+        self.remaining = max(0, 13 - trick.resolvedTricks.count)
+    }
+
+    var fraction: Double { min(1, Double(won) / Double(target)) }
+    var milestone: Milestone {
+        if won >= target { return .secured }
+        if won + remaining < target { return .missed }
+        return target - won == 1 ? .oneAway : .building
+    }
+    var label: String {
+        switch milestone {
+        case .building: return "\(won) / \(target) tricks"
+        case .oneAway: return "One more trick"
+        case .secured: return "Contract secured"
+        case .missed: return "Contract missed"
+        }
+    }
+    var visibleLabel: String {
+        switch milestone {
+        case .building: return label
+        case .oneAway: return "\(won) / \(target)  One more"
+        case .secured: return "\(won) / \(target)  Secured"
+        case .missed: return "\(won) / \(target)  Missed"
+        }
+    }
+    var accessibilityValue: String { "\(team.displayLabel), \(won) of \(target) tricks, \(remaining) remaining" }
+}
+
+struct PlayedCard: Identifiable, Equatable, Hashable, Codable {
     let seat: Seat
     let card: Card
 
@@ -1858,14 +2074,14 @@ struct PlayedCard: Identifiable, Equatable, Hashable {
     }
 }
 
-struct CompletedTrick: Equatable, Hashable {
+struct CompletedTrick: Equatable, Hashable, Codable {
     let leaderSeat: Seat
     let winnerSeat: Seat
     let ledSuit: Suit
     let playedCards: [PlayedCard]
 }
 
-struct TrickPlayState: Equatable, Hashable {
+struct TrickPlayState: Equatable, Hashable, Codable {
     let declarerSeat: Seat
     let tarneebSuit: Suit
     private(set) var leaderSeat: Seat
@@ -1963,7 +2179,75 @@ struct TrickPlayState: Equatable, Hashable {
     }
 }
 
+enum AutomatedCardSelector {
+    // Unknown cards stay possible in any other hand; only public history is tracked.
+    static func select(
+        from legalCards: [Card],
+        for seat: Seat,
+        currentTrick: [PlayedCard],
+        tarneebSuit: Suit,
+        ownHand: [Card] = [],
+        completedTricks: [CompletedTrick] = []
+    ) -> Card? {
+        let economicalCards = TrickPlayRules.sortedLegalCardsForSimulatedPlay(legalCards, tarneebSuit: tarneebSuit)
+        guard let discard = economicalCards.first else { return nil }
+        let known = Set(ownHand + legalCards + completedTricks.flatMap(\.playedCards).map(\.card) + currentTrick.map(\.card))
+        func isTopRemaining(_ card: Card) -> Bool {
+            Rank.allCases.filter { $0.trickPower > card.rank.trickPower }
+                .allSatisfy { known.contains(Card(suit: card.suit, rank: $0)) }
+        }
+        let opponents = Seat.allCases.filter { $0 != seat && $0 != seat.partnerSeat }
+        func isRiskyLead(_ suit: Suit) -> Bool {
+            let unknownTrump = Rank.allCases.contains { !known.contains(Card(suit: tarneebSuit, rank: $0)) }
+            return suit != tarneebSuit && unknownTrump && completedTricks.contains { trick in
+                trick.ledSuit == suit && trick.playedCards.contains { opponents.contains($0.seat) && $0.card.suit != suit }
+            }
+        }
+        guard let ledSuit = currentTrick.first?.card.suit,
+              let winner = TrickPlayRules.winner(for: currentTrick, ledSuit: ledSuit, tarneebSuit: tarneebSuit) else {
+            let safe = economicalCards.filter { $0.suit != tarneebSuit && !isRiskyLead($0.suit) }
+            return safe.first(where: isTopRemaining) ?? safe.first ?? discard
+        }
+
+        if winner == seat.partnerSeat {
+            if currentTrick.count == 2,
+               let partnerCard = currentTrick.first(where: { $0.seat == winner })?.card,
+               partnerCard.suit == ledSuit, !isTopRemaining(partnerCard),
+               !isRiskyLead(ledSuit),
+               let cover = economicalCards.first(where: {
+                   $0.suit == ledSuit && isTopRemaining($0) && $0.rank.trickPower > partnerCard.rank.trickPower
+               }) { return cover }
+            return discard
+        }
+
+        return economicalCards.first { card in
+            TrickPlayRules.winner(
+                for: currentTrick + [PlayedCard(seat: seat, card: card)],
+                ledSuit: ledSuit,
+                tarneebSuit: tarneebSuit
+            ) == seat
+        } ?? discard
+    }
+}
+
+enum OpponentPacing {
+    static func delay(legalCards: [Card], selected: Card?, seat: Seat, trick: [PlayedCard], trump: Suit) -> Double {
+        guard legalCards.count > 1 else { return OpponentPacingToken.forcedPause }
+        guard let ledSuit = trick.first?.card.suit, let selected else { return OpponentPacingToken.decisionPause }
+        let winner = TrickPlayRules.winner(for: trick, ledSuit: ledSuit, tarneebSuit: trump)
+        let after = TrickPlayRules.winner(for: trick + [PlayedCard(seat: seat, card: selected)], ledSuit: ledSuit, tarneebSuit: trump)
+        return winner != seat.partnerSeat && after == seat ? OpponentPacingToken.decisionPause : OpponentPacingToken.discardPause
+    }
+}
+
 enum TrickPlayRules {
+    static func automaticSouthPlay(in gameState: GameState) -> Card? {
+        guard let hand = gameState.players.first(where: { $0.seat == .south })?.hand,
+              hand.count == 1, let card = hand.first,
+              isLegal(card: card, for: .south, in: gameState) else { return nil }
+        return card
+    }
+
     static func legalCards(for seat: Seat, in gameState: GameState) -> [Card] {
         guard gameState.phase == .trickPlay,
               let trickPlayState = gameState.trickPlayState,
@@ -2024,7 +2308,7 @@ enum TrickPlayRules {
     }
 }
 
-struct GameState: Equatable {
+struct GameState: Equatable, Codable {
     let phase: GamePhase
     let players: [Player]
     let dealerSeat: Seat
@@ -2409,30 +2693,195 @@ final class TarneebPresentationState {
     private let dealerSelector: DealerSelecting
     private let biddingService: BiddingService
     private let trickPlayService: TrickPlayService
+    private let scoringService: TarneebScoringService
     private var isDealing = false
+    private var matchStore: MatchStore?
+    private(set) var saveNotice: String?
+    private(set) var announcedRound: Int?
+
+    var snapshot: MatchSnapshot {
+        MatchSnapshot(game: gameState, score: gameScore, lastRound: lastRoundScore,
+                      completedRounds: completedRoundCount, hasStarted: hasStartedGame, announcedRound: announcedRound)
+    }
+
+    func enablePersistence(_ store: MatchStore, restoring: Bool = true) {
+        matchStore = store
+        do {
+            if restoring, let saved = try store.load() {
+                gameState = saved.game
+                gameScore = saved.score
+                lastRoundScore = saved.lastRound
+                completedRoundCount = saved.completedRounds
+                hasStartedGame = saved.hasStarted
+                announcedRound = saved.announcedRound
+            } else if !restoring { checkpoint() }
+        } catch {
+            saveNotice = "The saved match could not be restored. A new game is available."
+        }
+    }
+
+    func markRoundAnnounced() {
+        announcedRound = completedRoundCount
+        checkpoint()
+    }
+
+    private func checkpoint() {
+        guard let matchStore else { return }
+        do {
+            try matchStore.save(snapshot)
+            saveNotice = nil
+        } catch {
+            saveNotice = "This match could not be saved. Progress may be lost when the app closes."
+        }
+    }
 
     private(set) var gameState: GameState
+    private(set) var gameScore = GameScore()
+    private(set) var lastRoundScore: RoundScoreResult?
+    private(set) var completedRoundCount = 0
+    private(set) var hasStartedGame = false
 
     var availableActions: [PresentationAction] {
         [.newGame, .deal]
+    }
+
+    var canDeal: Bool {
+        !hasStartedGame && gameState.phase == .notStarted && !isDealing
+    }
+
+    var canStartNewGame: Bool {
+        hasStartedGame && !isDealing
+    }
+
+    var winnerTeam: Team? {
+        gameScore.winnerTeam
+    }
+
+    var isGameInProgress: Bool {
+        hasStartedGame && winnerTeam == nil
     }
 
     init(
         dealService: Dealing = DealService(),
         dealerSelector: DealerSelecting = EnvironmentDealerSelector(),
         biddingService: BiddingService = BiddingService(),
-        trickPlayService: TrickPlayService = TrickPlayService()
+        trickPlayService: TrickPlayService = TrickPlayService(),
+        scoringService: TarneebScoringService = TarneebScoringService()
     ) {
         self.dealService = dealService
         self.dealerSelector = dealerSelector
         self.biddingService = biddingService
         self.trickPlayService = trickPlayService
+        self.scoringService = scoringService
         self.gameState = .initial(dealerSeat: dealerSelector.selectDealer())
     }
 
     func deal() {
-        guard !isDealing else {
+        defer { checkpoint() }
+        guard canDeal else {
             return
+        }
+
+        guard let dealtState = requestDeal(dealerSeat: gameState.dealerSeat) else {
+            return
+        }
+
+        gameState = dealtState
+        hasStartedGame = true
+    }
+
+    func automaticRedealAfterAllPass() {
+        defer { checkpoint() }
+        guard gameState.biddingCompletionOutcome == .allPassRedeal else {
+            return
+        }
+
+        dealNextRound()
+    }
+
+    func startNextRound() {
+        defer { checkpoint() }
+        guard gameState.phase == .handComplete,
+              hasStartedGame,
+              winnerTeam == nil else {
+            return
+        }
+
+        dealNextRound()
+    }
+
+    func newGame() {
+        defer { checkpoint() }
+        guard canStartNewGame else {
+            return
+        }
+
+        gameScore = GameScore()
+        announcedRound = nil
+        lastRoundScore = nil
+        completedRoundCount = 0
+        hasStartedGame = false
+        gameState = .initial(dealerSeat: dealerSelector.selectDealer())
+    }
+
+    func submitSouthBid(_ bid: BidValue, selectedTarneebSuit: Suit? = nil) {
+        defer { checkpoint() }
+        gameState = biddingService.submitSouthBid(bid, selectedTarneebSuit: selectedTarneebSuit, in: gameState)
+    }
+
+    func submitSouthTarneebSuit(_ suit: Suit) {
+        defer { checkpoint() }
+        gameState = biddingService.submitSouthTarneebSuit(suit, in: gameState)
+    }
+
+    func resolveNextSimulatedBid() {
+        defer { checkpoint() }
+        gameState = biddingService.resolveNextSimulatedBid(in: gameState)
+    }
+
+    func startTrickPlayIfReady() {
+        defer { checkpoint() }
+        gameState = trickPlayService.startIfReady(in: gameState)
+    }
+
+    func playSouthCard(_ card: Card) {
+        defer { checkpoint() }
+        gameState = trickPlayService.playSouthCard(card, in: gameState)
+    }
+
+    func resolveNextSimulatedTrickPlay() {
+        defer { checkpoint() }
+        gameState = trickPlayService.playSimulatedTurn(in: gameState)
+    }
+
+    func clearCompletedTrickIfNeeded() {
+        defer { checkpoint() }
+        let previousPhase = gameState.phase
+        gameState = trickPlayService.clearCompletedTrickIfNeeded(in: gameState)
+
+        guard previousPhase != .handComplete,
+              gameState.phase == .handComplete,
+              let roundScore = scoringService.scoreRound(in: gameState) else {
+            return
+        }
+
+        gameScore.apply(roundScore)
+        lastRoundScore = roundScore
+        completedRoundCount += 1
+    }
+
+    private func dealNextRound() {
+        let nextDealer = gameState.dealerSeat.nextCounterclockwiseDealer
+        guard let dealtState = requestDeal(dealerSeat: nextDealer) else {
+            return
+        }
+
+        gameState = dealtState
+    }
+
+    private func requestDeal(dealerSeat: Seat) -> GameState? {
+        guard !isDealing else {
+            return nil
         }
 
         isDealing = true
@@ -2440,63 +2889,7 @@ final class TarneebPresentationState {
             isDealing = false
         }
 
-        let dealerForDeal: Seat
-        if gameState.phase != .notStarted {
-            dealerForDeal = gameState.dealerSeat.nextCounterclockwiseDealer
-            gameState = .initial(dealerSeat: dealerForDeal)
-        } else {
-            dealerForDeal = gameState.dealerSeat
-        }
-
-        guard let dealtState = dealService.deal(dealerSeat: dealerForDeal) else {
-            return
-        }
-
-        gameState = dealtState
-    }
-
-    func automaticRedealAfterAllPass() {
-        guard gameState.biddingCompletionOutcome == .allPassRedeal else {
-            return
-        }
-
-        deal()
-    }
-
-    func newGame() {
-        guard !isDealing else {
-            return
-        }
-
-        gameState = .initial(dealerSeat: dealerSelector.selectDealer())
-    }
-
-    func submitSouthBid(_ bid: BidValue, selectedTarneebSuit: Suit? = nil) {
-        gameState = biddingService.submitSouthBid(bid, selectedTarneebSuit: selectedTarneebSuit, in: gameState)
-    }
-
-    func submitSouthTarneebSuit(_ suit: Suit) {
-        gameState = biddingService.submitSouthTarneebSuit(suit, in: gameState)
-    }
-
-    func resolveNextSimulatedBid() {
-        gameState = biddingService.resolveNextSimulatedBid(in: gameState)
-    }
-
-    func startTrickPlayIfReady() {
-        gameState = trickPlayService.startIfReady(in: gameState)
-    }
-
-    func playSouthCard(_ card: Card) {
-        gameState = trickPlayService.playSouthCard(card, in: gameState)
-    }
-
-    func resolveNextSimulatedTrickPlay() {
-        gameState = trickPlayService.playSimulatedTurn(in: gameState)
-    }
-
-    func clearCompletedTrickIfNeeded() {
-        gameState = trickPlayService.clearCompletedTrickIfNeeded(in: gameState)
+        return dealService.deal(dealerSeat: dealerSeat)
     }
 }
 

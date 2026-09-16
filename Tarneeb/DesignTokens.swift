@@ -1,3 +1,167 @@
+import Foundation
+
+enum OpponentPacingToken {
+    static let forcedPause = 0.18
+    static let discardPause = 0.32
+    static let decisionPause = 0.55
+}
+
+enum RecallToken {
+    static let sheetHeight: Double = 420
+    static let cardGap: Double = 12
+    static let closeTarget: Double = 44
+}
+
+enum CompactDealerBadgeToken {
+    static let diameter: Double = 14
+    static let fontSize: Double = 9
+}
+
+enum CardSoundToken {
+    static let playbackRate: Float = 1.2
+    static let selectionVolume: Float = 0.45
+    static let landingVolume: Float = 0.65
+    static let collectionVolume: Float = 0.55
+}
+
+struct PaperSoundVariation {
+    static let count = 3
+    let index: Int
+    init(index: Int) { self.index = ((index % Self.count) + Self.count) % Self.count }
+    var seed: UInt32 { 0x51A7 + UInt32(index) * 7919 }
+    var smoothing: Double { 0.61 + Double(index) * 0.04 }
+}
+
+enum RoundResultToken {
+    static let titleSize: Double = 28
+    static let emblemSize: Double = 56
+    static let scoreColumnWidth: Double = 72
+    static let commandHeight: Double = 48
+    static let entranceDuration: Double = 0.55
+    static let entranceScale: Double = 0.85
+}
+
+enum ContractProgressToken {
+    static let barHeight: Double = 2
+    static let duration: Double = 0.2
+}
+
+struct CircularTableGeometry {
+    let size: CGSize
+    var diameter: Double { max(0, min(size.width - 36, size.height - 40)) }
+    var center: CGPoint { CGPoint(x: size.width / 2, y: (38 + size.height - 2) / 2) }
+}
+
+enum TableFinishToken {
+    static let fillOpacity: Double = 0.38
+    static let edgeOpacity: Double = 0.55
+    static let rimOpacity: Double = 0.14
+    static let rimInset: Double = 4
+    static let weaveSpacing: Double = 8
+    static let weaveLength: Double = 2
+    static let weaveOpacity: Double = 0.035
+    static let hairline: Double = 0.5
+    static let dividerOpacity: Double = 0.18
+}
+
+enum TableCommandToken {
+    static let cornerRadius: Double = 8
+    static let depth: Double = 3
+    static let rimInset: Double = 3
+    static let horizontalPadding: Double = 12
+    static let iconSize: Double = 20
+    static let rimOpacity: Double = 0.22
+    static let disabledOpacity: Double = 0.4
+    static let pressDuration: Double = 0.16
+}
+
+enum OpeningTableToken {
+    static let minimumTableHeight: Double = 166
+    static let actionHeight: Double = 116
+    static let controlHeight: Double = 44
+    static let packetLayerOffset: Double = 1.5
+    static let stationWidth: Double = 100
+    static let stationHeight: Double = 44
+    static let flipPerspective: Double = 0.5
+}
+
+enum LiveTableToken {
+    static let cardWidth: Double = 64
+    static let cardHeight: Double = 90
+    static let minimumHitWidth: Double = 44
+    static let maximumColumns = 7
+    static let rowSpacing: Double = -12
+    static let selectionLift: Double = 12
+    static let minimumTableHeight: Double = 232
+    static let horizontalSlotOffset: Double = 76
+    static let verticalSlotOffset: Double = 49
+    static let rankSize: Double = 22
+    static let suitSize: Double = 36
+    static let flightDuration: Double = 0.40
+    static let landingPause: Double = 0.10
+    static let winnerHold: Double = 0.85
+    static let collectionDuration: Double = 0.44
+    static let reducedMotionDuration: Double = 0.12
+    static let unavailableOpacity: Double = 0.58
+    static let collectionScale: Double = 0.45
+}
+
+struct LiveHandLayout {
+    let width: Double
+
+    var columns: Int {
+        min(LiveTableToken.maximumColumns, max(1, Int((width - LiveTableToken.cardWidth) / LiveTableToken.minimumHitWidth) + 1))
+    }
+
+    var stride: Double {
+        min(LiveTableToken.cardWidth + 5, max(0, (width - LiveTableToken.cardWidth) / Double(max(1, columns - 1))))
+    }
+
+    // Reserve a full opening hand so playing a card never moves the table.
+    var height: Double {
+        let rows = Int(ceil(13.0 / Double(columns)))
+        return Double(rows) * LiveTableToken.cardHeight + Double(rows - 1) * LiveTableToken.rowSpacing + LiveTableToken.selectionLift
+    }
+
+    func center(at index: Int, cardCount: Int) -> CGPoint {
+        let row = index / columns
+        let count = min(columns, max(0, cardCount - row * columns))
+        let rowWidth = Double(max(0, count - 1)) * stride + LiveTableToken.cardWidth
+        return CGPoint(
+            x: (width - rowWidth) / 2 + LiveTableToken.cardWidth / 2 + Double(index % columns) * stride,
+            y: LiveTableToken.selectionLift + LiveTableToken.cardHeight / 2 + Double(row) * (LiveTableToken.cardHeight + LiveTableToken.rowSpacing)
+        )
+    }
+}
+
+struct LiveTrickGeometry {
+    let size: CGSize
+
+    func slot(_ seat: Seat) -> CGPoint {
+        let center = CircularTableGeometry(size: size).center
+        switch seat {
+        case .north: return CGPoint(x: center.x, y: center.y - LiveTableToken.verticalSlotOffset)
+        case .south: return CGPoint(x: center.x, y: center.y + LiveTableToken.verticalSlotOffset)
+        case .west: return CGPoint(x: center.x - LiveTableToken.horizontalSlotOffset, y: center.y)
+        case .east: return CGPoint(x: center.x + LiveTableToken.horizontalSlotOffset, y: center.y)
+        }
+    }
+
+    func station(_ seat: Seat) -> CGPoint {
+        switch seat {
+        case .north: return CGPoint(x: size.width / 2, y: 17)
+        case .west: return CGPoint(x: 47, y: 58)
+        case .east: return CGPoint(x: size.width - 47, y: 58)
+        case .south: return CGPoint(x: size.width / 2, y: size.height)
+        }
+    }
+}
+
+struct LiveCardFlight: Equatable {
+    let play: PlayedCard
+    var arrived = false
+}
+
 enum GameColorToken: String, CaseIterable, Equatable, Hashable {
     case tableBackgroundPrimary = "color.table.background.primary"
     case tableBackgroundSecondary = "color.table.background.secondary"
@@ -586,21 +750,22 @@ enum GameAnimationToken: String, CaseIterable, Equatable, Hashable {
     case trickPlayedCardFlightDuration = "animation.trick.playedCard.flight.duration"
     case trickClearPauseDuration = "animation.trick.clear.pause.duration"
     case trickClearFadeDuration = "animation.trick.clear.fade.duration"
+    case roundScoreDisplayDuration = "animation.round.scoreDisplay.duration"
 
     var seconds: Double {
         switch self {
         case .dealStackFlightDuration:
-            return 0.36
+            return 0.30
         case .dealStationExpansionDuration:
-            return 0.16
+            return 0.14
         case .dealStepPauseDuration:
-            return 0.06
+            return 0.05
         case .dealSouthRevealTotalDuration:
-            return 1.5
+            return 1.23
         case .dealSouthRevealFlipDuration:
-            return 0.18
+            return 0.15
         case .dealSouthRevealFlipStagger:
-            return 0.11
+            return 0.09
         case .bidSimulatedTurnDelay:
             return 1.0
         case .bidStationCuePulseDuration:
@@ -617,6 +782,8 @@ enum GameAnimationToken: String, CaseIterable, Equatable, Hashable {
             return 0.75
         case .trickClearFadeDuration:
             return 0.20
+        case .roundScoreDisplayDuration:
+            return 2.0
         }
     }
 
@@ -732,6 +899,29 @@ enum GameControlLayoutToken: String, CaseIterable, Equatable, Hashable {
             return 10
         case .bottomControlSecondaryDealMaxWidth:
             return 160
+        }
+    }
+}
+
+enum GameScoreLayoutToken: String, CaseIterable, Equatable, Hashable {
+    case horizontalPadding = "layout.gameScore.padding.horizontal"
+    case verticalPadding = "layout.gameScore.padding.vertical"
+    case teamGap = "layout.gameScore.team.gap"
+    case cornerRadius = "layout.gameScore.cornerRadius"
+    case minimumHeight = "layout.gameScore.minimumHeight"
+
+    var numericValue: Double {
+        switch self {
+        case .horizontalPadding:
+            return 12
+        case .verticalPadding:
+            return 8
+        case .teamGap:
+            return 12
+        case .cornerRadius:
+            return 8
+        case .minimumHeight:
+            return 44
         }
     }
 }
@@ -966,6 +1156,38 @@ struct PostBiddingSummaryTokenSet: Equatable {
             "borderOpacity=\(borderOpacity.rawValue)",
             "shadowOpacity=\(shadowOpacity.rawValue)",
             "shadowRadius=\(shadowRadius.rawValue)"
+        ].joined(separator: ";")
+    }
+}
+
+struct GameScoreTokenSet: Equatable {
+    let background = GameColorToken.postBiddingSummaryBackground
+    let border = GameColorToken.postBiddingSummaryBorder
+    let teamText = GameColorToken.postBiddingSummaryLabelText
+    let scoreText = GameColorToken.postBiddingSummaryTeamText
+    let winnerText = GameColorToken.buttonNewGameBackground
+    let backgroundOpacity = GameEffectToken.postBiddingSummaryBackgroundOpacity
+    let borderOpacity = GameEffectToken.postBiddingSummaryBorderOpacity
+    let horizontalPadding = GameScoreLayoutToken.horizontalPadding
+    let verticalPadding = GameScoreLayoutToken.verticalPadding
+    let teamGap = GameScoreLayoutToken.teamGap
+    let cornerRadius = GameScoreLayoutToken.cornerRadius
+    let minimumHeight = GameScoreLayoutToken.minimumHeight
+
+    var accessibilityValue: String {
+        [
+            "background=\(background.rawValue)",
+            "border=\(border.rawValue)",
+            "teamText=\(teamText.rawValue)",
+            "scoreText=\(scoreText.rawValue)",
+            "winnerText=\(winnerText.rawValue)",
+            "backgroundOpacity=\(backgroundOpacity.rawValue)",
+            "borderOpacity=\(borderOpacity.rawValue)",
+            "horizontalPadding=\(horizontalPadding.rawValue)",
+            "verticalPadding=\(verticalPadding.rawValue)",
+            "teamGap=\(teamGap.rawValue)",
+            "cornerRadius=\(cornerRadius.rawValue)",
+            "minimumHeight=\(minimumHeight.rawValue)"
         ].joined(separator: ";")
     }
 }
@@ -1295,6 +1517,58 @@ struct PostBiddingSummaryPresentation: Equatable {
             "tarneebSymbolChipTokens=\(tarneebSymbolChipTokens.accessibilityValue)",
             "tokens=\(tokens.accessibilityValue)"
         ].joined(separator: ";")
+    }
+}
+
+struct GameScorePresentation: Equatable {
+    let northSouthScore: Int
+    let eastWestScore: Int
+    let completedRoundCount: Int
+    let lastRoundResultLabel: String?
+    let winnerTeam: Team?
+    let tokens = GameScoreTokenSet()
+
+    init?(
+        hasStartedGame: Bool,
+        score: GameScore,
+        completedRoundCount: Int,
+        lastRoundScore: RoundScoreResult?
+    ) {
+        guard hasStartedGame else {
+            return nil
+        }
+
+        self.northSouthScore = score.northSouth
+        self.eastWestScore = score.eastWest
+        self.completedRoundCount = completedRoundCount
+        self.lastRoundResultLabel = lastRoundScore.map { result in
+            let northSouthDelta = result.scoreDelta(for: .teamA)
+            let eastWestDelta = result.scoreDelta(for: .teamB)
+            return "Round \(completedRoundCount): North-South \(Self.signed(northSouthDelta)), East-West \(Self.signed(eastWestDelta))"
+        }
+        self.winnerTeam = score.winnerTeam
+    }
+
+    var winnerLabel: String? {
+        winnerTeam.map { "\($0.displayLabel) wins!" }
+    }
+
+    var accessibilityValue: String {
+        [
+            "visible=true",
+            "northSouth=\(northSouthScore)",
+            "eastWest=\(eastWestScore)",
+            "winningScore=\(GameScore.winningScore)",
+            "completedRounds=\(completedRoundCount)",
+            "lastRound=\(lastRoundResultLabel ?? "none")",
+            "winner=\(winnerTeam?.rawValue ?? "none")",
+            "winnerLabel=\(winnerLabel ?? "none")",
+            "tokens=\(tokens.accessibilityValue)"
+        ].joined(separator: ";")
+    }
+
+    private static func signed(_ value: Int) -> String {
+        value > 0 ? "+\(value)" : "\(value)"
     }
 }
 
