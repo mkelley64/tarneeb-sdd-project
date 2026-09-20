@@ -2115,6 +2115,8 @@ struct ContentView: View {
               gameState.biddingStatus == .inProgress,
               let currentBiddingSeat = gameState.currentBiddingSeat,
               currentBiddingSeat != .south {
+            guard let request = presentationState.prepareAIBidDecision() else { return }
+            async let decision = AIBiddingEngine.detached(request)
             try? await Task.sleep(nanoseconds: GameAnimationToken.bidSimulatedTurnDelay.nanoseconds)
 
             guard !Task.isCancelled,
@@ -2135,12 +2137,16 @@ struct ContentView: View {
                 return
             }
 
+            let result = await decision
+            guard !Task.isCancelled else { return }
+            var accepted = false
             withAnimation(.easeInOut(duration: GameAnimationToken.bidValueFadeOutDuration.seconds + GameAnimationToken.bidValueFadeInDuration.seconds)) {
-                presentationState.resolveNextSimulatedBid()
+                accepted = presentationState.applyAIBidDecision(result, request: request)
                 gameState = presentationState.gameState
                 southDraftBid = normalizedSouthDraftBid(for: gameState)
                 southDraftTarneebSuit = normalizedSouthDraftTarneebSuit(for: gameState)
             }
+            guard accepted else { clearAutomatedBidCue(); return }
 
             withAnimation(.easeInOut(duration: GameAnimationToken.bidStationCuePulseDuration.seconds)) {
                 clearAutomatedBidCue()
@@ -2180,6 +2186,9 @@ struct ContentView: View {
               !gameState.isCurrentTrickComplete,
               let currentTurnSeat = gameState.currentTrickTurnSeat,
               currentTurnSeat != .south {
+            guard let request = presentationState.prepareAIDecision() else { return }
+            // Search overlaps the approved thinking cue, never blocking the main actor.
+            async let decision = AIDecisionEngine.detached(request.context, skill: request.skill)
             await cueAutomatedTrick(for: currentTurnSeat)
 
             guard !Task.isCancelled,
@@ -2190,7 +2199,8 @@ struct ContentView: View {
                 return
             }
 
-            presentationState.resolveNextSimulatedTrickPlay()
+            let result = await decision
+            guard !Task.isCancelled, presentationState.applyAIDecision(result, request: request) else { return }
             let nextState = presentationState.gameState
             guard let played = nextState.trickPlayState?.playedCard(for: currentTurnSeat) else { return }
             await animateLivePlay(played, committing: nextState)

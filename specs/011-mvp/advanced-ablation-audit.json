@@ -1,0 +1,32 @@
+{
+  "protocolVersion": 1,
+  "date": "2026-09-17",
+  "productionPolicyChanged": false,
+  "frozenTrainingArtifactSHA256BeforeHeldOut": "b07e04ec5b134c60c63074e7caefbbf492fe4b7c084558a7518c34358e7402af",
+  "selectedWeightsBeforeHeldOut": [0.5, 0.5, 0, 0, 0, 0.5, 0.5, 2],
+  "heldOutArtifactSHA256": "64896bf8ddd307243b1cab25296fcf69246facf5d36ffa82faeb8a0d07374e60",
+  "heldOutScoredDeckClusters": 1891,
+  "trainingConfigurations": 108,
+  "postSelectionTacticalAuditUsedForSelection": false,
+  "productionPromotion": "Not promoted: vulnerable-partner and long-suit tactical regressions; shared Expert integration not evaluated.",
+  "trainingSeeds": [50000, 50511],
+  "validationSeeds": [52000, 52511],
+  "heldOutSeeds": [60000, 62047],
+  "diagnosticSeeds": [70000, 70031],
+  "featureOrder": ["cashWinners", "entries", "threats", "partner", "longSuits", "trump", "ruff", "urgency"],
+  "weightGrid": [0, 0.5, 1, 2],
+  "coordinateSweepsPerStart": 2,
+  "coordinateStarts": ["all-zero", "all-one"],
+  "validationFinalists": 5,
+  "heldOutCoPrimaryInterval": "two-sided 97.5%, z=2.241403; Bonferroni for two comparisons",
+  "sourceSHA256AtTrainingStart": {
+    "Tarneeb/AISkill.swift": "d3a8321edafa395944f84e77e79a9af2edfcfa0ed0220b19f5abe7cee4d740c5",
+    "Tarneeb/AIBidding.swift": "1c29b93d9f54f094a3f4c463a92b54670199b395bcb6b781e76594e325f9ed9c",
+    "Tarneeb/DomainModels.swift": "92edb116262597cac6a876251fb92f2b497624c29680cfc904e42b9eec5faa4a",
+    "tools/ai/FrozenStandard.swift": "d1fa59387fdd6443909f85fdb11048455ce218d93c1833294101fcfbdee432e9",
+    "tools/ai/AdvancedAblationPolicy.swift": "846171433737e86c45e58e439768909da10a6dc50151259822e24395ae1f39e1",
+    "tools/ai/AdvancedAblation.swift": "914873f9795787ee512790d38d9711797d751a44826dad1dd905d328b286ab12"
+  },
+  "preResultsProtocolSHA256": "886a2da5de12805e23b882165c9e994a0b64e9a191f5e7cf4aa9be2eb76ca5b4",
+  "executedBinarySHA256": "9335d642e6b164f9914ddf279f9878234556b5b0213a4231702c33150db3cf74"
+}

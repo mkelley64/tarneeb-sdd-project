@@ -1,0 +1,27 @@
+{
+  "protocol": "match-components-2026-09-19",
+  "completedCells": ["AA", "EA", "AE", "EE"],
+  "resultSHA256": {
+    "match-components-AA.json": "29c5452365a1194ce753a6e290f28837b17a2384386ccae0bb49ca8c708fcca0",
+    "match-components-EA.json": "6ed7e8423f27ed50cbd9edb9cab3dc89e38d7ff6389d3b4acc337905f5bb6957",
+    "match-components-AE.json": "4994cddd4037281c1500a9122996a6c2edb622c4cfd12c7ceee4abbe865e5b29",
+    "match-components-EE.json": "d1ac837b307c67760cbdfd34f3859e3c5620b241ef4d2238130e17f4af0b3ed3",
+    "match-components-effects.json": "e79536e789894d69fe1dcbc9e041667c4aed7f457d6fd7f3dbb58a64b0648efb"
+  },
+  "matches": 8192,
+  "playedHands": 52369,
+  "allPassDeals": 6478,
+  "cardDecisions": 2723188,
+  "bidDecisions": 251278,
+  "unresolved": 0,
+  "fallbacks": 0,
+  "verified": {
+    "productionHashesUnchanged": true,
+    "harnessAndProtocolHashesUnchangedDuringEvaluation": true,
+    "allCellAccountingAndTerminationChecks": true,
+    "uniqueBalancedStreamArrangements": true,
+    "AAControlExactlySymmetric": true,
+    "effectMeansAndIntervalsIndependentlyReconstructedFromMatchRecords": true,
+    "nativeRegressionsAndNewComponentChecksPassed": true
+  }
+}

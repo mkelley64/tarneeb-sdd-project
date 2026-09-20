@@ -3,6 +3,48 @@ import XCTest
 final class TarneebFullMatchUITests: XCTestCase {
     override func setUpWithError() throws { continueAfterFailure = false }
 
+    func testExpertBiddingFromDealReachesLegalCardPlayWithoutOverrides() {
+        let app = XCUIApplication()
+        app.launchArguments += ["-tarneeb.aiSkill", "expert"]
+        app.launchEnvironment["TARNEEB_OPENING_FIXTURE"] = "sweep"
+        app.launchEnvironment["TARNEEB_INITIAL_DEALER"] = "south"
+        app.launch()
+        app.buttons["tarneeb-deal-button"].tap()
+        XCTAssertTrue(app.otherElements["tarneeb-live-table"].waitForExistence(timeout: 35))
+        let legal = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@ AND enabled == true", "tarneeb-live-card-")).firstMatch
+        XCTAssertTrue(legal.waitForExistence(timeout: 15))
+        app.terminate()
+    }
+
+    func testAISkillMenuOffersAllLevelsOnOpeningLiveAndResultScreens() {
+        for (key, value) in [("TARNEEB_OPENING_FIXTURE", "1"), ("TARNEEB_LIVE_FIXTURE", "balanced"),
+                             ("TARNEEB_RESULT_FIXTURE", "round-made")] {
+            let app = XCUIApplication()
+            app.launchEnvironment[key] = value
+            app.launch()
+            let options = app.buttons["tarneeb-game-options"]
+            XCTAssertTrue(options.waitForExistence(timeout: 8))
+            options.tap()
+            let skill = app.buttons["AI skill"]
+            XCTAssertTrue(skill.waitForExistence(timeout: 3), app.debugDescription)
+            skill.tap()
+            for label in ["Standard", "Advanced", "Expert"] {
+                XCTAssertTrue(app.buttons[label].waitForExistence(timeout: 3), app.debugDescription)
+            }
+            for text in ["All AI players, including North.", "Applies to the next new game."] {
+                let explanation = app.buttons[text]
+                XCTAssertTrue(explanation.exists)
+                XCTAssertTrue(app.frame.contains(explanation.frame))
+            }
+            let screenshot = XCTAttachment(screenshot: app.screenshot())
+            screenshot.name = "AI skill \(key)"
+            screenshot.lifetime = .keepAlways
+            add(screenshot)
+            app.buttons["Standard"].tap()
+            app.terminate()
+        }
+    }
+
     func testMixedSuitHandFromDealThroughRoundResults() {
         let app = XCUIApplication()
         app.launchEnvironment["TARNEEB_OPENING_FIXTURE"] = "1"
@@ -746,6 +788,21 @@ final class TarneebLiveTableUITests: XCTestCase {
 }
 
 final class TarneebLaunchUITests: XCTestCase {
+    func testIntroFinishesAndDoesNotReplayOnResume() {
+        let app = XCUIApplication()
+        app.launchEnvironment["TARNEEB_OPENING_FIXTURE"] = "1"
+        app.launch()
+        let deal = app.buttons["tarneeb-deal-button"]
+        XCTAssertTrue(deal.waitForExistence(timeout: 5))
+        XCTAssertTrue(deal.isHittable)
+        XCTAssertFalse(app.otherElements["tarneeb-launch-intro"].exists)
+        XCUIDevice.shared.press(.home)
+        app.activate()
+        XCTAssertFalse(app.otherElements["tarneeb-launch-intro"].exists)
+        expectation(for: NSPredicate(format: "hittable == true"), evaluatedWith: deal)
+        waitForExpectations(timeout: 3)
+    }
+
     override func setUpWithError() throws {
         continueAfterFailure = false
     }

@@ -1,0 +1,93 @@
+{
+  "immediateCancellation" : {
+    "cancelled" : true,
+    "card" : "diamonds-A",
+    "checkpoints" : 2,
+    "cpuDuringMaxGapMS" : 0.008124999999969962,
+    "evidence" : "cancellation observed",
+    "fallback" : true,
+    "maxGapEndingCheckpoint" : 2,
+    "maxGapWallMS" : 0.008083356078714132,
+    "samples" : 0,
+    "threadCPUMS" : 0.010208000000011541,
+    "wallMS" : 0.010249961633235216
+  },
+  "injectedCPU" : {
+    "cancelled" : false,
+    "card" : "diamonds-A",
+    "checkpoints" : 3,
+    "cpuDuringMaxGapMS" : 200.025042,
+    "evidence" : "fallback with elapsed budget exceeded; exact internal reason unavailable",
+    "fallback" : true,
+    "maxGapEndingCheckpoint" : 3,
+    "maxGapWallMS" : 200.4894166602753,
+    "samples" : 0,
+    "threadCPUMS" : 200.03641700000003,
+    "wallMS" : 200.5008333362639
+  },
+  "injectedSleep" : {
+    "cancelled" : false,
+    "card" : "diamonds-A",
+    "checkpoints" : 3,
+    "cpuDuringMaxGapMS" : 0.03629200000000027,
+    "evidence" : "fallback with elapsed budget exceeded; exact internal reason unavailable",
+    "fallback" : true,
+    "maxGapEndingCheckpoint" : 3,
+    "maxGapWallMS" : 205.03812498645857,
+    "samples" : 0,
+    "threadCPUMS" : 0.04670799999999947,
+    "wallMS" : 205.04929166054353
+  },
+  "malformedInput" : {
+    "cancelled" : false,
+    "card" : "diamonds-A",
+    "checkpoints" : 2,
+    "cpuDuringMaxGapMS" : 0.008874999999963773,
+    "evidence" : "fallback before elapsed budget; exact internal reason unavailable",
+    "fallback" : true,
+    "maxGapEndingCheckpoint" : 2,
+    "maxGapWallMS" : 0.008874980267137289,
+    "samples" : 0,
+    "threadCPUMS" : 0.009625000000013095,
+    "wallMS" : 0.009583367500454187
+  },
+  "midSearchCancellation" : {
+    "cancelled" : true,
+    "card" : "diamonds-A",
+    "checkpoints" : 57,
+    "cpuDuringMaxGapMS" : 0.008291999999965327,
+    "evidence" : "cancellation observed",
+    "fallback" : true,
+    "maxGapEndingCheckpoint" : 2,
+    "maxGapWallMS" : 0.008333299774676561,
+    "samples" : 0,
+    "threadCPUMS" : 0.0500420000000279,
+    "wallMS" : 0.05000003147870302
+  },
+  "normal" : {
+    "cancelled" : false,
+    "card" : "diamonds-5",
+    "checkpoints" : 5737,
+    "cpuDuringMaxGapMS" : 0.018749999999997935,
+    "evidence" : "normal return",
+    "fallback" : false,
+    "maxGapEndingCheckpoint" : 3397,
+    "maxGapWallMS" : 0.03616663161665201,
+    "samples" : 8,
+    "threadCPUMS" : 27.667542,
+    "wallMS" : 27.70533337024972
+  },
+  "zeroBudget" : {
+    "cancelled" : false,
+    "card" : "diamonds-A",
+    "checkpoints" : 1,
+    "cpuDuringMaxGapMS" : 0.006249999999985434,
+    "evidence" : "invalid\/zero limits",
+    "fallback" : true,
+    "maxGapEndingCheckpoint" : 1,
+    "maxGapWallMS" : 0.006249989382922649,
+    "samples" : 0,
+    "threadCPUMS" : 0.006416999999980799,
+    "wallMS" : 0.006416637916117907
+  }
+}

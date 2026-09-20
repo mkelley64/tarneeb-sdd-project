@@ -106,6 +106,7 @@ struct LiveTableView: View {
             Spacer(minLength: 0)
             LastTrickRecallButton(trick: game.trickPlayState?.completedTricks.last, blocked: blocked, pause: pause, resume: resume)
             Menu {
+                AISkillOptions()
                 Toggle("Sound effects", isOn: $soundEnabled)
                 Toggle("Haptics", isOn: $hapticsEnabled)
                 Divider()

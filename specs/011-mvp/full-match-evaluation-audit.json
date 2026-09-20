@@ -1,0 +1,27 @@
+{
+  "protocol": "full-match-2026-09-19",
+  "statusAtCreation": "frozen before held-out execution",
+  "protocolSHA256": "efdd1e2c4ef7189e361bef97f89f37f1b191467cb580b252aa6b149201c46b00",
+  "productionSHA256": {
+    "Tarneeb/AISkill.swift": "4963c6ab6f99fa1a01c876c470b83fd3d16479ffe07b30e99de289c351c54f96",
+    "Tarneeb/AIBidding.swift": "5c51ea4c13675777fc3d174b10202b2f5c9f26ee3a651e1e6b4d8d4b04732f01",
+    "Tarneeb/DomainModels.swift": "92edb116262597cac6a876251fb92f2b497624c29680cfc904e42b9eec5faa4a"
+  },
+  "harnessSHA256": {
+    "tools/ai/FullMatchBenchmark.swift": "6f6fe77f7dda947221b6fa748156c2609e0b4e2baf9c851c8ecdcf021013b0da",
+    "tools/ai/main.swift": "8f9bd9bb072753ba2c5237da803b6566f15496fec537c8ef781305c79f756ab1",
+    "tools/ai/run.sh": "713d3cd3c178811fcadbb38b71048af12f0fc304bd721f8580f1b8ba18f8fd7b"
+  },
+  "firstStream": 200000,
+  "lastStream": 200255,
+  "streamsPerComparison": 256,
+  "matchesPerStream": 8,
+  "maxDealsPerMatch": 256,
+  "comparisonOrder": ["advanced-standard", "expert-standard", "expert-advanced"],
+  "primaryEndpoint": "match-win proportion versus 0.5, stream-clustered",
+  "adjustedConfidenceLevel": 0.9833333333333333,
+  "normalCriticalValue": 2.39397979981851,
+  "cardLimits": {"samples": 8, "maxTricks": 13, "seconds": 0.15},
+  "bidLimits": {"samples": 16, "seconds": 0.2},
+  "nativeRegressionsAndHarnessChecks": "passed before held-out execution"
+}

@@ -2,8 +2,318 @@ import Foundation
 import AVFoundation
 import ImageIO
 import XCTest
+import Darwin
+
+extension TarneebTests {
+    @MainActor
+    func testLaunchScreenLayout() throws {
+        XCTAssertEqual(Bundle.main.object(forInfoDictionaryKey:"UILaunchStoryboardName") as? String,"LaunchScreen")
+        for size in [CGSize(width:320,height:568),CGSize(width:393,height:852),CGSize(width:430,height:932)] {
+            let vc = try XCTUnwrap(UIStoryboard(name:"LaunchScreen",bundle:.main).instantiateInitialViewController())
+            vc.loadViewIfNeeded(); vc.view.frame = CGRect(origin:.zero,size:size); vc.view.layoutIfNeeded()
+            let title = try XCTUnwrap(vc.view.viewWithTag(100) as? UILabel)
+            let fan = try XCTUnwrap(vc.view.viewWithTag(101) as? UIImageView)
+            XCTAssertEqual(title.text,TableTitlePresentation().text); XCTAssertNotNil(fan.image)
+            XCTAssertEqual(title.font.fontName,"GeezaPro")
+            XCTAssertEqual(title.font.pointSize,52)
+            XCTAssertLessThanOrEqual(title.intrinsicContentSize.height,title.bounds.height)
+            XCTAssertLessThanOrEqual(title.intrinsicContentSize.width,title.bounds.width)
+            XCTAssertFalse(vc.view.hasAmbiguousLayout)
+            XCTAssertFalse(try XCTUnwrap(title.superview).hasAmbiguousLayout)
+            XCTAssertTrue(vc.view.bounds.contains(fan.convert(fan.bounds,to:vc.view)))
+            XCTAssertLessThan(title.frame.maxY,fan.frame.minY)
+            var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, alpha: CGFloat = 0
+            vc.view.backgroundColor?.getRed(&red,green:&green,blue:&blue,alpha:&alpha)
+            XCTAssertEqual(red,30.0/255,accuracy:0.001); XCTAssertEqual(green,90.0/255,accuracy:0.001)
+            XCTAssertEqual(blue,60.0/255,accuracy:0.001)
+            title.textColor.getRed(&red,green:&green,blue:&blue,alpha:&alpha)
+            XCTAssertEqual(red,187.0/255,accuracy:0.001)
+            XCTAssertEqual(green,170.0/255,accuracy:0.001)
+            XCTAssertEqual(blue,126.0/255,accuracy:0.001)
+            let image = UIGraphicsImageRenderer(size:size).image { _ in vc.view.drawHierarchy(in:vc.view.bounds,afterScreenUpdates:true) }
+            let attachment = XCTAttachment(image:image); attachment.name = "Launch-\(Int(size.width))x\(Int(size.height))"
+            attachment.lifetime = .keepAlways; add(attachment)
+        }
+    }
+
+    /// Explicit device diagnostic. No defaults, saves or actual app match are mutated.
+    @MainActor
+    func testPhysicalExpertLatency() async throws {
+        #if targetEnvironment(simulator)
+        throw XCTSkip("Physical-device profiling only")
+        #else
+        func distribution(_ values: [Double]) -> [String: Double] {
+            let s = values.sorted()
+            func q(_ p: Double) -> Double { s.isEmpty ? 0 : s[Int(Double(s.count-1)*p)] }
+            return ["count":Double(s.count),"median":q(0.5),"p95":q(0.95),"p99":q(0.99),"max":s.last ?? 0]
+        }
+        // Baseline cadence is measured separately; neither is an animation/frame-time metric.
+        var idle: [Double] = []
+        for _ in 0..<50 {
+            let start = ProcessInfo.processInfo.systemUptime
+            try await Task.sleep(nanoseconds:10_000_000)
+            idle.append((ProcessInfo.processInfo.systemUptime-start)*1000)
+        }
+        var heartbeat: [Double] = []
+        let pulse = Task { @MainActor in
+            var last = ProcessInfo.processInfo.systemUptime
+            while !Task.isCancelled {
+                do { try await Task.sleep(nanoseconds:10_000_000) } catch { break }
+                let now = ProcessInfo.processInfo.systemUptime
+                heartbeat.append((now-last)*1000); last = now
+            }
+        }
+        var wall: [Double] = [], observedWall: [Double] = [], cpu: [Double] = [], gaps: [Double] = []
+        var baseFallbacks = 0, observedFallbacks = 0, mismatches = 0
+        var records: [[String:Any]] = []
+        for deck in 520000..<520064 {
+            var rng = AISeededGenerator(state:UInt64(deck))
+            let cards = DeckFactory.makeCanonicalDeck().shuffled(using:&rng)
+            for (index,seat) in Seat.dealOrder.enumerated() {
+                let c = AIDecisionContext(seat:seat,ownHand:Array(cards[(index*13)..<(index*13+13)]),
+                    trick:TrickPlayState(declarerSeat:seat,tarneebSuit:Suit.allCases[(deck+index)%4]),
+                    contract:7+(deck+index)%7,matchScore:(deck+index)%2 == 0 ? GameScore() : GameScore(northSouth:30,eastWest:29))
+                // Search seed uses only own cards and public context, not the deck seed.
+                let tokens = c.ownHand.map(\.id).sorted() + [seat.rawValue,c.trick.tarneebSuit.rawValue,
+                    String(c.contract),String(c.matchScore.northSouth),String(c.matchScore.eastWest)]
+                let seed = tokens.joined(separator:":").utf8.reduce(UInt64(14695981039346656037)) { ($0 ^ UInt64($1)) &* 1099511628211 }
+                func ordinary() async -> (AIDecisionResult,Double) {
+                    let start = ProcessInfo.processInfo.systemUptime
+                    let result = await AIDecisionEngine.detached(c,skill:.expert,seed:seed)
+                    return (result,(ProcessInfo.processInfo.systemUptime-start)*1000)
+                }
+                func observed() async -> (AIDecisionResult,Double,Double,Double,Int) {
+                    await Task.detached(priority:.userInitiated) {
+                        func cpuTime() -> Double {
+                            var t = timespec()
+                            precondition(clock_gettime(CLOCK_THREAD_CPUTIME_ID,&t) == 0)
+                            return Double(t.tv_sec)+Double(t.tv_nsec)/1_000_000_000
+                        }
+                        let start = ProcessInfo.processInfo.systemUptime, firstCPU = cpuTime()
+                        var last = start, gap = 0.0, checkpoints = 0
+                        func observe() {
+                            let now = ProcessInfo.processInfo.systemUptime
+                            gap = max(gap,now-last); last = now; checkpoints += 1
+                        }
+                        let result = ExpertCardPolicy.select(c,seed:seed,shouldCancel:{ observe(); return Task.isCancelled })
+                        observe()
+                        return (result,(last-start)*1000,(cpuTime()-firstCPU)*1000,gap*1000,checkpoints-1)
+                    }.value
+                }
+                let base: (AIDecisionResult,Double), seen: (AIDecisionResult,Double,Double,Double,Int)
+                if records.count%2 == 0 { base = await ordinary(); seen = await observed() }
+                else { seen = await observed(); base = await ordinary() }
+                XCTAssertFalse(base.0.cancelled); XCTAssertFalse(seen.0.cancelled)
+                XCTAssertTrue(c.legalCards.contains(try XCTUnwrap(base.0.card)))
+                XCTAssertTrue(c.legalCards.contains(try XCTUnwrap(seen.0.card)))
+                let same = base.0.card == seen.0.card && base.0.samples == seen.0.samples && base.0.fallback == seen.0.fallback
+                if !base.0.fallback && !seen.0.fallback { XCTAssertTrue(same) }
+                if !same { mismatches += 1 }
+                if base.0.fallback { baseFallbacks += 1 }; if seen.0.fallback { observedFallbacks += 1 }
+                wall.append(base.1); observedWall.append(seen.1); cpu.append(seen.2); gaps.append(seen.3)
+                records.append(["index":records.count,"searchSeed":String(seed),"seat":seat.rawValue,
+                    "ownHand":c.ownHand.map(\.id),"trump":c.trick.tarneebSuit.rawValue,"contract":c.contract,
+                    "northSouth":c.matchScore.northSouth,"eastWest":c.matchScore.eastWest,
+                    "wallMS":base.1,"observedWallMS":seen.1,"threadCPUMS":seen.2,"maxGapMS":seen.3,
+                    "checkpoints":seen.4,"card":base.0.card!.id,"observedCard":seen.0.card!.id,
+                    "fallback":base.0.fallback,"observedFallback":seen.0.fallback,"same":same])
+            }
+        }
+        pulse.cancel(); await pulse.value
+        XCTAssertEqual(records.count,256)
+        XCTAssertFalse(heartbeat.isEmpty,"Main actor continued servicing heartbeat during detached searches")
+        let report: [String:Any] = ["protocol":"physical-opening-latency-2026-09-20","positions":256,
+            "device":UIDevice.current.model,"systemVersion":UIDevice.current.systemVersion,
+            "thermalStateAtEnd":ProcessInfo.processInfo.thermalState.rawValue,
+            "ordinaryRoundTripMS":distribution(wall),"observedWorkerMS":distribution(observedWall),
+            "observedThreadCPUMS":distribution(cpu),"maxCheckpointGapMS":distribution(gaps),
+            "idleHeartbeatMS":distribution(idle),"loadedHeartbeatMS":distribution(heartbeat),
+            "fallbacks":baseFallbacks,"observedFallbacks":observedFallbacks,"mismatches":mismatches,"records":records]
+        let data = try JSONSerialization.data(withJSONObject:report,options:[.sortedKeys])
+        let attachment = XCTAttachment(data:data,uniformTypeIdentifier:"public.json")
+        attachment.name = "physical-opening-latency.json"; attachment.lifetime = .keepAlways; add(attachment)
+        print("PHYSICAL_LATENCY_JSON " + String(decoding:data,as:UTF8.self))
+        #endif
+    }
+}
 
 final class TarneebTests: XCTestCase {
+    func testExpertRolloutIsStableWhileFallbackUsesRevisedAdvanced() {
+        let c = AIDecisionContext(seat: .south, ownHand: [Card(suit: .clubs,rank: .two),
+            Card(suit: .clubs,rank: .seven),Card(suit: .clubs,rank: .ace)],
+            trick: TrickPlayState(declarerSeat: .south,tarneebSuit: .spades,currentTurnSeat: .south,
+                currentTrick: [PlayedCard(seat: .west,card: Card(suit: .clubs,rank: .six))]), contract: 7,matchScore: GameScore())
+        XCTAssertEqual(AdvancedCardPolicy.select(c), Card(suit: .clubs,rank: .seven))
+        XCTAssertEqual(ExpertRolloutCardPolicy.select(c), Card(suit: .clubs,rank: .ace))
+        let fallback = ExpertCardPolicy.select(c,seed: 1,limits: AISearchLimits(seconds: 0))
+        XCTAssertTrue(fallback.fallback)
+        XCTAssertEqual(fallback.card, AdvancedCardPolicy.select(c))
+    }
+
+    func testAdvancedPublicVoidProtectionHasIndependentEvidenceBoundaries() {
+        func card(_ suit: Suit, _ rank: Rank) -> Card { Card(suit: suit, rank: rank) }
+        let void = CompletedTrick(leaderSeat: .south, winnerSeat: .east, ledSuit: .clubs, playedCards: [
+            PlayedCard(seat: .south, card: card(.clubs,.two)), PlayedCard(seat: .east, card: card(.spades,.two)),
+            PlayedCard(seat: .north, card: card(.clubs,.three)), PlayedCard(seat: .west, card: card(.clubs,.four))])
+        let trumpVoid = CompletedTrick(leaderSeat: .south, winnerSeat: .west, ledSuit: .spades, playedCards: [
+            PlayedCard(seat: .south, card: card(.spades,.three)), PlayedCard(seat: .east, card: card(.diamonds,.three)),
+            PlayedCard(seat: .north, card: card(.spades,.four)), PlayedCard(seat: .west, card: card(.spades,.five))])
+        let plays = [PlayedCard(seat: .north, card: card(.clubs,.queen)), PlayedCard(seat: .west, card: card(.clubs,.six))]
+        func context(_ history: [CompletedTrick], hand: [Card]? = nil, current: [PlayedCard]? = nil) -> AIDecisionContext {
+            AIDecisionContext(seat: .south, ownHand: hand ?? [card(.spades,.ace),card(.diamonds,.two)],
+                trick: TrickPlayState(declarerSeat: .south, tarneebSuit: .spades, currentTurnSeat: .south,
+                    currentTrick: current ?? plays, completedTricks: history), contract: 7, matchScore: GameScore())
+        }
+        XCTAssertEqual(AdvancedCardPolicy.select(context([void])), card(.spades,.ace))
+        XCTAssertEqual(AdvancedCardPolicy.select(context([])), card(.diamonds,.two))
+        XCTAssertEqual(AdvancedCardPolicy.select(context([void,trumpVoid])), card(.diamonds,.two))
+        let info = PublicCardInference(context([void]))
+        XCTAssertTrue(info.hasDemonstratedRuffRisk(for: .east, ledSuit: .clubs, winningCard: card(.clubs,.queen), trump: .spades))
+        XCTAssertFalse(info.hasDemonstratedRuffRisk(for: .east, ledSuit: .spades, winningCard: card(.spades,.three), trump: .spades))
+        XCTAssertFalse(info.hasDemonstratedRuffRisk(for: .east, ledSuit: .clubs, winningCard: card(.spades,.ace), trump: .spades))
+        XCTAssertTrue(info.hasDemonstratedRuffRisk(for: .east, ledSuit: .clubs, winningCard: card(.spades,.three), trump: .spades))
+        let exhausted = PublicCardInference(context([void], hand: Rank.allCases.filter { $0 != .two }.map { card(.spades,$0) }))
+        XCTAssertFalse(exhausted.hasDemonstratedRuffRisk(for: .east, ledSuit: .clubs, winningCard: card(.clubs,.queen), trump: .spades))
+        // West has already acted (discarding on clubs); South must not spend
+        // its ace to guard against an opponent whose turn is over.
+        let fourth = context([], current: [PlayedCard(seat: .east, card: card(.clubs,.five)),
+            PlayedCard(seat: .north, card: card(.clubs,.queen)), PlayedCard(seat: .west, card: card(.diamonds,.six))])
+        XCTAssertTrue(PublicCardInference(fourth).hasDemonstratedRuffRisk(for: .west, ledSuit: .clubs,
+            winningCard: card(.clubs,.queen), trump: .spades))
+        XCTAssertEqual(AdvancedCardPolicy.select(fourth), card(.diamonds,.two))
+    }
+
+    func testAdvancedKeepsEconomicalWinnersAndLongSuitEstablishment() {
+        func card(_ suit: Suit, _ rank: Rank) -> Card { Card(suit: suit, rank: rank) }
+        let second = AIDecisionContext(seat: .south, ownHand: [card(.clubs,.two),card(.clubs,.seven),card(.clubs,.ace)],
+            trick: TrickPlayState(declarerSeat: .south, tarneebSuit: .spades, currentTurnSeat: .south,
+                currentTrick: [PlayedCard(seat: .west, card: card(.clubs,.six))]), contract: 7, matchScore: GameScore())
+        XCTAssertEqual(AdvancedCardPolicy.select(second), card(.clubs,.seven))
+        let long = AIDecisionContext(seat: .south,
+            ownHand: [card(.clubs,.three),card(.clubs,.four),card(.clubs,.jack),card(.clubs,.queen),card(.clubs,.king),card(.diamonds,.two)],
+            trick: TrickPlayState(declarerSeat: .south, tarneebSuit: .spades), contract: 7, matchScore: GameScore())
+        XCTAssertEqual(AdvancedCardPolicy.select(long)?.suit, .clubs)
+    }
+
+    private func biddingSweepContext() -> AIBiddingContext {
+        AIBiddingContext(auction: BidRecommendationContext(seat: .east,
+            hand: Rank.allCases.map { Card(suit: .spades, rank: $0) }, partnerSeat: .west,
+            currentHighestBidValue: nil, currentHighestBidder: nil,
+            priorBidStates: Dictionary(uniqueKeysWithValues: Seat.allCases.map { ($0, $0 == .east ? BidState.pending : .resolved(.pass)) })), matchScore: GameScore())
+    }
+
+    func testBiddingLevelsPreserveStandardAndRecognizeCertainSweep() {
+        let context = biddingSweepContext()
+        let baseline = AutomatedBidRecommender().recommendation(for: context.auction)
+        let request = AIBidRequest(id: UUID(), revision: UUID(), context: context, skill: .standard,
+            baseline: baseline, useSkillPolicy: true)
+        XCTAssertEqual(AIBiddingEngine.select(request, seed: 9).recommendation, baseline)
+        XCTAssertEqual(AdvancedBidPolicy.select(context).bid, .thirteen)
+        let expert = ExpertBidPolicy.select(context, seed: 9, limits: AIBidSearchLimits(samples: 4, seconds: 5))
+        XCTAssertFalse(expert.fallback)
+        XCTAssertEqual(expert.recommendation.bid, .thirteen)
+        XCTAssertEqual(expert.recommendation.preferredTarneebSuit, .spades)
+    }
+
+    func testBiddingSamplingConservationSeedsAndFallback() throws {
+        let context = biddingSweepContext()
+        var rng = AISeededGenerator(state: 91), repeated = AISeededGenerator(state: 91)
+        let hands = try XCTUnwrap(BiddingHandSampler.sample(context, using: &rng))
+        XCTAssertEqual(hands, BiddingHandSampler.sample(context, using: &repeated))
+        XCTAssertEqual(hands[.east], context.auction.hand)
+        XCTAssertTrue(hands.values.allSatisfy { $0.count == 13 })
+        XCTAssertEqual(Set(hands.values.flatMap { $0 }), Set(DeckFactory.makeCanonicalDeck()))
+        let first = ExpertBidPolicy.select(context, seed: 4, limits: AIBidSearchLimits(samples: 4, seconds: 5))
+        let second = ExpertBidPolicy.select(context, seed: 4, limits: AIBidSearchLimits(samples: 4, seconds: 5))
+        XCTAssertFalse(first.fallback)
+        XCTAssertEqual(first.recommendation, second.recommendation)
+        let fallback = ExpertBidPolicy.select(context, seed: 4, limits: AIBidSearchLimits(seconds: 0))
+        XCTAssertTrue(fallback.fallback)
+        XCTAssertEqual(fallback.recommendation, AdvancedBidPolicy.select(context))
+    }
+
+    func testBiddingDetachedCancellation() async {
+        let context = biddingSweepContext()
+        let request = AIBidRequest(id: UUID(), revision: UUID(), context: context, skill: .expert,
+            baseline: AutomatedBidRecommender().recommendation(for: context.auction), useSkillPolicy: true)
+        let task = Task { await AIBiddingEngine.detached(request, seed: 19) }
+        task.cancel()
+        let result = await task.value
+        XCTAssertTrue(result.cancelled)
+    }
+
+    func testBiddingLevelFreezesAndRejectsStaleResults() throws {
+        let name = "bid-lifecycle-\(UUID().uuidString)"
+        let prefs = try XCTUnwrap(UserDefaults(suiteName: name))
+        defer { prefs.removePersistentDomain(forName: name) }
+        prefs.set("advanced", forKey: AISkill.preferenceKey)
+        let model = TarneebPresentationState(dealService: DealService(handLogger: HandLogger { _ in }),
+            dealerSelector: EnvironmentDealerSelector(environment: ["TARNEEB_INITIAL_DEALER":"south"]), aiPreferences: prefs)
+        model.deal()
+        prefs.set("expert", forKey: AISkill.preferenceKey)
+        let first = try XCTUnwrap(model.prepareAIBidDecision())
+        let current = try XCTUnwrap(model.prepareAIBidDecision())
+        XCTAssertEqual(current.skill, .advanced)
+        XCTAssertTrue(current.useSkillPolicy)
+        let pass = AIBidResult(recommendation: BidRecommendation(bid: .pass), samples: 0, fallback: false, cancelled: false)
+        XCTAssertFalse(model.applyAIBidDecision(pass, request: first))
+        XCTAssertTrue(model.applyAIBidDecision(pass, request: current))
+        XCTAssertFalse(model.applyAIBidDecision(pass, request: current))
+        let stale = try XCTUnwrap(model.prepareAIBidDecision())
+        XCTAssertEqual(stale.context.auction.seat, .north)
+        XCTAssertEqual(stale.skill, .advanced)
+        model.newGame()
+        XCTAssertEqual(model.activeAISkill, .expert)
+        XCTAssertFalse(model.applyAIBidDecision(pass, request: stale))
+    }
+
+    func testAISkillDefaultsMigrationAndFirstDealFreezing() throws {
+        let suite = "ai-skill-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        XCTAssertEqual(AISkill.preference(in: defaults), .standard)
+        let model = TarneebPresentationState(aiPreferences: defaults)
+        defaults.set(AISkill.advanced.rawValue, forKey: AISkill.preferenceKey)
+        model.deal()
+        XCTAssertEqual(model.activeAISkill, .advanced)
+        defaults.set(AISkill.expert.rawValue, forKey: AISkill.preferenceKey)
+        XCTAssertEqual(model.activeAISkill, .advanced)
+        let data = try JSONEncoder().encode(model.snapshot)
+        XCTAssertEqual(try JSONDecoder().decode(MatchSnapshot.self, from: data).validated().restoredAISkill, .advanced)
+        var old = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        old["version"] = 1
+        old.removeValue(forKey: "activeAISkill")
+        let legacy = try JSONDecoder().decode(MatchSnapshot.self, from: JSONSerialization.data(withJSONObject: old))
+        XCTAssertEqual(try legacy.validated().restoredAISkill, .standard)
+        model.newGame()
+        XCTAssertEqual(model.activeAISkill, .expert)
+        defaults.set(AISkill.standard.rawValue, forKey: AISkill.preferenceKey)
+        model.deal()
+        XCTAssertEqual(model.activeAISkill, .expert)
+    }
+
+    func testAdvancedDrawsTrumpWithoutChangingStandardLead() {
+        let hand = [Card(suit: .spades, rank: .ace), Card(suit: .spades, rank: .king),
+                    Card(suit: .spades, rank: .five), Card(suit: .clubs, rank: .two)]
+        let context = AIDecisionContext(seat: .south, ownHand: hand,
+            trick: TrickPlayState(declarerSeat: .south, tarneebSuit: .spades), contract: 7, matchScore: GameScore())
+        XCTAssertEqual(context.standard(), Card(suit: .clubs, rank: .two))
+        XCTAssertEqual(AdvancedCardPolicy.select(context), Card(suit: .spades, rank: .king))
+        let fallback = ExpertCardPolicy.select(context, seed: 17, limits: AISearchLimits(seconds: 0))
+        XCTAssertTrue(fallback.fallback)
+        XCTAssertEqual(fallback.card, AdvancedCardPolicy.select(context))
+    }
+
+    func testExpertDetachedCancellationPropagates() async {
+        let hand = Array(DeckFactory.makeCanonicalDeck().prefix(13))
+        let context = AIDecisionContext(seat: .south, ownHand: hand,
+            trick: TrickPlayState(declarerSeat: .south, tarneebSuit: .spades), contract: 7, matchScore: GameScore())
+        let task = Task { await AIDecisionEngine.detached(context, skill: .expert, seed: 17) }
+        task.cancel()
+        let result = await task.value
+        XCTAssertTrue(result.cancelled)
+    }
+
     func testContractProgressMilestonesRespectDeclaringTeamAndRemainingTricks() throws {
         for seat in Seat.allCases {
             let summary = PostBiddingSummary(highBidderSeat: seat, bidValue: .seven, tarneebSuit: .spades)
@@ -4314,7 +4624,9 @@ final class TarneebTests: XCTestCase {
         let source = try String(contentsOf: projectFile)
 
         XCTAssertTrue(source.contains("INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;"))
-        XCTAssertTrue(source.contains("INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = UIInterfaceOrientationPortrait;"))
+        XCTAssertFalse(source.contains("INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad"))
+        XCTAssertEqual(source.components(separatedBy: "TARGETED_DEVICE_FAMILY = 1;").count - 1, 6)
+        XCTAssertFalse(source.contains("TARGETED_DEVICE_FAMILY = \"1,2\";"))
     }
 
     private func makeFourPlayers() -> [Player] {

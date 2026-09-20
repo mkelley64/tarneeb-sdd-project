@@ -1,0 +1,137 @@
+{
+  "protocol": "Bidding-only; fixed Advanced card play; 512 held-out base deals, seeds 40000–40511; four seat/dealer rotations and swapped partnerships; all-pass retained as zero; 95% normal intervals clustered by base deal.",
+  "comparisons": [
+    {
+      "allPassRounds": 264,
+      "budgetSeconds": 0.2,
+      "candidate": "advanced",
+      "ci95": [
+        0.8760670845334855,
+        1.5926829154665145
+      ],
+      "firstSeed": 40000,
+      "meanPairedScoreDifference": 1.234375,
+      "metrics": {
+        "advanced": {
+          "contracts": 1728,
+          "contractsDefeated": 712,
+          "contractsMade": 1372,
+          "decisions": 8798,
+          "defenses": 2104,
+          "fallbacks": 0,
+          "latencyMaxMS": 0.11091666965512559,
+          "latencyMedianMS": 0.015500001609325409,
+          "latencyP95MS": 0.024416665837634355
+        },
+        "standard": {
+          "contracts": 2104,
+          "contractsDefeated": 356,
+          "contractsMade": 1392,
+          "decisions": 8580,
+          "defenses": 1728,
+          "fallbacks": 0,
+          "latencyMaxMS": 0.06745832797605544,
+          "latencyMedianMS": 0.007333328539971262,
+          "latencyP95MS": 0.009000003046821803
+        }
+      },
+      "pairLosses": 158,
+      "pairTies": 1384,
+      "pairWins": 506,
+      "reference": "standard",
+      "requestedDecks": 512,
+      "rounds": 4096,
+      "samples": 16,
+      "scope": "bidding; Advanced card play for all seats",
+      "scoredDeckClusters": 512
+    },
+    {
+      "allPassRounds": 449,
+      "budgetSeconds": 0.2,
+      "candidate": "expert",
+      "ci95": [
+        1.0195687510898648,
+        1.8495718739101352
+      ],
+      "firstSeed": 40000,
+      "meanPairedScoreDifference": 1.4345703125,
+      "metrics": {
+        "expert": {
+          "contracts": 1270,
+          "contractsDefeated": 825,
+          "contractsMade": 1108,
+          "decisions": 8625,
+          "defenses": 2377,
+          "fallbacks": 0,
+          "latencyMaxMS": 20.734791665745433,
+          "latencyMedianMS": 0.016583333490416408,
+          "latencyP95MS": 10.552958330663387
+        },
+        "standard": {
+          "contracts": 2377,
+          "contractsDefeated": 162,
+          "contractsMade": 1552,
+          "decisions": 8408,
+          "defenses": 1270,
+          "fallbacks": 0,
+          "latencyMaxMS": 0.10254166409140453,
+          "latencyMedianMS": 0.008041672117542475,
+          "latencyP95MS": 0.01087499549612403
+        }
+      },
+      "pairLosses": 367,
+      "pairTies": 924,
+      "pairWins": 757,
+      "reference": "standard",
+      "requestedDecks": 512,
+      "rounds": 4096,
+      "samples": 16,
+      "scope": "bidding; Advanced card play for all seats",
+      "scoredDeckClusters": 512
+    },
+    {
+      "allPassRounds": 449,
+      "budgetSeconds": 0.2,
+      "candidate": "expert",
+      "ci95": [
+        -0.41271160011518393,
+        0.06603191261518393
+      ],
+      "firstSeed": 40000,
+      "meanPairedScoreDifference": -0.17333984375,
+      "metrics": {
+        "advanced": {
+          "contracts": 2207,
+          "contractsDefeated": 207,
+          "contractsMade": 1747,
+          "decisions": 8605,
+          "defenses": 1440,
+          "fallbacks": 0,
+          "latencyMaxMS": 0.43383333104429767,
+          "latencyMedianMS": 0.01679166598478332,
+          "latencyP95MS": 0.02666666841832921
+        },
+        "expert": {
+          "contracts": 1440,
+          "contractsDefeated": 460,
+          "contractsMade": 1233,
+          "decisions": 8622,
+          "defenses": 2207,
+          "fallbacks": 0,
+          "latencyMaxMS": 151.13870833010878,
+          "latencyMedianMS": 0.016541671357117593,
+          "latencyP95MS": 10.675124998670071
+        }
+      },
+      "pairLosses": 362,
+      "pairTies": 1357,
+      "pairWins": 329,
+      "reference": "advanced",
+      "requestedDecks": 512,
+      "rounds": 4096,
+      "samples": 16,
+      "scope": "bidding; Advanced card play for all seats",
+      "scoredDeckClusters": 512
+    }
+  ]
+}

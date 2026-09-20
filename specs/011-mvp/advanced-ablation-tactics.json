@@ -1,0 +1,38 @@
+[
+  {
+    "calibrated" : "K spades",
+    "originalAdvanced" : "K spades",
+    "position" : "draw trump",
+    "standard" : "2 clubs"
+  },
+  {
+    "calibrated" : "2 diamonds",
+    "originalAdvanced" : "3 clubs",
+    "position" : "establish long suit",
+    "standard" : "2 diamonds"
+  },
+  {
+    "calibrated" : "7 clubs",
+    "originalAdvanced" : "A clubs",
+    "position" : "second seat economy versus possible later winners",
+    "standard" : "7 clubs"
+  },
+  {
+    "calibrated" : "2 clubs",
+    "originalAdvanced" : "2 clubs",
+    "position" : "preserve secure partner",
+    "standard" : "2 clubs"
+  },
+  {
+    "calibrated" : "A diamonds",
+    "originalAdvanced" : "A diamonds",
+    "position" : "avoid known ruff on lead",
+    "standard" : "A diamonds"
+  },
+  {
+    "calibrated" : "2 diamonds",
+    "originalAdvanced" : "A spades",
+    "position" : "protect vulnerable partner against known ruff",
+    "standard" : "2 diamonds"
+  }
+]

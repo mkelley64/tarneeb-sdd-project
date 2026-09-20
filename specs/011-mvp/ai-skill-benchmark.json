@@ -1,0 +1,270 @@
+{
+  "tuning": [
+    {
+      "allPassOrientations": 44,
+      "budgetSeconds": 0.15,
+      "candidate": "advanced",
+      "ci95": [
+        -0.7695995081947096,
+        1.3807106193058207
+      ],
+      "firstSeed": 10000,
+      "maxTricks": 13,
+      "meanPairedScoreDifference": 0.3055555555555556,
+      "metrics": {
+        "advanced": {
+          "contracts": 468,
+          "contractsDefeated": 202,
+          "contractsMade": 274,
+          "decisions": 24336,
+          "defenses": 468,
+          "fallbacks": 0,
+          "latencyMaxMS": 0.06391666829586029,
+          "latencyMedianMS": 0.0060416641645133495,
+          "latencyP95MS": 0.009000003046821803
+        },
+        "standard": {
+          "contracts": 468,
+          "contractsDefeated": 194,
+          "contractsMade": 266,
+          "decisions": 24336,
+          "defenses": 468,
+          "fallbacks": 0,
+          "latencyMaxMS": 0.03695832856465131,
+          "latencyMedianMS": 0.001916669134516269,
+          "latencyP95MS": 0.00483333133161068
+        }
+      },
+      "pairLosses": 152,
+      "pairTies": 164,
+      "pairWins": 152,
+      "reference": "standard",
+      "requestedDecks": 128,
+      "rounds": 936,
+      "samples": 8,
+      "scoredDeckClusters": 117
+    },
+    {
+      "allPassOrientations": 44,
+      "budgetSeconds": 0.15,
+      "candidate": "expert",
+      "ci95": [
+        0.3693497101476989,
+        1.615693024895036
+      ],
+      "firstSeed": 10000,
+      "maxTricks": 13,
+      "meanPairedScoreDifference": 0.9925213675213675,
+      "metrics": {
+        "expert": {
+          "contracts": 468,
+          "contractsDefeated": 199,
+          "contractsMade": 305,
+          "decisions": 24336,
+          "defenses": 468,
+          "fallbacks": 0,
+          "latencyMaxMS": 38.06437500315951,
+          "latencyMedianMS": 3.0002916682860814,
+          "latencyP95MS": 18.59520833386341
+        },
+        "standard": {
+          "contracts": 468,
+          "contractsDefeated": 163,
+          "contractsMade": 269,
+          "decisions": 24336,
+          "defenses": 468,
+          "fallbacks": 0,
+          "latencyMaxMS": 0.021083338651806116,
+          "latencyMedianMS": 0.00220834044739604,
+          "latencyP95MS": 0.006166665116325021
+        }
+      },
+      "pairLosses": 134,
+      "pairTies": 134,
+      "pairWins": 200,
+      "reference": "standard",
+      "requestedDecks": 128,
+      "rounds": 936,
+      "samples": 8,
+      "scoredDeckClusters": 117
+    },
+    {
+      "allPassOrientations": 44,
+      "budgetSeconds": 0.15,
+      "candidate": "expert",
+      "ci95": [
+        0.3377806177778403,
+        1.4143561343589117
+      ],
+      "firstSeed": 10000,
+      "maxTricks": 13,
+      "meanPairedScoreDifference": 0.8760683760683761,
+      "metrics": {
+        "advanced": {
+          "contracts": 468,
+          "contractsDefeated": 144,
+          "contractsMade": 291,
+          "decisions": 24336,
+          "defenses": 468,
+          "fallbacks": 0,
+          "latencyMaxMS": 0.03550000110408291,
+          "latencyMedianMS": 0.00583333894610405,
+          "latencyP95MS": 0.008708331733942032
+        },
+        "expert": {
+          "contracts": 468,
+          "contractsDefeated": 177,
+          "contractsMade": 324,
+          "decisions": 24336,
+          "defenses": 468,
+          "fallbacks": 0,
+          "latencyMaxMS": 36.40508333046455,
+          "latencyMedianMS": 2.8054583381162956,
+          "latencyP95MS": 17.535208331537433
+        }
+      },
+      "pairLosses": 137,
+      "pairTies": 139,
+      "pairWins": 192,
+      "reference": "advanced",
+      "requestedDecks": 128,
+      "rounds": 936,
+      "samples": 8,
+      "scoredDeckClusters": 117
+    }
+  ],
+  "heldout": [
+    {
+      "allPassOrientations": 164,
+      "budgetSeconds": 0.15,
+      "candidate": "advanced",
+      "ci95": [
+        -0.4967364467210726,
+        0.44365789045780296
+      ],
+      "firstSeed": 20000,
+      "maxTricks": 13,
+      "meanPairedScoreDifference": -0.02653927813163482,
+      "metrics": {
+        "advanced": {
+          "contracts": 1884,
+          "contractsDefeated": 768,
+          "contractsMade": 1100,
+          "decisions": 97968,
+          "defenses": 1884,
+          "fallbacks": 0,
+          "latencyMaxMS": 0.06908333307364956,
+          "latencyMedianMS": 0.006124995707068592,
+          "latencyP95MS": 0.009000003046821803
+        },
+        "standard": {
+          "contracts": 1884,
+          "contractsDefeated": 784,
+          "contractsMade": 1116,
+          "decisions": 97968,
+          "defenses": 1884,
+          "fallbacks": 0,
+          "latencyMaxMS": 0.09566666994942352,
+          "latencyMedianMS": 0.002041662810370326,
+          "latencyP95MS": 0.005791662260890007
+        }
+      },
+      "pairLosses": 634,
+      "pairTies": 592,
+      "pairWins": 658,
+      "reference": "standard",
+      "requestedDecks": 512,
+      "rounds": 3768,
+      "samples": 8,
+      "scoredDeckClusters": 471
+    },
+    {
+      "allPassOrientations": 164,
+      "budgetSeconds": 0.15,
+      "candidate": "expert",
+      "ci95": [
+        0.3441435989463936,
+        0.9679583118816317
+      ],
+      "firstSeed": 20000,
+      "maxTricks": 13,
+      "meanPairedScoreDifference": 0.6560509554140127,
+      "metrics": {
+        "expert": {
+          "contracts": 1884,
+          "contractsDefeated": 773,
+          "contractsMade": 1193,
+          "decisions": 97968,
+          "defenses": 1884,
+          "fallbacks": 0,
+          "latencyMaxMS": 34.643374994629994,
+          "latencyMedianMS": 2.9647916671819985,
+          "latencyP95MS": 18.477958328730892
+        },
+        "standard": {
+          "contracts": 1884,
+          "contractsDefeated": 691,
+          "contractsMade": 1111,
+          "decisions": 97968,
+          "defenses": 1884,
+          "fallbacks": 0,
+          "latencyMaxMS": 0.038291669625323266,
+          "latencyMedianMS": 0.0023750035325065255,
+          "latencyP95MS": 0.007499998901039362
+        }
+      },
+      "pairLosses": 509,
+      "pairTies": 551,
+      "pairWins": 824,
+      "reference": "standard",
+      "requestedDecks": 512,
+      "rounds": 3768,
+      "samples": 8,
+      "scoredDeckClusters": 471
+    },
+    {
+      "allPassOrientations": 164,
+      "budgetSeconds": 0.15,
+      "candidate": "expert",
+      "ci95": [
+        0.44517565360446903,
+        1.0447394207055096
+      ],
+      "firstSeed": 20000,
+      "maxTricks": 13,
+      "meanPairedScoreDifference": 0.7449575371549894,
+      "metrics": {
+        "advanced": {
+          "contracts": 1884,
+          "contractsDefeated": 630,
+          "contractsMade": 1139,
+          "decisions": 97968,
+          "defenses": 1884,
+          "fallbacks": 0,
+          "latencyMaxMS": 0.07479167106794193,
+          "latencyMedianMS": 0.005958332621958107,
+          "latencyP95MS": 0.00875000114319846
+        },
+        "expert": {
+          "contracts": 1884,
+          "contractsDefeated": 745,
+          "contractsMade": 1254,
+          "decisions": 97968,
+          "defenses": 1884,
+          "fallbacks": 0,
+          "latencyMaxMS": 33.75770833372371,
+          "latencyMedianMS": 2.909458336944226,
+          "latencyP95MS": 17.720374999043997
+        }
+      },
+      "pairLosses": 528,
+      "pairTies": 625,
+      "pairWins": 731,
+      "reference": "advanced",
+      "requestedDecks": 512,
+      "rounds": 3768,
+      "samples": 8,
+      "scoredDeckClusters": 471
+    }
+  ]
+}
