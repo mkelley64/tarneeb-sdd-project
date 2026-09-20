@@ -1,0 +1,13 @@
+{
+  "cancelled" : false,
+  "card" : "spades-Q",
+  "checkpoints" : 4913,
+  "cpuDuringMaxGapMS" : 0.060666000000000886,
+  "evidence" : "normal return",
+  "fallback" : false,
+  "maxGapEndingCheckpoint" : 2,
+  "maxGapWallMS" : 0.06054161349311471,
+  "samples" : 8,
+  "threadCPUMS" : 25.570334000000006,
+  "wallMS" : 25.571041682269424
+}

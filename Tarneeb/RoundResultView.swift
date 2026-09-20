@@ -33,6 +33,7 @@ struct RoundResultView: View {
                     Spacer()
                     LastTrickRecallButton(trick: lastTrick, blocked: blocked)
                     Menu {
+                        AISkillOptions()
                         Toggle("Sound effects", isOn: $soundEnabled)
                         Toggle("Haptics", isOn: $hapticsEnabled)
                         if winner == nil {

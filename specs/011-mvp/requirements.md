@@ -1,5 +1,19 @@
 # Tarneeb iOS MVP 011 Requirements
 
+Staged reveal follow-up: prepare the game behind the opaque intro after the hold, then fade only the intro away. Do not animate game insertion or permit interaction before reveal completes. Retain the 0.7-second fade, Reduce Motion behavior and no replay on ordinary background return.
+
+Launch handoff refinement: use a smooth 0.7-second ease-in-out crossfade over the existing green background after the one-second hold; this supersedes the earlier 0.3-second fade. Retain Reduce Motion's immediate transition and all existing game timing.
+
+September 20 Arabic title follow-up: use the table's exact `طرنيب` spelling for both launch presentations, with elegant Arabic typography (Geeza Pro, 52pt) and the existing muted-gold table-title color `#BBAA7E`. Preserve the card artwork, background, one-second hold and fade behavior. Allow sufficient height to prevent glyph clipping.
+
+September 20 launch presentation (user-approved visibility follow-up): display a static Tarneeb title with a fan of existing card faces on the existing primary table green during system launch. Continue the same artwork in-app for one active second on a fresh process launch, then fade into the game over 0.3 seconds (no fade with Reduce Motion). Do not replay a completed intro on background return. Do not start game timers behind the hold or change gameplay timing, saved state, rules or audio. If interrupted before completion, cancel the hold and retry on activation.
+
+September 20 release scope: the user approved an iPhone-focused first release. Preserve portrait orientation; native iPad support is deferred. App and test targets use device family 1 in Debug and Release, with no iPad-specific orientation declaration. Team 3QM6PM3F9J, existing bundle ID, version/build, game behavior and presentation remain unchanged by this device-scope adjustment.
+
+Current revision: [Public-threat separation](public-threat-revision.md) promotes independently tested Advanced public-void protection without generic higher-card speculation. Preserve long-suit and partner tactics, Standard parity and Expert's original rollout model. The earlier [ablation candidate](advanced-ablation-results.md) remains unpromoted; it is distinct from this targeted revision.
+
+Current AI continuation: [Selectable AI skill](ai-skill.md) and [AI bidding](ai-bidding.md) add Standard, Advanced and Expert for all three simulated seats, with one match-frozen setting and safe save migration. They supersede historical advanced-AI exclusions below for bidding and card play. Standard behavior, scoring, rules, approved timing and design tokens remain unchanged. Persistence follows [Continued Play](continued-play.md).
+
 ## 1. Purpose
 
 Build an iOS application MVP for the card game Tarneeb that allows one human player to deal, bid, choose Tarneeb, play each 13-trick round, and continue through scored rounds until one partnership reaches 31 points. The other three players are simulated seats. After each played round, the app scores both partnerships from the contract and trick totals, updates the cumulative game score, calls out a winner at 31 or more, or automatically advances the dealer and deals the next round after a short score-result pause. Multiplayer, persistence, and advanced trick-play AI are not included.

@@ -1,0 +1,103 @@
+{
+  "protocol": "hybrid-confirmation-2026-09-19",
+  "frozenSourceAndProtocolHashesMatch": true,
+  "independentAuditorSHA256": "ca441033c51bb924f6516378b4b83d1eb00cb3d1d3adc6f1b3dc8e0a664fdfdd",
+  "comparisons": [
+    {
+      "reference": "standard",
+      "fileSHA256": "c6e58cfb7db327874db959a7702950962f2ae351190830d97c5cee774dbe2abf",
+      "matches": 2048,
+      "candidateWins": 1576,
+      "winInterval": {
+        "clusters": 256,
+        "mean": 0.76953125,
+        "lower": 0.7422703693327619,
+        "upper": 0.7967921306672381
+      },
+      "scoreMarginInterval95": {
+        "clusters": 256,
+        "mean": 19.97900390625,
+        "lower": 18.411464610504932,
+        "upper": 21.546543201995068
+      },
+      "passesIndividualGate": true,
+      "playedHands": 14832,
+      "allPass": 1154,
+      "maxDeals": 25,
+      "cardDecisions": 771264,
+      "biddingDecisions": 67971,
+      "fallbacks": 0,
+      "validation": "metadata, limits, balanced records, scores, dealer progression, counts, contract accounting, primary and secondary intervals passed"
+    },
+    {
+      "reference": "advanced",
+      "fileSHA256": "e2f20825366f7ae24444ee3719455646fe02bb16138cb8083d2b06818b610a13",
+      "matches": 2048,
+      "candidateWins": 1062,
+      "winInterval": {
+        "clusters": 256,
+        "mean": 0.5185546875,
+        "lower": 0.4979877797520859,
+        "upper": 0.539121595247914
+      },
+      "scoreMarginInterval95": {
+        "clusters": 256,
+        "mean": 1.47216796875,
+        "lower": 0.6224699942461669,
+        "upper": 2.321865943253833
+      },
+      "passesIndividualGate": false,
+      "playedHands": 12997,
+      "allPass": 1141,
+      "maxDeals": 15,
+      "cardDecisions": 675844,
+      "biddingDecisions": 61306,
+      "fallbacks": 4,
+      "validation": "metadata, limits, balanced records, scores, dealer progression, counts, contract accounting, primary and secondary intervals passed"
+    },
+    {
+      "reference": "expert",
+      "fileSHA256": "3fdc0794699567c1057e22ab062040b3b1d4e82e8b0fb00efdfe79cd76f295fb",
+      "matches": 2048,
+      "candidateWins": 1115,
+      "winInterval": {
+        "clusters": 256,
+        "mean": 0.54443359375,
+        "lower": 0.5226900142927082,
+        "upper": 0.5661771732072918
+      },
+      "scoreMarginInterval95": {
+        "clusters": 256,
+        "mean": 1.8603515625,
+        "lower": 0.9962062494843685,
+        "upper": 2.7244968755156314
+      },
+      "passesIndividualGate": true,
+      "playedHands": 12642,
+      "allPass": 1672,
+      "maxDeals": 16,
+      "cardDecisions": 657384,
+      "biddingDecisions": 60613,
+      "fallbacks": 0,
+      "validation": "metadata, limits, balanced records, scores, dealer progression, counts, contract accounting, primary and secondary intervals passed"
+    }
+  ],
+  "totalMatches": 6144,
+  "totalPlayedHands": 40471,
+  "totalAllPassDeals": 3967,
+  "totalCardDecisions": 2104492,
+  "totalBidDecisions": 189890,
+  "unresolved": 0,
+  "legalityConservationProgressionFailures": 0,
+  "cardFallbacks": 4,
+  "bidFallbacks": 0,
+  "maxObservedCardElapsedMilliseconds": 25430.29879167443,
+  "latencyOutlierCause": "Unresolved; aggregate timing does not distinguish CPU work from host scheduling or interruption.",
+  "allThreeConfirmationGatePassed": false,
+  "productionChanged": false,
+  "nativeRegressions": "Passed before held-out execution",
+  "simulatorRerun": false,
+  "diffCheck": "passed",
+  "selectionStreams": "300000–300255; excluded",
+  "confirmationStreams": "400000–400255"
+}

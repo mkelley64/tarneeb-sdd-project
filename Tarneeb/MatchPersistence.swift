@@ -1,16 +1,20 @@
 import Foundation
 
 struct MatchSnapshot: Codable, Equatable {
-    var version = 1
+    var version = 2
     let game: GameState
     let score: GameScore
     let lastRound: RoundScoreResult?
     let completedRounds: Int
     let hasStarted: Bool
     let announcedRound: Int?
+    // Optional on disk for v1 migration. New snapshots always write a concrete value.
+    var activeAISkill: AISkill? = .standard
+
+    var restoredAISkill: AISkill { version == 1 ? .standard : (activeAISkill ?? .standard) }
 
     func validated() throws -> MatchSnapshot {
-        guard version == 1, (0...1_000_000).contains(completedRounds),
+        guard (1...2).contains(version), (version == 1 || activeAISkill != nil), (0...1_000_000).contains(completedRounds),
               announcedRound.map({ (0...completedRounds).contains($0) }) ?? true,
               GameState(phase: game.phase, players: game.players, dealerSeat: game.dealerSeat,
                         deck: game.deck, biddingState: game.biddingState,

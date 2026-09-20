@@ -1,5 +1,150 @@
 # Tarneeb iOS MVP 011 Implementation Tasks
 
+## Final phone acceptance and PR preparation
+
+- [x] Build and signature-verify the final staged-reveal Release archive, install in place on iPhone 15 Pro, and receive user acceptance of the transition. Earlier "not yet installed" notes below describe intermediate iterations.
+- [x] Keep original playing cards; abandon generated avatar concepts without adding them to the repository.
+- [x] Re-run native AI regressions. Update the obsolete iPad-orientation assertion to verify the approved portrait/iPhone-only scope in all six configurations.
+- [x] Re-run complete simulator unit tests and focused launch/resume UI test: 190 unit tests, one expected physical-device-only skip, zero failures; one UI test passed (`/tmp/tarneeb-pr-verification-final.xcresult`).
+- [ ] Publish a PR with strength/performance limitations clearly stated; GitHub authentication is required on this machine.
+
+## Staged intro reveal
+
+- [x] Separate nonanimated game mounting from retained-overlay opacity animation and completion; gate interaction until reveal completes.
+- [x] Both focused tests passed (`/tmp/tarneeb-staged-intro-view.xcresult`). Initial recording exposed an abrupt cut with scene-owned state; move state into LaunchRootView. Final recording `/tmp/tarneeb-staged-view-reveal.mov` and timestamped frames visibly show progressive blending. Physical-device visual acceptance remains pending; not yet installed.
+
+## Smoother launch handoff
+
+- [x] Keep outgoing intro above game during removal, add stable green backdrop, and lengthen only the intro crossfade to 0.7 seconds ease-in-out.
+- [x] Both focused simulator tests passed (`/tmp/tarneeb-smooth-intro.xcresult`), including storyboard layout at three sizes and launch/background/resume. Diff check passed. Not yet installed; physical smoothness remains a visual acceptance check.
+
+## Arabic launch title
+
+- [x] Match the table's Arabic spelling and muted gold; use 52pt Geeza Pro with room for Arabic glyphs in the shared storyboard.
+- [x] Verify actual font loading, exact title/color, unclipped intrinsic bounds at three sizes, rendered appearance, and launch/resume regression. Both focused simulator tests passed (`/tmp/tarneeb-arabic-intro.xcresult`); standard and smallest previews visually inspected. Not yet installed on the phone.
+
+## Visible cold-launch intro
+
+- [x] Reuse launch storyboard for a one-second cancellable active hold and 0.3-second fade; respect Reduce Motion.
+- [x] Preserve completed state across background/resume, defer game content until hold ends, and leave gameplay timing unchanged.
+- [x] Verify simulator launch/layout and background/resume UI regression: both focused tests passed September 20 (`/tmp/tarneeb-visible-intro-final.xcresult`). Layout covers three sizes; UI test checks game availability and absent intro after resume. Initial UI attempt needed foreground hit-testing synchronization. Physical visibility and Reduce Motion remain manual checks; this follow-up has not been installed on the phone.
+
+## Static card-fan launch screen (completed)
+
+- [x] Add a static title/fan launch storyboard using existing colors and card art, without a forced delay or runtime state changes.
+- [x] Wire the compiled resource and asset for Debug/Release; include a reproducible size-bounded asset composer.
+- [x] Pass the simulator storyboard/layout test at three iPhone sizes and visually inspect rendered previews.
+- [x] Build and verify a signed Release archive with the compiled storyboard and correct launch Info.plist key; no upload or phone installation.
+
+## iPhone-focused release configuration (completed)
+
+- [x] Apply approved iPhone device family to all six app/test build configurations and remove both app iPad orientation settings.
+- [x] Preserve portrait orientation, automatic signing with team 3QM6PM3F9J, bundle ID and version/build.
+- [x] Create a local signed Release archive; verify built device family/orientation, signature and absence of the prior orientation warning. Project syntax and diff checks pass.
+- [ ] Perform App Store Connect distribution validation/upload when requested; no upload or installation was performed for this configuration change.
+
+## Physical opening-search diagnostics (first device pass completed)
+
+- [x] Register the connected iPhone with user-selected team 3QM6PM3F9J and sign an isolated diagnostic app without changing saved project signing settings.
+- [x] Freeze 256 opening positions and production limits; compare detached search with observed workers on iPhone 15 Pro.
+- [x] Verify legal identical selections, zero fallbacks, main-actor heartbeat progress and existing detached bid/card cancellation tests; publish [results](physical-latency-results.md).
+- [ ] Extend device coverage to complete-game animation/touch behavior, sustained load and background/resume stale-result protection before broad performance acceptance. Historical stall attribution remains unresolved.
+
+## Latency investigation (local diagnostics completed; device acceptance pending)
+
+- [x] Inspect production deadline/cancellation/sampling paths and retain historical evidence unchanged.
+- [x] Add offline wall/thread-CPU/checkpoint diagnostics, paired observer parity and public-context replay without app changes.
+- [x] Verify controlled sleep/CPU delay signatures, immediate/mid-search cancellation, zero-budget and invalid-input fallback.
+- [x] Complete 32 diagnostic decks × four rotations: 116 hands, 12 all-pass deals, 6,032 paired positions, zero mismatches/fallbacks; independently check distributions and replay the slowest observed case.
+- [x] Pass native regressions and publish [results and limitations](latency-diagnostics-results.md); historical 25.43-second event remains unexplained.
+- [ ] Capture exact phase/reason telemetry if required; the existing callback reports timing and observable fallback evidence, not internal reason codes.
+- [ ] Connect a physical iPhone and verify detached-search/turn responsiveness under load; only simulators were available in this investigation.
+
+## Hybrid confirmation (evaluation completed; promotion gate not met)
+
+- [x] Freeze hybrid Advanced bidding + current Expert cards, three references, 256 untouched streams and adjusted all-three success rule.
+- [x] Pass native regressions and complete all 6,144 matches / 40,471 hands with no unresolved matches or legality/conservation/progression failures.
+- [x] Independently reconstruct intervals, verify record/accounting checks and frozen hashes, and publish [results](hybrid-confirmation-results.md).
+- [x] Retain all four card fallbacks and report the unexplained 25.43-second maximum instead of claiming a hard 150 ms bound.
+- [x] Keep production unchanged: superiority over Standard/current Expert demonstrated, but Advanced comparison inconclusive; all-three gate not met.
+- [ ] Diagnose wall/CPU timing, deadline/fallback reasons and physical-device responsiveness before performance acceptance.
+- [ ] Resolve the small possible advantage over Advanced using a separately predeclared, adequately powered fresh evaluation or a new training-led revision; do not extend or reuse this held-out sample as untouched evidence.
+
+## Full-match component diagnosis (completed)
+
+- [x] Freeze four candidate bid/play combinations, fixed Advanced reference, 256 fresh streams, and three paired primary effects before evaluation.
+- [x] Verify historical default behavior, independent component routing, fixed reference, forced fallbacks and synthetic factorial contrasts.
+- [x] Complete 8,192 matches / 52,369 hands with no unresolved matches, legality/conservation failures or fallbacks.
+- [x] Reconstruct effects independently from match records and verify frozen source/protocol hashes.
+- [x] Publish [component results](match-components-results.md): Expert bidding harmful, Expert cards beneficial, interaction inconclusive; production unchanged.
+- [x] Evaluate Advanced bidding + Expert card play on fresh held-out matches: confirmation above completed, but the all-three promotion gate was not met.
+
+## Full-match evaluation (completed)
+
+- [x] Freeze three pairings, 256 fresh deal sequences, eight balanced matches per sequence, adjusted primary intervals and explicit unresolved handling.
+- [x] Implement offline running-score, first-to-31 evaluation using production bidding, card policies, acceptance and scoring paths.
+- [x] Pass diagnostic replay, termination, all-pass/dealer/cap, fallback and public-seed tests plus native regressions.
+- [x] Complete all 6,144 matches / 42,130 hands with no unresolved matches, illegal card plays, conservation failures or fallbacks.
+- [x] Independently verify totals and stream-cluster intervals; recheck source/protocol hashes and publish [results](full-match-results.md).
+- [x] Diagnose bidding/card-play contributions with running score on fresh streams; component results above identify the bidder. Match-score utility itself was not independently ablated, and complete Expert superiority remains unproven.
+
+## Current Expert versus revised Advanced (evaluation completed)
+
+- [x] Freeze production hashes, fresh seeds 100000–102047, sample size, scoring endpoint and 95% decision rule before running.
+- [x] Pass native regressions, then evaluate production policies with fixed bidding, swapped partnerships and rotated seats/dealers.
+- [x] Complete all 2,048 decks; verify 15,312 played rounds / 796,224 legal conserved card plays and report zero Expert fallbacks.
+- [x] Independently verify accounting and cluster confidence interval; preserve source/protocol hashes and raw data.
+- [x] Publish [results and limitations](expert-advanced-evaluation-results.md): Expert +0.441 [0.299, 0.583]; no production changes.
+- [x] Separately evaluate whole matches with skill-specific bidding on a new predeclared held-out set; see full-match results above.
+- [ ] Profile on a physical iPhone before making device-performance claims.
+
+## Public-threat revision (completed)
+
+- [x] Predeclare six training configurations and two held-out promotion gates before evaluation.
+- [x] Separate demonstrated-void risk from generic higher-card speculation, preserving all other Advanced tactics.
+- [x] Verify risk boundaries, economy, long suits, fairness, legality and Standard parity.
+- [x] Evaluate 512 training and 2,048 fresh held-out deals; both Advanced promotion gates pass.
+- [x] Run separate 512-deal Expert card and bidding integrations; reject adverse card substitution and preserve Expert's original rollout model.
+- [x] Verify 1,560 rollout-policy positions, 223 completed Expert searches and 131 Expert auction decisions against frozen originals.
+- [x] Pass final 188 simulator unit tests and real Expert UI flow; record broader 28 UI passes and result-bundle finalization limitation.
+- [x] Publish [protocol, evidence, reproduction commands and limitations](public-threat-revision.md).
+
+## Advanced heuristic research (offline)
+
+- [x] Predeclare separate diagnostic, training, validation and held-out partitions and a bounded calibration search.
+- [x] Isolate eight strategic groups; include scoring-scaffold, singleton and leave-one-out controls against frozen Standard.
+- [x] Verify production parity, hidden-hand/hand-order invariance, legal play, conservation and deterministic replay.
+- [x] Run 108 configurations on 512 training decks, then select among five finalists on 512 validation decks.
+- [x] Freeze the selected weights and source/artifact hashes before 2,048-deck held-out evaluation.
+- [x] Publish adjusted intervals, contract results, latency, raw per-deal evidence and tactical regressions in [ablation results](advanced-ablation-results.md).
+- [x] Preserve all production policies and rerun native card/bidding/persistence regressions.
+- [ ] Separate reliable public-threat protection from speculative survival estimates and re-evaluate on new data; recover intended partner and long-suit behavior.
+- [ ] Before production promotion, re-evaluate Expert's shared rollouts, combined-game performance, and simulator/device behavior.
+
+## AI bidding continuation
+
+- [x] Freeze Standard recommendations before routing; retain existing acceptance and partner protection.
+- [x] Apply the existing match-frozen AI skill to bidding for East, North and West, preserving fixture overrides.
+- [x] Add public auction context, score-aware Advanced candidates, seeded hidden-hand samples and seat-local Expert auction/full-hand rollouts.
+- [x] Profile production limits; run cancellable search off the UI thread during existing cues; reject stale results.
+- [x] Verify baseline parity, legality, conservation, fairness, scoring, seeds, fallback, cancellation, freeze and resume.
+- [x] Pass 185 unit tests and 12 selected simulator UI regressions; rerun final unit suite.
+- [x] Predeclare and run separate tuning/held-out bidding benchmarks; report gains over Standard and inconclusive Expert–Advanced evidence in [AI bidding](ai-bidding.md).
+- [ ] Verify bidding search latency and frame pacing on a physical iPhone.
+- [ ] Establish combined bidding-and-card-play whole-match evidence; improve Expert bidding beyond Advanced on a new untouched evaluation set.
+
+## Selectable AI skill continuation
+
+- [x] Pin Standard with pre-routing characterization and an independent frozen benchmark policy.
+- [x] Add public decision context, public-card inference, deterministic Advanced tactics, constrained sampling and bounded Expert rollouts.
+- [x] Add AI skill to opening, live and result options; persist preference and match level separately; migrate v1 saves to Standard.
+- [x] Lock the first fresh match on Deal, subsequent matches on New Game, and retain the saved level on restore/next hand.
+- [x] Run search in a cancellable detached task; reject stale, cancelled, duplicate and illegal results before existing mutation.
+- [x] Add native verification and XCTest/UI-test coverage; compile app and test targets.
+- [x] Execute simulator regressions: 181 unit tests and all 27 current UI tests passed across the main run and targeted rerun on iPhone 17 Pro/iOS 26.5. Corrected AI skill submenu also passed on iPhone 17e.
+- [ ] Complete physical-device Expert latency and frame-pacing checks.
+- [x] Complete held-out paired evaluation and publish strength/performance limitations (see [AI skill](ai-skill.md)). Expert improved in this benchmark; Advanced did not demonstrate improvement.
+
 This task list is derived from `requirements.md`, `design.md`, and
 `design-tokens.md` in `specs/011-mvp`. It is an implementation plan only; no
 code is included here.

@@ -1,0 +1,62 @@
+{
+  "protocol": "latency-diagnostics-2026-09-19",
+  "sha256": {
+    "Tarneeb/AISkill.swift": "4963c6ab6f99fa1a01c876c470b83fd3d16479ffe07b30e99de289c351c54f96",
+    "Tarneeb/AIBidding.swift": "5c51ea4c13675777fc3d174b10202b2f5c9f26ee3a651e1e6b4d8d4b04732f01",
+    "Tarneeb/DomainModels.swift": "92edb116262597cac6a876251fb92f2b497624c29680cfc904e42b9eec5faa4a",
+    "tools/ai/LatencyDiagnostics.swift": "4fcfb3a5640379800208fee8aacf98988be9046f597f5ceae6e5ad39a1521ca4",
+    "tools/ai/main.swift": "ee55c1b0ad03c60cbb3f0998c440352dee2c79beae30fbb743cf9365af9fbbf0",
+    "tools/ai/run.sh": "1d000c15317808def9e51ff343c74b9cfe51c553b1767d57e5fe3fcc5ffaeb5d",
+    "specs/011-mvp/latency-diagnostics.md": "91acd5c05047a3f69814341441e4075784af73a274ec42cd90b631e98838d6f2",
+    "specs/011-mvp/latency-diagnostics-profile.json": "0267bc1294bbf5c7cc62cc2906988804eaa4975518e573c31b2ecbdac8c122cb",
+    "specs/011-mvp/latency-diagnostics-checks.json": "0eb8c4c3b7a8279965e52d14effd0d74cf534f74805e7ea29e2f2ed8014279ec",
+    "specs/011-mvp/latency-diagnostics-replay.json": "610fbfab65d3b325243e17b017ae01c45effd1ba19d3f95575a8743fcd9f6a68"
+  },
+  "productionHashesMatchPriorConfirmation": true,
+  "priorConfirmationResultsUnchanged": true,
+  "profileConfiguration": {
+    "firstDeck": 500000,
+    "lastDeck": 500031,
+    "rotations": 4,
+    "bidding": "advanced",
+    "cards": "expert",
+    "samples": 8,
+    "maxTricks": 13,
+    "cooperativeSeconds": 0.15,
+    "scores": [
+      [
+        0,
+        0
+      ],
+      [
+        30,
+        29
+      ],
+      [
+        15,
+        20
+      ]
+    ],
+    "pairedExecutionOrder": "alternating"
+  },
+  "verification": {
+    "nativeRegressions": "passed",
+    "controlledDiagnostics": "passed",
+    "pairedPositions": 6032,
+    "selectorCalls": 12064,
+    "playedHands": 116,
+    "allPass": 12,
+    "mismatches": 0,
+    "baselineFallbacks": 0,
+    "observedFallbacks": 0,
+    "legalityConservationFailures": 0,
+    "independentDistributionReconstruction": "all six passed",
+    "publicReplaySchema": "verified",
+    "slowestObservedReplay": "index 5464; same Q-spades / 8 samples / 4913 observations; 25.571 ms; no fallback",
+    "diffCheck": "passed"
+  },
+  "historicalOutlier": "not reproduced; cause unresolved",
+  "exactFallbackReasonCodes": "not exposed by production; observable evidence only",
+  "physicalDeviceProfile": "not run; successful device discovery listed only simulators",
+  "appChanged": false
+}

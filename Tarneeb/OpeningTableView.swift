@@ -1,5 +1,24 @@
 import SwiftUI
 
+struct AISkillOptions: View {
+    @AppStorage(AISkill.preferenceKey) private var preference = AISkill.standard.rawValue
+
+    var body: some View {
+        Menu("AI skill") {
+            Picker("AI skill", selection: $preference) {
+                ForEach(AISkill.allCases, id: \.rawValue) { skill in
+                    Text(skill.title).tag(skill.rawValue)
+                }
+            }
+            Text("All AI players, including North.")
+                .font(.caption)
+            Text("Applies to the next new game.")
+                .font(.caption)
+        }
+        .accessibilityIdentifier("tarneeb-ai-skill")
+    }
+}
+
 private struct OpeningFramePreference: PreferenceKey {
     static var defaultValue: [String: CGRect] = [:]
     static func reduce(value: inout [String: CGRect], nextValue: () -> [String: CGRect]) {
@@ -94,6 +113,7 @@ struct OpeningTableView: View {
             MatchScoreHeading(score: score)
             Spacer(minLength: 0)
             Menu {
+                AISkillOptions()
                 Toggle("Sound effects", isOn: $soundEnabled)
                 Toggle("Haptics", isOn: $hapticsEnabled)
                 Divider()

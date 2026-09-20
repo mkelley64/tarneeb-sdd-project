@@ -1,0 +1,28 @@
+{
+  "protocol": "expert-advanced-evaluation-2026-09-18",
+  "statusAtCreation": "frozen before evaluation results",
+  "protocolSHA256": "9fc5e8afd430f3936783bc2f03da29548a7d651ae4b1ce2de35080e42eaea82f",
+  "productionSHA256": {
+    "Tarneeb/AISkill.swift": "4963c6ab6f99fa1a01c876c470b83fd3d16479ffe07b30e99de289c351c54f96",
+    "Tarneeb/AIBidding.swift": "5c51ea4c13675777fc3d174b10202b2f5c9f26ee3a651e1e6b4d8d4b04732f01",
+    "Tarneeb/DomainModels.swift": "92edb116262597cac6a876251fb92f2b497624c29680cfc904e42b9eec5faa4a"
+  },
+  "harnessSHA256": {
+    "tools/ai/AdvancedAblation.swift": "bc4a618c64d3963c791f233e53149ae80d2be109db65e2f2fdc52189bf21b0e7",
+    "tools/ai/PublicThreatIntegration.swift": "2ce76c3918621624bf594fc12722ec8514d8a4ef642a22bc5cef8fb0632fb546"
+  },
+  "firstSeed": 100000,
+  "lastSeed": 102047,
+  "decks": 2048,
+  "candidate": "production Expert",
+  "reference": "revised production Advanced",
+  "bidding": "fixed Standard",
+  "samples": 8,
+  "maxTricks": 13,
+  "budgetSeconds": 0.15,
+  "primaryConfidenceLevel": 0.95,
+  "nativeRegression": "passed before evaluation",
+  "compiler": "Apple Swift 6.4 swiftlang-6.4.0.34.1, optimized arm64",
+  "host": "macOS 27.0 build 26A428",
+  "command": "sh tools/ai/run.sh current-expert-advanced"
+}

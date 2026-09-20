@@ -326,8 +326,12 @@ struct EnvironmentBidRecommender: BidRecommending {
     }
 
     func recommendation(for context: BidRecommendationContext) -> BidRecommendation {
+        configuredRecommendation(for: context) ?? fallback.recommendation(for: context)
+    }
+
+    func configuredRecommendation(for context: BidRecommendationContext) -> BidRecommendation? {
         guard let configuredBids = environment["TARNEEB_SIMULATED_BIDS"] else {
-            return fallback.recommendation(for: context)
+            return nil
         }
 
         let entries = configuredBids
@@ -352,7 +356,7 @@ struct EnvironmentBidRecommender: BidRecommending {
             )
         }
 
-        return fallback.recommendation(for: context)
+        return nil
     }
 }
 
@@ -1351,13 +1355,42 @@ struct BiddingState: Equatable, Hashable, Codable {
 
 struct BiddingService {
     let bidRecommender: BidRecommending
+    private let skillPoliciesEnabled: Bool
 
-    init(bidRecommender: BidRecommending = EnvironmentBidRecommender()) {
+    init() {
+        self.bidRecommender = EnvironmentBidRecommender()
+        self.skillPoliciesEnabled = true
+    }
+
+    init(bidRecommender: BidRecommending) {
         self.bidRecommender = bidRecommender
+        self.skillPoliciesEnabled = false
     }
 
     init(bidGenerator: BidGenerating) {
         self.bidRecommender = BidGeneratorRecommendationAdapter(bidGenerator: bidGenerator)
+        self.skillPoliciesEnabled = false
+    }
+
+    func publicDecisionContext(in game: GameState, score: GameScore) -> AIBiddingContext? {
+        guard game.phase == .dealt, let bidding = game.biddingState, bidding.status == .inProgress,
+              let seat = bidding.currentTurnSeat, seat != .south,
+              let hand = game.players.first(where: { $0.seat == seat })?.hand else { return nil }
+        return AIBiddingContext(auction: BidRecommendationContext(seat: seat, hand: hand, partnerSeat: seat.partnerSeat,
+            currentHighestBidValue: bidding.highestBidValue, currentHighestBidder: bidding.highestBidSeat,
+            priorBidStates: bidding.bids), matchScore: score)
+    }
+
+    func prepareRecommendation(for context: AIBiddingContext) -> (baseline: BidRecommendation, useSkillPolicy: Bool) {
+        let baseline = bidRecommender.recommendation(for: context.auction)
+        let useSkill = skillPoliciesEnabled && EnvironmentBidRecommender().configuredRecommendation(for: context.auction) == nil
+        return (baseline, useSkill)
+    }
+
+    func applyPreparedRecommendation(_ recommendation: BidRecommendation, in game: GameState) -> GameState {
+        // Reuse the original recommendation acceptance path, including conversion
+        // of too-low baseline/fixture bids to Pass and partner-raise protection.
+        BiddingService(bidRecommender: PreparedBidRecommender(prepared: recommendation)).resolveNextSimulatedBid(in: game)
     }
 
     func advanceSimulatedTurns(in gameState: GameState) -> GameState {
@@ -1543,6 +1576,11 @@ struct TrickPlayService {
 
     func playSouthCard(_ card: Card, in gameState: GameState) -> GameState {
         play(card: card, for: .south, in: gameState)
+    }
+
+    func playSimulatedCard(_ card: Card, for seat: Seat, in gameState: GameState) -> GameState {
+        guard seat != .south else { return gameState }
+        return play(card: card, for: seat, in: gameState)
     }
 
     func playSimulatedTurn(in gameState: GameState) -> GameState {
@@ -2689,6 +2727,11 @@ enum PresentationAction: String, CaseIterable, Equatable {
 }
 
 final class TarneebPresentationState {
+    private let aiPreferences: UserDefaults
+    private(set) var activeAISkill: AISkill = .standard
+    private var locksSkillOnFirstDeal = true
+    private var decisionRevision = UUID()
+    private var decisionRequestID: UUID?
     private let dealService: Dealing
     private let dealerSelector: DealerSelecting
     private let biddingService: BiddingService
@@ -2701,10 +2744,13 @@ final class TarneebPresentationState {
 
     var snapshot: MatchSnapshot {
         MatchSnapshot(game: gameState, score: gameScore, lastRound: lastRoundScore,
-                      completedRounds: completedRoundCount, hasStarted: hasStartedGame, announcedRound: announcedRound)
+                      completedRounds: completedRoundCount, hasStarted: hasStartedGame, announcedRound: announcedRound,
+                      activeAISkill: activeAISkill)
     }
 
     func enablePersistence(_ store: MatchStore, restoring: Bool = true) {
+        decisionRevision = UUID()
+        decisionRequestID = nil
         matchStore = store
         do {
             if restoring, let saved = try store.load() {
@@ -2714,6 +2760,8 @@ final class TarneebPresentationState {
                 completedRoundCount = saved.completedRounds
                 hasStartedGame = saved.hasStarted
                 announcedRound = saved.announcedRound
+                activeAISkill = saved.restoredAISkill
+                locksSkillOnFirstDeal = false
             } else if !restoring { checkpoint() }
         } catch {
             saveNotice = "The saved match could not be restored. A new game is available."
@@ -2726,6 +2774,8 @@ final class TarneebPresentationState {
     }
 
     private func checkpoint() {
+        decisionRevision = UUID()
+        decisionRequestID = nil
         guard let matchStore else { return }
         do {
             try matchStore.save(snapshot)
@@ -2766,8 +2816,10 @@ final class TarneebPresentationState {
         dealerSelector: DealerSelecting = EnvironmentDealerSelector(),
         biddingService: BiddingService = BiddingService(),
         trickPlayService: TrickPlayService = TrickPlayService(),
-        scoringService: TarneebScoringService = TarneebScoringService()
+        scoringService: TarneebScoringService = TarneebScoringService(),
+        aiPreferences: UserDefaults = .standard
     ) {
+        self.aiPreferences = aiPreferences
         self.dealService = dealService
         self.dealerSelector = dealerSelector
         self.biddingService = biddingService
@@ -2787,6 +2839,10 @@ final class TarneebPresentationState {
         }
 
         gameState = dealtState
+        if locksSkillOnFirstDeal {
+            activeAISkill = AISkill.preference(in: aiPreferences)
+            locksSkillOnFirstDeal = false
+        }
         hasStartedGame = true
     }
 
@@ -2817,6 +2873,8 @@ final class TarneebPresentationState {
         }
 
         gameScore = GameScore()
+        activeAISkill = AISkill.preference(in: aiPreferences)
+        locksSkillOnFirstDeal = false
         announcedRound = nil
         lastRoundScore = nil
         completedRoundCount = 0
@@ -2835,8 +2893,34 @@ final class TarneebPresentationState {
     }
 
     func resolveNextSimulatedBid() {
-        defer { checkpoint() }
-        gameState = biddingService.resolveNextSimulatedBid(in: gameState)
+        guard let request = prepareAIBidDecision() else { return }
+        let result = AIBiddingEngine.select(request, seed: UInt64.random(in: .min ... .max))
+        applyAIBidDecision(result, request: request)
+    }
+
+    func prepareAIBidDecision() -> AIBidRequest? {
+        guard let context = biddingService.publicDecisionContext(in: gameState, score: gameScore) else { return nil }
+        let id = UUID()
+        decisionRequestID = id
+        let prepared = biddingService.prepareRecommendation(for: context)
+        return AIBidRequest(id: id, revision: decisionRevision, context: context, skill: activeAISkill,
+                            baseline: prepared.baseline, useSkillPolicy: prepared.useSkillPolicy)
+    }
+
+    @discardableResult
+    func applyAIBidDecision(_ result: AIBidResult, request: AIBidRequest) -> Bool {
+        guard !result.cancelled, request.id == decisionRequestID, request.revision == decisionRevision,
+              request.skill == activeAISkill,
+              request.context == biddingService.publicDecisionContext(in: gameState, score: gameScore) else { return false }
+        if request.useSkillPolicy && request.skill != .standard {
+            guard request.context.legalValues.contains(result.recommendation.bid),
+                  result.recommendation.bid == .pass || result.recommendation.preferredTarneebSuit != nil else { return false }
+        }
+        let next = biddingService.applyPreparedRecommendation(result.recommendation, in: gameState)
+        guard next != gameState else { return false }
+        gameState = next
+        checkpoint()
+        return true
     }
 
     func startTrickPlayIfReady() {
@@ -2851,7 +2935,34 @@ final class TarneebPresentationState {
 
     func resolveNextSimulatedTrickPlay() {
         defer { checkpoint() }
-        gameState = trickPlayService.playSimulatedTurn(in: gameState)
+        if activeAISkill == .standard {
+            gameState = trickPlayService.playSimulatedTurn(in: gameState)
+        } else if let context = trickPlayService.decisionContext(in: gameState, score: gameScore),
+                  let card = AIDecisionEngine.select(context, skill: activeAISkill,
+                                                     seed: UInt64.random(in: .min ... .max)).card {
+            gameState = trickPlayService.playSimulatedCard(card, for: context.seat, in: gameState)
+        }
+    }
+
+    func prepareAIDecision() -> AIPlayRequest? {
+        guard let context = trickPlayService.decisionContext(in: gameState, score: gameScore),
+              context.seat != .south else { return nil }
+        let id = UUID()
+        decisionRequestID = id
+        return AIPlayRequest(id: id, revision: decisionRevision, context: context, skill: activeAISkill)
+    }
+
+    @discardableResult
+    func applyAIDecision(_ result: AIDecisionResult, request: AIPlayRequest) -> Bool {
+        guard !result.cancelled, request.id == decisionRequestID, request.revision == decisionRevision,
+              request.skill == activeAISkill,
+              request.context == trickPlayService.decisionContext(in: gameState, score: gameScore),
+              let card = result.card, request.context.legalCards.contains(card) else { return false }
+        let next = trickPlayService.playSimulatedCard(card, for: request.context.seat, in: gameState)
+        guard next != gameState else { return false }
+        gameState = next
+        checkpoint()
+        return true
     }
 
     func clearCompletedTrickIfNeeded() {
