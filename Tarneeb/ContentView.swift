@@ -2,8 +2,14 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct ContentView: View {
+    @Namespace private var tableContinuity
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     @Environment(\.scenePhase) private var scenePhase
+    @State private var liveGeneration = UUID()
+    @State private var feedbackMatchID = UUID()
+    @State private var didEnterPresentation = false
+    @State private var openingArrivalEligible: Bool
+    @State private var restoredOutcomeRound: Int?
     @State private var liveFlight: LiveCardFlight?
     @State private var southPlayTask: Task<Void, Never>?
     @State private var liveCollecting = false
@@ -14,13 +20,21 @@ struct ContentView: View {
     @State private var pendingDealtState: GameState?
     @State private var dealAnimation: DealAnimationPlayback?
     @State private var dealTask: Task<Void, Never>?
+    @State private var dealCaptureResume: (() -> Void)?
+    @State private var dealCapturePhase: String?
     @State private var lastDealAnimationPresentation: DealAnimationPresentation?
     @State private var simulatedBiddingTask: Task<Void, Never>?
     @State private var simulatedTrickTask: Task<Void, Never>?
     @State private var biddingAreaFadeTask: Task<Void, Never>?
     @State private var trickClearTask: Task<Void, Never>?
+    @State private var outcomeFeedbackTask: Task<Void, Never>?
     @State private var saveNotice: String?
     @State private var isBiddingAreaFadingOut = false
+    #if DEBUG
+    @State private var completedSouthBidPublications = 0
+    @State private var missingTrumpChooserPublications = 0
+    @State private var fadingTrumpChooserPublications = 0
+    #endif
     @State private var isCurrentTrickFadingOut = false
     @State private var isCancelGameConfirmationPresented = false
     @State private var automatedBidCueSeat: Seat?
@@ -34,7 +48,9 @@ struct ContentView: View {
     private let tableTitle = TableTitlePresentation()
 
     init(presentationState: TarneebPresentationState = TarneebPresentationState()) {
+        var hasSavedMatch = false
         var initialPresentation = presentationState
+        var isRestoringMatch = true
         #if DEBUG
         if ProcessInfo.processInfo.environment["TARNEEB_LIVE_FIXTURE"] != nil {
             let balanced = ProcessInfo.processInfo.environment["TARNEEB_LIVE_FIXTURE"] == "balanced"
@@ -75,7 +91,7 @@ struct ContentView: View {
             initialPresentation = TarneebPresentationState(
                 dealService: DealService(shuffler: CardShuffler { $0 }, handLogger: HandLogger { _ in }),
                 dealerSelector: EnvironmentDealerSelector(environment: ["TARNEEB_INITIAL_DEALER": "west"]),
-                biddingService: BiddingService(bidGenerator: BidGenerator { _ in .pass })
+                biddingService: fixture == "round-defense" ? BiddingService(bidRecommender: RoomDefenseFixtureBidder()) : BiddingService(bidGenerator: BidGenerator { _ in .pass })
             )
             initialPresentation.deal()
             let losing = fixture == "round-missed" || fixture == "match-loss"
@@ -83,7 +99,7 @@ struct ContentView: View {
                 if round > 0 { initialPresentation.startNextRound() }
                 while initialPresentation.gameState.biddingStatus == .inProgress {
                     if initialPresentation.gameState.currentBiddingSeat == .south {
-                        initialPresentation.submitSouthBid(.seven, selectedTarneebSuit: losing ? .clubs : .spades)
+                        initialPresentation.submitSouthBid(fixture == "round-defense" ? .pass : .seven, selectedTarneebSuit: losing ? .clubs : .spades)
                     } else { initialPresentation.resolveNextSimulatedBid() }
                 }
                 initialPresentation.startTrickPlayIfReady()
@@ -102,15 +118,22 @@ struct ContentView: View {
         #if DEBUG
         let environment = ProcessInfo.processInfo.environment
         let hasFixture = ["TARNEEB_LIVE_FIXTURE", "TARNEEB_OPENING_FIXTURE", "TARNEEB_RESULT_FIXTURE"].contains { environment[$0] != nil }
+        isRestoringMatch = !hasFixture
         if let rawID = environment["TARNEEB_SAVE_TEST_ID"], let id = UUID(uuidString: rawID) {
             let store = MatchStore(url: MatchStore.standard.url.deletingLastPathComponent().appendingPathComponent("test-\(id.uuidString).json"))
+            hasSavedMatch = !hasFixture && FileManager.default.fileExists(atPath: store.url.path)
             initialPresentation.enablePersistence(store, restoring: !hasFixture)
         } else if !hasFixture && environment["XCTestConfigurationFilePath"] == nil {
+            hasSavedMatch = FileManager.default.fileExists(atPath: MatchStore.standard.url.path)
             initialPresentation.enablePersistence(.standard)
         }
         #else
+        hasSavedMatch = FileManager.default.fileExists(atPath: MatchStore.standard.url.path)
         initialPresentation.enablePersistence(.standard)
         #endif
+        _openingArrivalEligible = State(initialValue: !hasSavedMatch)
+        _restoredOutcomeRound = State(initialValue: isRestoringMatch && initialPresentation.gameState.phase == .handComplete
+            ? initialPresentation.completedRoundCount : nil)
         _saveNotice = State(initialValue: initialPresentation.saveNotice)
         _presentationState = State(initialValue: initialPresentation)
         _gameState = State(initialValue: initialPresentation.gameState)
@@ -124,6 +147,7 @@ struct ContentView: View {
                     roundNumber: presentationState.completedRoundCount,
                     trump: gameState.postBiddingSummary?.tarneebSuit,
                     reduceMotion: reduceLiveMotion,
+                    settledOnArrival: restoredOutcomeRound == presentationState.completedRoundCount,
                     blocked: scenePhase != .active || isCancelGameConfirmationPresented || isLivePaused,
                     nextHand: startNextHand, newGame: newGame, announce: announceRoundResult,
                     lastTrick: gameState.trickPlayState?.completedTricks.last
@@ -131,10 +155,11 @@ struct ContentView: View {
             } else if gameState.phase == .trickPlay || gameState.phase == .handComplete {
                 LiveTableView(
                     game: gameState,
+                    inputGame: RoomInputProjection(authoritative: presentationState.gameState).game,
                     score: presentationState.gameScore,
                     flight: liveFlight,
                     collecting: liveCollecting,
-                    blocked: liveFlight != nil || liveCollecting || southPlayTask != nil || isLivePaused || scenePhase != .active,
+                    blocked: isLivePaused || scenePhase != .active,
                     reduceMotion: reduceLiveMotion,
                     play: playSouthCard,
                     selectFeedback: { feedback.play(.select) },
@@ -147,8 +172,10 @@ struct ContentView: View {
                         isLivePaused = false
                         resumeLivePlay()
                     },
-                    roundResult: statusLabelText
+                    roundResult: statusLabelText,
+                    continuity: tableContinuity
                 )
+                .transition(.identity)
             } else {
                 OpeningTableView(
                     game: gameState, pendingGame: pendingDealtState,
@@ -160,17 +187,46 @@ struct ContentView: View {
                     draftBid: $southDraftBid, draftSuit: $southDraftTarneebSuit,
                     deal: deal, newGame: newGame,
                     submitBid: submitSouthBid, submitTrump: submitSouthTarneebSuit,
-                    selectionFeedback: { feedback.play(.select) }
+                    selectionFeedback: { feedback.play(.select) },
+                    allowsArrival: openingArrivalEligible,
+                    openingFeedback: { feedback.playOnce(.openingSquare, identity: "\(feedbackMatchID)-opening", haptic: false) },
+                    packetLanded: dealPacketLanded,
+                    continuity: tableContinuity,
+                    publicationAudit: biddingPublicationAuditValue
                 )
+                .transition(.identity)
             }
         }
+        .background { RoomBackground() }
+        .preferredColorScheme(.dark)
+        .tint(RoomColor.brass)
         .onAppear {
+            if !didEnterPresentation {
+                didEnterPresentation = true
+                if gameState.isCurrentTrickComplete { feedback.suppress(identity: collectionFeedbackIdentity) }
+            }
             resumeLivePlay()
             resumeOpening()
         }
+        .overlay(alignment: .bottomTrailing) {
+            #if DEBUG
+            if let phase = dealCapturePhase {
+                Button("Continue capture") {
+                    let resume = dealCaptureResume
+                    dealCaptureResume = nil; dealCapturePhase = nil
+                    resume?()
+                }
+                .font(.caption).padding(12).background(.black.opacity(0.85)).foregroundStyle(.white)
+                .padding(.trailing, 12).padding(.bottom, 12)
+                .accessibilityIdentifier("tarneeb-deal-phase-continue").accessibilityValue(phase)
+            }
+            #endif
+        }
         .onChange(of: gameState) { _, _ in
             if let notice = presentationState.saveNotice { saveNotice = notice }
+            auditBiddingPublication()
         }
+        .onChange(of: isBiddingAreaFadingOut) { _, _ in auditBiddingPublication() }
         .onChange(of: scenePhase) { _, phase in
             if phase != .active {
                 suspendLivePlay()
@@ -211,6 +267,7 @@ struct ContentView: View {
         guard gameState.phase == .notStarted || gameState.phase == .dealt else { return }
         dealTask?.cancel()
         dealTask = nil
+        dealCaptureResume = nil; dealCapturePhase = nil
         if let pendingDealtState {
             gameState = pendingDealtState
             self.pendingDealtState = nil
@@ -230,6 +287,10 @@ struct ContentView: View {
 
     private func suspendLivePlay() {
         guard gameState.phase == .trickPlay || gameState.phase == .handComplete else { return }
+        liveGeneration = UUID()
+        outcomeFeedbackTask?.cancel(); outcomeFeedbackTask = nil
+        if let flight = liveFlight { feedback.suppress(identity: landingFeedbackIdentity(flight.play)) }
+        if presentationState.gameState.isCurrentTrickComplete { feedback.suppress(identity: collectionFeedbackIdentity) }
         southPlayTask?.cancel()
         southPlayTask = nil
         cancelSimulatedTrickTask()
@@ -1033,9 +1094,9 @@ struct ContentView: View {
             switch dealAnimation.southRevealState {
             case .hidden:
                 break
-            case .fannedBacks:
+            case .fannedBacks, .stackedBacks, .settlingBacks:
                 return AnyView(hiddenHand(for: player))
-            case .backsVisible, .flipping, .revealed:
+            case .spreadingBacks, .backsVisible, .flipping, .revealed:
                 return AnyView(southRevealHand(for: player, dealAnimation: dealAnimation))
             }
         }
@@ -1778,7 +1839,11 @@ struct ContentView: View {
         liveFlight = nil
         liveCollecting = false
         isLivePaused = false
-        feedback.stop()
+        liveGeneration = UUID()
+        feedbackMatchID = UUID()
+        restoredOutcomeRound = nil
+        outcomeFeedbackTask?.cancel(); outcomeFeedbackTask = nil
+        feedback.beginMatch()
         cancelSimulatedTrickTask()
         cancelBiddingAreaFadeTask()
         cancelTrickClearTask()
@@ -1787,6 +1852,7 @@ struct ContentView: View {
         clearAutomatedBidCue()
         clearAutomatedTrickCue()
         presentationState.newGame()
+        openingArrivalEligible = true
         pendingDealtState = nil
         lastDealAnimationPresentation = nil
         southDraftBid = .pass
@@ -1834,9 +1900,8 @@ struct ContentView: View {
 
         presentationState.submitSouthTarneebSuit(selectedTarneebSuit)
         feedback.play(.land)
-        gameState = presentationState.gameState
-        southDraftTarneebSuit = normalizedSouthDraftTarneebSuit(for: gameState)
         startTrickPlayIfReady()
+        southDraftTarneebSuit = normalizedSouthDraftTarneebSuit(for: gameState)
     }
 
     private func stageDealAnimationIfNeeded(for dealtState: GameState) {
@@ -1885,96 +1950,150 @@ struct ContentView: View {
         return southDraftTarneebSuit
     }
 
+    private func needsSouthTarneebSelection(_ state: GameState) -> Bool {
+        state.phase == .dealt
+            && state.biddingStatus == .complete
+            && state.highestBidSeat == .south
+            && state.highestBidValue?.numericValue != nil
+            && state.postBiddingSummary == nil
+    }
+
     private var isWaitingForSouthPostBiddingTarneebSelection: Bool {
-        gameState.phase == .dealt
-            && gameState.biddingStatus == .complete
-            && gameState.highestBidSeat == .south
-            && gameState.highestBidValue?.numericValue != nil
-            && gameState.postBiddingSummary == nil
-            && !isBiddingAreaFadingOut
+        needsSouthTarneebSelection(gameState)
+    }
+
+    // Retain actual rendered publications, including the legacy fade interval,
+    // so a UI regression cannot inspect only the later settled chooser.
+    private func auditBiddingPublication() {
+        #if DEBUG
+        guard ProcessInfo.processInfo.environment["TARNEEB_AUDIT_BIDDING_PUBLICATIONS"] == "1",
+              needsSouthTarneebSelection(gameState) else { return }
+        completedSouthBidPublications += 1
+        if !isWaitingForSouthPostBiddingTarneebSelection { missingTrumpChooserPublications += 1 }
+        if isBiddingAreaFadingOut { fadingTrumpChooserPublications += 1 }
+        #endif
+    }
+
+    private var biddingPublicationAuditValue: String {
+        #if DEBUG
+        if ProcessInfo.processInfo.environment["TARNEEB_AUDIT_BIDDING_PUBLICATIONS"] == "1" {
+            return "completedSouthBidPublications=\(completedSouthBidPublications);missingTrumpChooserPublications=\(missingTrumpChooserPublications);fadingTrumpChooserPublications=\(fadingTrumpChooserPublications)"
+        }
+        #endif
+        return ""
     }
 
     @MainActor
     private func runDealAnimation(finalState: GameState) async {
-        for stepIndex in 0..<Seat.dealerRotationOrder.count {
-            guard dealAnimation != nil else {
-                return
-            }
+        guard !Task.isCancelled, dealAnimation != nil else { return }
+        // One thirteen-card packet starts the chain. Its native landing alone issues the next packet.
+        _ = dealAnimation?.issuePacket(0)
+    }
 
-            dealAnimation?.activeStepIndex = stepIndex
-            dealAnimation?.movingStackAtTarget = false
-            dealAnimation?.isMovingStackVisible = true
-
-            guard await waitForOpeningAnimation(.dealStepPauseDuration) else { return }
-
-            guard dealAnimation != nil else {
-                return
-            }
-
-            withAnimation(.easeInOut(duration: openingDuration(.dealStackFlightDuration))) {
-                dealAnimation?.movingStackAtTarget = true
-            }
-
-            guard await waitForOpeningAnimation(.dealStackFlightDuration) else { return }
-
-            guard let targetSeat = dealAnimation?.activeTargetSeat else {
-                return
-            }
-
+    private func dealPacketLanded(_ generation: UUID, _ index: Int) {
+        guard scenePhase == .active, dealAnimation?.generation == generation,
+              dealAnimation?.landPacket(index) == true else { return }
+        if let seat = dealAnimation?.seat(forPacket: index), dealAnimation?.landedCount(for: seat) == 13 {
             feedback.play(.land, haptic: false)
-            withAnimation(.easeInOut(duration: openingDuration(.dealStationExpansionDuration))) {
-                dealAnimation?.deliveredSeats.insert(targetSeat)
-                dealAnimation?.isMovingStackVisible = false
-                if targetSeat == .south {
-                    dealAnimation?.southRevealState = .fannedBacks
-                    dealAnimation?.southRevealedCardCount = 0
+        }
+        if index < DealAnimationPlayback.externalPacketCount - 1 {
+            #if DEBUG
+            if ProcessInfo.processInfo.environment["TARNEEB_CAPTURE_PACKET_LANDINGS"] == "1" {
+                captureDealBoundary("packet-\(index + 1)-landed") {
+                    guard scenePhase == .active, dealAnimation?.generation == generation else { return }
+                    _ = dealAnimation?.issuePacket(index + 1)
                 }
-            }
-
-            guard await waitForOpeningAnimation(.dealStationExpansionDuration) else { return }
-        }
-
-        guard dealAnimation != nil else {
-            return
-        }
-
-        withAnimation(.easeInOut(duration: openingDuration(.dealStationExpansionDuration))) {
-            dealAnimation?.southRevealState = .backsVisible
-            dealAnimation?.southRevealedCardCount = 0
-        }
-
-        guard await waitForOpeningAnimation(.dealStationExpansionDuration) else { return }
-
-        guard dealAnimation != nil else {
-            return
-        }
-
-        dealAnimation?.southRevealState = .flipping
-
-        for revealedCount in 1...DealAnimationPresentation.cardsPerStack {
-            guard dealAnimation != nil else {
                 return
             }
+            #endif
+            _ = dealAnimation?.issuePacket(index + 1)
+            return
+        }
+        // The final thirteen have never left the dealer. Establish that retained hand in place.
+        guard dealAnimation?.retainDealerHand() == true else { return }
+        dealTask = Task { @MainActor in
+            // The requested brief settle follows established hands; it never substitutes for a landing.
+            do { try await Task.sleep(for: .seconds(GameAnimationToken.dealStationExpansionDuration.seconds)) } catch { return }
+            guard !Task.isCancelled, scenePhase == .active, dealAnimation?.generation == generation else { return }
+            guard dealAnimation?.finishSettle() == true else { return }
+            captureDealBoundary("3-packets-landed-13-retained-stack") { beginDealtHandSpread(generation) }
+        }
+    }
 
-            withAnimation(.easeInOut(duration: openingDuration(.dealSouthRevealFlipDuration))) {
-                dealAnimation?.southRevealedCardCount = revealedCount
+    private func captureDealBoundary(_ phase: String, continuation: @escaping () -> Void) {
+        #if DEBUG
+        if ProcessInfo.processInfo.environment["TARNEEB_CAPTURE_DEAL"] == "1" {
+            dealCapturePhase = phase; dealCaptureResume = continuation
+            return
+        }
+        #endif
+        continuation()
+    }
+
+    private func beginDealtHandSpread(_ generation: UUID) {
+        guard scenePhase == .active, dealAnimation?.generation == generation,
+              dealAnimation?.beginSpread() == true else { return }
+        withAnimation(reduceLiveMotion ? nil : .easeInOut(duration: openingDuration(.dealStationExpansionDuration)), completionCriteria: .removed) {
+            dealAnimation?.southSpreadProgress = 1
+        } completion: {
+            guard scenePhase == .active, dealAnimation?.generation == generation,
+                  dealAnimation?.finishSpread() == true else { return }
+            captureDealBoundary("spread-settled-backs") {
+                guard dealAnimation?.generation == generation else { return }
+                dealTask = Task { await revealDealtHand(generation) }
             }
+        }
+    }
 
-            if revealedCount < DealAnimationPresentation.cardsPerStack {
+    @MainActor
+    private func revealDealtHand(_ generation: UUID) async {
+        guard dealAnimation?.generation == generation, dealAnimation?.southRevealState == .backsVisible else { return }
+        dealAnimation?.southRevealState = .flipping
+        for count in 1...DealAnimationPresentation.cardsPerStack {
+            guard !Task.isCancelled, dealAnimation?.generation == generation else { return }
+            withAnimation(reduceLiveMotion ? nil : .easeInOut(duration: openingDuration(.dealSouthRevealFlipDuration)), completionCriteria: .removed) {
+                _ = dealAnimation?.issueReveal(count)
+            } completion: {
+                guard scenePhase == .active, dealAnimation?.generation == generation,
+                      dealAnimation?.southRevealState == .flipping else { return }
+                guard dealAnimation?.completeReveal(count) == true else { return }
+                captureDealBoundary("reveal-settled-faces") { beginStationHandoff(generation) }
+            }
+            if count < 13, !reduceLiveMotion {
                 guard await waitForOpeningAnimation(.dealSouthRevealFlipStagger) else { return }
-            } else {
-                guard await waitForOpeningAnimation(.dealSouthRevealFlipDuration) else { return }
             }
         }
+    }
 
-        withAnimation(.easeInOut(duration: openingDuration(.dealStationExpansionDuration))) {
-            dealAnimation?.southRevealState = .revealed
-            gameState = finalState
-            pendingDealtState = nil
-            dealAnimation = nil
+    private func beginStationHandoff(_ generation: UUID) {
+        guard scenePhase == .active, dealAnimation?.generation == generation,
+              dealAnimation?.beginStationHandoff() == true else { return }
+        withAnimation(reduceLiveMotion ? nil : .easeInOut(duration: openingDuration(.dealStationExpansionDuration)), completionCriteria: .removed) {
+            dealAnimation?.stationHandoffProgress = 1
+        } completion: {
+            guard scenePhase == .active, dealAnimation?.generation == generation,
+                  dealAnimation?.finishStationHandoff() == true else { return }
+            #if DEBUG
+            if ProcessInfo.processInfo.environment["TARNEEB_CAPTURE_STATION_HANDOFF"] == "1" {
+                captureDealBoundary("station-handoff-settled") { commitDealtHand(generation) }
+                return
+            }
+            #endif
+            commitDealtHand(generation)
         }
+    }
 
-        dealTask = nil
+    private func commitDealtHand(_ generation: UUID) {
+        guard scenePhase == .active, dealAnimation?.generation == generation,
+              dealAnimation?.stationHandoffCompleted == true, let finalState = pendingDealtState else { return }
+        gameState = finalState
+        pendingDealtState = nil; dealAnimation = nil; dealTask = nil
+        #if DEBUG
+        if ProcessInfo.processInfo.environment["TARNEEB_CAPTURE_STATION_HANDOFF"] == "1" {
+            captureDealBoundary("bidding-published") { scheduleSimulatedBiddingIfNeeded() }
+            return
+        }
+        #endif
         scheduleSimulatedBiddingIfNeeded()
     }
 
@@ -2046,7 +2165,11 @@ struct ContentView: View {
             return
         }
 
-        withAnimation(.easeInOut(duration: GameAnimationToken.trickPlayedCardFlightDuration.seconds)) {
+        // Publish the completed rules transition once. A card-flight transaction must
+        // never crossfade two complete table roots or show an intermediate auction.
+        // Only shared component geometry moves; each table root has an identity
+        // transition, and the room background remains mounted outside both roots.
+        withAnimation(reduceLiveMotion ? nil : .easeInOut(duration: openingDuration(.dealStationExpansionDuration))) {
             gameState = presentationState.gameState
         }
 
@@ -2062,6 +2185,9 @@ struct ContentView: View {
         }
 
         cancelSimulatedBiddingTask()
+        // The completed bid already establishes the South chooser. Do not
+        // suppress it behind a timed fade with no remaining bidding seat.
+        if needsSouthTarneebSelection(gameState) { return }
         withAnimation(.easeInOut(duration: GameAnimationToken.bidAreaFadeOutDuration.seconds)) {
             isBiddingAreaFadingOut = true
         }
@@ -2139,17 +2265,29 @@ struct ContentView: View {
 
             let result = await decision
             guard !Task.isCancelled else { return }
-            var accepted = false
-            withAnimation(.easeInOut(duration: GameAnimationToken.bidValueFadeOutDuration.seconds + GameAnimationToken.bidValueFadeInDuration.seconds)) {
-                accepted = presentationState.applyAIBidDecision(result, request: request)
-                gameState = presentationState.gameState
-                southDraftBid = normalizedSouthDraftBid(for: gameState)
-                southDraftTarneebSuit = normalizedSouthDraftTarneebSuit(for: gameState)
+            guard presentationState.applyAIBidDecision(result, request: request) else {
+                clearAutomatedBidCue(); return
             }
-            guard accepted else { clearAutomatedBidCue(); return }
-
-            withAnimation(.easeInOut(duration: GameAnimationToken.bidStationCuePulseDuration.seconds)) {
-                clearAutomatedBidCue()
+            let nextState = presentationState.gameState
+            if needsSouthTarneebSelection(nextState) {
+                // Publish the last bid and its chooser together, keeping the
+                // established hand, table and headings out of a root animation.
+                var transaction = Transaction(); transaction.disablesAnimations = true
+                withTransaction(transaction) {
+                    gameState = nextState
+                    southDraftBid = normalizedSouthDraftBid(for: nextState)
+                    southDraftTarneebSuit = normalizedSouthDraftTarneebSuit(for: nextState)
+                    clearAutomatedBidCue()
+                }
+            } else {
+                withAnimation(.easeInOut(duration: GameAnimationToken.bidValueFadeOutDuration.seconds + GameAnimationToken.bidValueFadeInDuration.seconds)) {
+                    gameState = nextState
+                    southDraftBid = normalizedSouthDraftBid(for: nextState)
+                    southDraftTarneebSuit = normalizedSouthDraftTarneebSuit(for: nextState)
+                }
+                withAnimation(.easeInOut(duration: GameAnimationToken.bidStationCuePulseDuration.seconds)) {
+                    clearAutomatedBidCue()
+                }
             }
 
             beginTerminalBiddingTransitionIfNeeded()
@@ -2181,6 +2319,7 @@ struct ContentView: View {
 
     @MainActor
     private func runSimulatedTrickLoop() async {
+        let generation = liveGeneration
         while !Task.isCancelled,
               gameState.phase == .trickPlay,
               !gameState.isCurrentTrickComplete,
@@ -2191,7 +2330,7 @@ struct ContentView: View {
             async let decision = AIDecisionEngine.detached(request.context, skill: request.skill)
             await cueAutomatedTrick(for: currentTurnSeat)
 
-            guard !Task.isCancelled,
+            guard !Task.isCancelled, generation == liveGeneration,
                   gameState.phase == .trickPlay,
                   gameState.currentTrickTurnSeat == currentTurnSeat,
                   !gameState.isCurrentTrickComplete else {
@@ -2200,11 +2339,11 @@ struct ContentView: View {
             }
 
             let result = await decision
-            guard !Task.isCancelled, presentationState.applyAIDecision(result, request: request) else { return }
+            guard !Task.isCancelled, generation == liveGeneration, presentationState.applyAIDecision(result, request: request) else { return }
             let nextState = presentationState.gameState
             guard let played = nextState.trickPlayState?.playedCard(for: currentTurnSeat) else { return }
             await animateLivePlay(played, committing: nextState)
-            guard !Task.isCancelled else { return }
+            guard !Task.isCancelled, generation == liveGeneration else { return }
 
             withAnimation(.easeInOut(duration: GameAnimationToken.bidStationCuePulseDuration.seconds)) {
                 clearAutomatedTrickCue()
@@ -2216,24 +2355,36 @@ struct ContentView: View {
             }
         }
 
-        guard !Task.isCancelled else { return }
+        guard !Task.isCancelled, generation == liveGeneration else { return }
         simulatedTrickTask = nil
         scheduleNextTrickPlayIfNeeded()
     }
 
+    private func landingFeedbackIdentity(_ played: PlayedCard) -> String {
+        "\(feedbackMatchID)-\(presentationState.completedRoundCount)-\(presentationState.gameState.trickPlayState?.completedTricks.count ?? 0)-land-\(played.id)"
+    }
+    private var collectionFeedbackIdentity: String {
+        "\(feedbackMatchID)-\(presentationState.completedRoundCount)-\(presentationState.gameState.trickPlayState?.completedTricks.count ?? 0)-collect"
+    }
+
     @MainActor
     private func animateLivePlay(_ played: PlayedCard, committing nextState: GameState) async {
+        let generation = liveGeneration
+        let identity = landingFeedbackIdentity(played)
         liveFlight = LiveCardFlight(play: played)
         try? await Task.sleep(for: .milliseconds(40))
-        guard !Task.isCancelled else { return }
+        guard !Task.isCancelled, generation == liveGeneration, presentationState.gameState == nextState else { return }
         let duration = reduceLiveMotion ? LiveTableToken.reducedMotionDuration : LiveTableToken.flightDuration
         withAnimation(.easeInOut(duration: duration)) { liveFlight?.arrived = true }
         try? await Task.sleep(for: .seconds(duration))
-        guard !Task.isCancelled else { return }
+        guard !Task.isCancelled, generation == liveGeneration, presentationState.gameState == nextState else { return }
+        // Contact commits the visible snapshot. The existing landing pause contains the small rebound.
         gameState = nextState
-        liveFlight = nil
-        feedback.play(.land, haptic: played.seat == .south)
+        feedback.playOnce(.land, identity: identity, haptic: played.seat == .south)
+        withAnimation(reduceLiveMotion ? nil : .easeInOut(duration: LiveTableToken.landingPause)) { liveFlight?.contact = 1 }
         try? await Task.sleep(for: .seconds(LiveTableToken.landingPause))
+        guard !Task.isCancelled, generation == liveGeneration else { return }
+        liveFlight = nil
     }
 
     @MainActor
@@ -2266,43 +2417,25 @@ struct ContentView: View {
 
     private func scheduleTrickClearIfNeeded() {
         guard scenePhase == .active, !isCancelGameConfirmationPresented, !isLivePaused,
-              gameState.phase == .trickPlay,
-              gameState.isCurrentTrickComplete,
-              trickClearTask == nil else {
-            return
-        }
-
+              gameState.phase == .trickPlay, gameState.isCurrentTrickComplete, trickClearTask == nil else { return }
         cancelSimulatedTrickTask()
+        let generation = liveGeneration
+        let expected = gameState.trickPlayState?.pendingCompletedTrick
+        let identity = collectionFeedbackIdentity
         trickClearTask = Task {
             try? await Task.sleep(for: .seconds(LiveTableToken.winnerHold))
-            guard !Task.isCancelled else {
-                return
-            }
-
-            await MainActor.run {
-                feedback.play(.collect, haptic: gameState.trickPlayState?.pendingCompletedTrick?.winnerSeat.highBiddingTeamLabel == Seat.south.highBiddingTeamLabel)
-                withAnimation(.easeInOut(duration: reduceLiveMotion ? LiveTableToken.reducedMotionDuration : LiveTableToken.collectionDuration)) {
-                    liveCollecting = true
-                }
-            }
-
+            guard !Task.isCancelled, generation == liveGeneration, gameState.trickPlayState?.pendingCompletedTrick == expected else { return }
+            withAnimation(.easeInOut(duration: reduceLiveMotion ? LiveTableToken.reducedMotionDuration : LiveTableToken.collectionDuration)) { liveCollecting = true }
             try? await Task.sleep(for: .seconds(reduceLiveMotion ? LiveTableToken.reducedMotionDuration : LiveTableToken.collectionDuration))
-            guard !Task.isCancelled else {
-                return
-            }
-
-            await MainActor.run {
-                presentationState.clearCompletedTrickIfNeeded()
-                gameState = presentationState.gameState
-                isCurrentTrickFadingOut = false
-                liveCollecting = false
-                trickClearTask = nil
-                if gameState.phase == .handComplete {
-                    announceRoundResult()
-                } else {
-                    scheduleNextTrickPlayIfNeeded()
-                }
-            }
+            guard !Task.isCancelled, generation == liveGeneration, gameState.trickPlayState?.pendingCompletedTrick == expected else { return }
+            feedback.playOnce(.collect, identity: identity, haptic: expected.map { Team.forSeat($0.winnerSeat) == .teamA } ?? false)
+            presentationState.clearCompletedTrickIfNeeded()
+            gameState = presentationState.gameState
+            isCurrentTrickFadingOut = false
+            liveCollecting = false
+            trickClearTask = nil
+            if gameState.phase == .handComplete { announceRoundResult() }
+            else { scheduleNextTrickPlayIfNeeded() }
         }
     }
 
@@ -2315,6 +2448,9 @@ struct ContentView: View {
             return
         }
 
+        outcomeFeedbackTask?.cancel(); outcomeFeedbackTask = nil
+        feedback.stop()
+        restoredOutcomeRound = nil
         presentationState.startNextRound()
         let dealtState = presentationState.gameState
         southDraftBid = normalizedSouthDraftBid(for: dealtState)
@@ -2329,22 +2465,53 @@ struct ContentView: View {
               let result = presentationState.lastRoundScore else { return }
         presentationState.markRoundAnnounced()
         if let notice = presentationState.saveNotice { saveNotice = notice }
+        // An existing saved outcome is factual resume, even if interruption preceded its announcement marker.
+        guard restoredOutcomeRound != presentationState.completedRoundCount else { return }
         let summary = RoundResultPresentation(result: result, score: presentationState.gameScore)
-        if presentationState.winnerTeam == .teamA { feedback.play(.matchWin) }
-        else if presentationState.winnerTeam == .teamB { feedback.play(.roundLoss) }
-        else { feedback.play(summary.playerSucceeded ? .roundWin : .roundLoss) }
+        let round = presentationState.completedRoundCount
+        let generation = liveGeneration
+        let event: TableFeedback.Event = presentationState.winnerTeam == .teamA ? .matchWin
+            : presentationState.winnerTeam == .teamB ? .roundLoss
+            : RoomOutcomePresentation(presentation: summary).isDefense ? .defenseWin
+            : summary.playerSucceeded ? .roundWin : .roundLoss
+        let identity = "\(feedbackMatchID)-round-\(round)-outcome"
+        outcomeFeedbackTask?.cancel()
+        outcomeFeedbackTask = Task { @MainActor in
+            do { try await Task.sleep(for: .seconds(reduceLiveMotion ? 0 : (presentationState.winnerTeam == nil ? RoomOutcomeTiming.handCue : RoomOutcomeTiming.matchCue))) } catch { return }
+            guard !Task.isCancelled, generation == liveGeneration, scenePhase == .active,
+                  !isLivePaused, !isCancelGameConfirmationPresented,
+                  gameState.phase == .handComplete, presentationState.completedRoundCount == round else { return }
+            feedback.playOnce(event, identity: identity)
+            outcomeFeedbackTask = nil
+        }
     }
 
     private func playSouthCard(_ card: Card) {
         guard scenePhase == .active, !isCancelGameConfirmationPresented, !isLivePaused,
-              liveFlight == nil, southPlayTask == nil, !liveCollecting,
-              TrickPlayRules.isLegal(card: card, for: .south, in: gameState) else { return }
+              RoomInputProjection(authoritative: presentationState.gameState).canPlay(card) else { return }
+        // A deliberate legal next action settles presentation only. Revalidate against the real model afterward.
+        if liveFlight != nil || liveCollecting || gameState.isCurrentTrickComplete || southPlayTask != nil {
+            if let flight = liveFlight { feedback.playOnce(.land, identity: landingFeedbackIdentity(flight.play), haptic: flight.play.seat == .south) }
+            let pending = presentationState.gameState.trickPlayState?.pendingCompletedTrick
+            let collectionID = collectionFeedbackIdentity
+            liveGeneration = UUID()
+            southPlayTask?.cancel(); southPlayTask = nil
+            cancelSimulatedTrickTask(); cancelTrickClearTask()
+            liveFlight = nil; liveCollecting = false
+            if let pending {
+                feedback.playOnce(.collect, identity: collectionID, haptic: Team.forSeat(pending.winnerSeat) == .teamA)
+                presentationState.clearCompletedTrickIfNeeded()
+            }
+            gameState = presentationState.gameState
+        }
+        guard TrickPlayRules.isLegal(card: card, for: .south, in: presentationState.gameState) else { return }
         presentationState.playSouthCard(card)
         let nextState = presentationState.gameState
         guard nextState != gameState else { return }
+        let generation = liveGeneration
         southPlayTask = Task {
             await animateLivePlay(PlayedCard(seat: .south, card: card), committing: nextState)
-            guard !Task.isCancelled else { return }
+            guard !Task.isCancelled, generation == liveGeneration else { return }
             southPlayTask = nil
             if gameState.isCurrentTrickComplete { scheduleTrickClearIfNeeded() }
             else { scheduleNextTrickPlayIfNeeded() }
@@ -2573,12 +2740,96 @@ struct ContentView: View {
 
 struct DealAnimationPlayback: Equatable {
     let presentation: DealAnimationPresentation
+    let generation = UUID()
+    var issuedPackets: Set<Int> = []
+    var landedPackets: Set<Int> = []
+    var completedReveals: Set<Int> = []
+    var southSpreadProgress = 0.0
+    var stationHandoffProgress = 0.0
+    private(set) var stationHandoffStarted = false
+    private(set) var stationHandoffCompleted = false
+    mutating func beginStationHandoff() -> Bool {
+        guard dealCompletionAvailable, !stationHandoffStarted else { return false }
+        stationHandoffStarted = true
+        return true
+    }
+    mutating func finishStationHandoff() -> Bool {
+        guard stationHandoffStarted, stationHandoffProgress == 1, !stationHandoffCompleted else { return false }
+        stationHandoffCompleted = true
+        return true
+    }
     var activeStepIndex = 0
+
+    static let externalPacketCount = 3
+    var recipientOrder: [Seat] { Array(presentation.targetOrder.prefix(3)) }
+    var dealerHandRetained = false
+    var settleCompleted = false
+    var establishedCardCount: Int { landedPackets.count * 13 + (dealerHandRetained ? 13 : 0) }
+    func seat(forPacket index: Int) -> Seat { recipientOrder[index] }
+    func landedCount(for seat: Seat) -> Int {
+        if seat == presentation.dealerSeat { return dealerHandRetained ? 13 : 0 }
+        return landedPackets.filter { self.seat(forPacket: $0) == seat }.count * 13
+    }
+    var flyingPackets: [Int] { issuedPackets.subtracting(landedPackets).sorted() }
+    var canBeginSpread: Bool { establishedCardCount == 52 && dealerHandRetained && settleCompleted && Seat.dealerRotationOrder.allSatisfy { landedCount(for: $0) == 13 } && southRevealState == .settlingBacks }
+    @discardableResult mutating func finishSettle() -> Bool {
+        guard establishedCardCount == 52, dealerHandRetained, southRevealState == .settlingBacks, !settleCompleted else { return false }
+        settleCompleted = true
+        return true
+    }
+    mutating func beginSpread() -> Bool {
+        guard canBeginSpread else { return false }
+        southRevealState = .spreadingBacks
+        return true
+    }
+    mutating func finishSpread() -> Bool {
+        guard southRevealState == .spreadingBacks, southSpreadProgress == 1 else { return false }
+        southRevealState = .backsVisible
+        return true
+    }
+    mutating func issueReveal(_ count: Int) -> Bool {
+        guard southRevealState == .flipping, count == southRevealedCardCount + 1, count <= 13 else { return false }
+        southRevealedCardCount = count
+        return true
+    }
+    mutating func completeReveal(_ count: Int) -> Bool {
+        guard southRevealState == .flipping, count >= 1, count <= southRevealedCardCount, !completedReveals.contains(count) else { return false }
+        completedReveals.insert(count)
+        guard completedReveals.count == 13 else { return false }
+        southRevealState = .revealed
+        return true
+    }
+    @discardableResult mutating func issuePacket(_ index: Int) -> Bool {
+        guard (0..<Self.externalPacketCount).contains(index), index == issuedPackets.count,
+              flyingPackets.isEmpty, !dealerHandRetained else { return false }
+        issuedPackets.insert(index)
+        return true
+    }
+    @discardableResult mutating func landPacket(_ index: Int) -> Bool {
+        guard issuedPackets.contains(index), index == landedPackets.count, !landedPackets.contains(index) else { return false }
+        landedPackets.insert(index)
+        let seat = seat(forPacket: index)
+        if landedCount(for: seat) == 13 { deliveredSeats.insert(seat) }
+        if seat == .south {
+            southFaceDownCardCount = landedCount(for: .south)
+            southRevealState = .stackedBacks
+        }
+        return true
+    }
+    @discardableResult mutating func retainDealerHand() -> Bool {
+        guard landedPackets.count == Self.externalPacketCount, flyingPackets.isEmpty, !dealerHandRetained else { return false }
+        dealerHandRetained = true
+        deliveredSeats.insert(presentation.dealerSeat)
+        southFaceDownCardCount = 13
+        southRevealState = .settlingBacks
+        return true
+    }
     var movingStackAtTarget = false
     var isMovingStackVisible = false
     var deliveredSeats: Set<Seat> = []
     var southRevealState: SouthRevealState = .hidden
     var southRevealedCardCount = 0
+    var southFaceDownCardCount = 0
 
     var activeTargetSeat: Seat? {
         presentation.targetSeat(forStep: activeStepIndex)
@@ -2592,12 +2843,7 @@ struct DealAnimationPlayback: Equatable {
         return presentation.movingStackPresentation(forStep: activeStepIndex)
     }
 
-    var centralCardCount: Int {
-        presentation.centralCardCount(
-            deliveredSeatCount: deliveredSeats.count,
-            movingStackVisible: isMovingStackVisible
-        )
-    }
+    var centralCardCount: Int { max(0, 52 - landedPackets.count * 13) }
 
     var dealCompletionAvailable: Bool {
         southRevealState == .revealed
@@ -2607,6 +2853,7 @@ struct DealAnimationPlayback: Equatable {
         [
             presentation.accessibilityValue,
             "southRevealState=\(southRevealState.rawValue)",
+            "source=\(presentation.dealerSeat.rawValue);retained=\(dealerHandRetained ? 13 : 0);established=\(establishedCardCount);packetsInFlight=\(flyingPackets.count);packetsIssued=\(issuedPackets.count);packetsLanded=\(landedPackets.count);southLanded=\(landedCount(for: .south));spread=\(southSpreadProgress);revealCompleted=\(completedReveals.count)",
             "southInterimFannedBacksVisible=\(southRevealState == .fannedBacks)",
             "southRevealBackCount=\(DealAnimationPresentation.cardsPerStack)",
             "southRevealRevealedCount=\(southRevealedCardCount)",
@@ -2621,15 +2868,18 @@ struct DealAnimationPlayback: Equatable {
 enum SouthRevealState: String, Equatable {
     case hidden
     case fannedBacks
+    case stackedBacks
+    case settlingBacks
+    case spreadingBacks
     case backsVisible
     case flipping
     case revealed
 
     var usesExpandedStation: Bool {
         switch self {
-        case .hidden, .fannedBacks:
+        case .hidden, .fannedBacks, .stackedBacks, .settlingBacks:
             return false
-        case .backsVisible, .flipping, .revealed:
+        case .spreadingBacks, .backsVisible, .flipping, .revealed:
             return true
         }
     }
@@ -2982,3 +3232,12 @@ private extension Color {
 #Preview {
     ContentView()
 }
+
+#if DEBUG
+// Exercises an actual failed opposing auction and all 13 legal tricks; no scored snapshot is injected.
+private struct RoomDefenseFixtureBidder: BidRecommending {
+    func recommendation(for context: BidRecommendationContext) -> BidRecommendation {
+        BidRecommendation(bid: context.seat == .east ? .nine : .pass, preferredTarneebSuit: context.seat == .east ? .spades : nil)
+    }
+}
+#endif

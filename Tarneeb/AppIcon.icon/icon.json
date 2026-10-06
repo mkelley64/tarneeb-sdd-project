@@ -1,0 +1,32 @@
+{
+  "fill": {
+    "solid": "srgb:0.02745,0.24314,0.19608,1.00000"
+  },
+  "groups": [
+    {
+      "blend-mode": "normal",
+      "layers": [
+        {
+          "image-name": "Approved-Variant-B.png",
+          "name": "Approved Variant B King Ace rosette composition",
+          "hidden": false,
+          "glass": false,
+          "opacity": 1
+        }
+      ],
+      "lighting": "individual",
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0
+      },
+      "specular": false,
+      "translucency": {
+        "enabled": false,
+        "value": 0
+      }
+    }
+  ],
+  "supported-platforms": {
+    "squares": "shared"
+  }
+}

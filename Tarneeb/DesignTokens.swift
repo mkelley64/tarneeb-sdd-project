@@ -1,4 +1,109 @@
 import Foundation
+import CoreGraphics
+
+// Layout for the approved room only; legacy/result geometry remains unchanged.
+struct RoomTableGeometry {
+    let size: CGSize
+    var compact: Bool { size.height < 290 }
+    var cardScale: Double { compact ? 0.70 : 1 }
+    var feltRect: CGRect { CGRect(x: 8, y: 32, width: max(0, size.width - 16), height: max(0, size.height - 60)) }
+    func station(_ seat: Seat) -> CGPoint {
+        switch seat {
+        case .north: return CGPoint(x: size.width / 2, y: 32)
+        case .south: return CGPoint(x: size.width / 2, y: size.height - 17)
+        case .west: return CGPoint(x: 30, y: size.height * 0.54)
+        case .east: return CGPoint(x: size.width - 30, y: size.height * 0.54)
+        }
+    }
+    func slot(_ seat: Seat) -> CGPoint {
+        let horizontal = min(73.0, size.width * 0.20)
+        switch seat {
+        case .north: return CGPoint(x: size.width / 2, y: compact ? max(95.5, size.height * 0.37 + 6) : size.height * 0.37)
+        case .south: return CGPoint(x: size.width / 2, y: compact ? max(size.height * 0.70, slot(.north).y + 90 * cardScale + 6) : size.height * 0.70)
+        case .west: return CGPoint(x: size.width / 2 - horizontal, y: size.height * 0.55)
+        case .east: return CGPoint(x: size.width / 2 + horizontal, y: size.height * 0.55)
+        }
+    }
+    func collection(_ seat: Seat) -> CGPoint {
+        let station = station(seat)
+        switch seat {
+        case .north: return CGPoint(x: station.x, y: 84)
+        case .south: return CGPoint(x: station.x, y: size.height - 46)
+        case .west: return CGPoint(x: 48, y: station.y + 42)
+        case .east: return CGPoint(x: size.width - 48, y: station.y + 42)
+        }
+    }
+}
+
+struct RoomTrickOwnership {
+    let trick: TrickPlayState?
+    func count(for seat: Seat) -> Int { trick?.resolvedTricks.filter { $0.winnerSeat == seat }.count ?? 0 }
+    func count(for team: Team) -> Int { trick?.resolvedTricks.filter { Team.forSeat($0.winnerSeat) == team }.count ?? 0 }
+}
+
+struct RoomInputProjection {
+    let game: GameState
+    init(authoritative: GameState) {
+        let settled = TrickPlayService().clearCompletedTrickIfNeeded(in: authoritative)
+        // Final-hand scoring remains exclusively the presentation state's responsibility.
+        game = settled.phase == .trickPlay ? settled : authoritative
+    }
+    func canPlay(_ card: Card) -> Bool { TrickPlayRules.isLegal(card: card, for: .south, in: game) }
+}
+
+struct FeedbackEventGate {
+    private(set) var consumed: Set<String> = []
+    mutating func accept(_ identity: String) -> Bool { consumed.insert(identity).inserted }
+    mutating func reset() { consumed.removeAll() }
+}
+
+// Copy and ownership are projections of the existing scored result, never scoring inputs.
+struct RoomOutcomePresentation {
+    let presentation: RoundResultPresentation
+    var isDefense: Bool { presentation.result.declaringTeam == .teamB && !presentation.contractMade }
+    var kicker: String { presentation.contractMade ? "CONTRACT MADE" : (isDefense ? "CONTRACT DEFEATED" : "CONTRACT MISSED") }
+    var title: String {
+        if let winner = presentation.score.winnerTeam { return winner == .teamA ? "You + Partner win" : "East + West win" }
+        if isDefense { return "You held the line." }
+        if presentation.playerSucceeded { return "You brought it home." }
+        return presentation.contractMade ? "They made the contract." : "The contract slipped away."
+    }
+    var detail: String {
+        if isDefense { return "You + Partner took \(presentation.result.defendingTricks) defending tricks." }
+        return "\(presentation.result.declaringTeam == .teamA ? "You + Partner" : "East + West") took \(presentation.result.declaringTricks) tricks."
+    }
+    func equation(for team: Team) -> String {
+        let delta = presentation.result.scoreDelta(for: team)
+        return "\(presentation.previousScore(for: team)) \(delta < 0 ? "−" : "+") \(abs(delta)) = \(presentation.score.points(for: team))"
+    }
+    var earned: String {
+        let delta = presentation.result.scoreDelta(for: .teamA)
+        let tricks = presentation.result.declaringTeam == .teamA ? presentation.result.declaringTricks : presentation.result.defendingTricks
+        let special: String
+        switch presentation.result.outcome {
+        case .declaringKaboot: special = presentation.result.declaringTeam == .teamA ? "Kaboot · " : "Opponents’ Kaboot · "
+        case .defendingKaboot: special = presentation.result.defendingTeam == .teamA ? "Kaboot · " : "Opponents’ Kaboot · "
+        case .bidThirteenMade: special = "Bid 13 made · "
+        case .bidThirteenFailed: special = "Bid 13 missed · "
+        default: special = ""
+        }
+        return "\(special)\(tricks) \(isDefense ? "defending " : "")tricks · \(delta > 0 ? "+" : "")\(delta) points"
+    }
+}
+
+enum RoomOutcomeTiming {
+    static let handCue = 0.50
+    static let matchCue = 0.25
+}
+
+struct FeedbackPreferencePolicy: Equatable {
+    let sound: Bool
+    let haptic: Bool
+    init(soundEnabled: Bool, hapticsEnabled: Bool, requestsHaptic: Bool, active: Bool) {
+        sound = active && soundEnabled
+        haptic = active && hapticsEnabled && requestsHaptic
+    }
+}
 
 enum OpponentPacingToken {
     static let forcedPause = 0.18
@@ -160,6 +265,7 @@ struct LiveTrickGeometry {
 struct LiveCardFlight: Equatable {
     let play: PlayedCard
     var arrived = false
+    var contact = 0.0
 }
 
 enum GameColorToken: String, CaseIterable, Equatable, Hashable {

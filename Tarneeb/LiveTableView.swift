@@ -5,14 +5,14 @@ private struct HandCardDrag {
     let translation: CGSize
 }
 
-private struct CardFramePreference: PreferenceKey {
+struct CardFramePreference: PreferenceKey {
     static var defaultValue: [String: CGRect] = [:]
     static func reduce(value: inout [String: CGRect], nextValue: () -> [String: CGRect]) {
         value.merge(nextValue(), uniquingKeysWith: { _, next in next })
     }
 }
 
-private extension View {
+extension View {
     func liveAnchor(_ key: String) -> some View {
         background(GeometryReader { proxy in
             Color.clear.preference(key: CardFramePreference.self, value: [key: proxy.frame(in: .named("liveTable"))])
@@ -22,6 +22,7 @@ private extension View {
 
 struct LiveTableView: View {
     let game: GameState
+    let inputGame: GameState
     let score: GameScore
     let flight: LiveCardFlight?
     let collecting: Bool
@@ -33,7 +34,9 @@ struct LiveTableView: View {
     let pause: () -> Void
     let resume: () -> Void
     let roundResult: String
+    var continuity: Namespace.ID? = nil
 
+    @State private var winnerWarmth = 0.0
     @State private var selectedID: String?
     @State private var showsNewGameConfirmation = false
     @State private var frames: [String: CGRect] = [:]
@@ -51,32 +54,31 @@ struct LiveTableView: View {
 
     private var selectedCard: Card? { hand.first { $0.id == selectedID } }
     private var winner: Seat? { game.trickPlayState?.pendingCompletedTrick?.winnerSeat }
-    private var canSelect: Bool { !blocked && game.currentTrickTurnSeat == .south && !game.isCurrentTrickComplete }
-    private var ink: Color { GameColorToken.textPrimary.swiftUIColor }
-    private var accent: Color { GameColorToken.stationOutlineActive.swiftUIColor }
+    private var canSelect: Bool { !blocked && inputGame.currentTrickTurnSeat == .south && !inputGame.isCurrentTrickComplete }
+    private var ink: Color { RoomColor.ivory }
+    private var accent: Color { RoomColor.brass }
 
     var body: some View {
         GeometryReader { proxy in
             let contentWidth = min(proxy.size.width - 24, 560)
-            VStack(spacing: 4) {
+            VStack(spacing: 8) {
                 header
                 contract
                 table
-                    .frame(minHeight: LiveTableToken.minimumTableHeight)
+                    .frame(minHeight: 228)
                 handView(width: contentWidth)
                 actionBar
             }
-            .frame(width: contentWidth, height: proxy.size.height - 8)
-            .padding(.vertical, 4)
+            .frame(width: contentWidth, height: proxy.size.height - 16)
+            .padding(.vertical, 8)
             .frame(maxWidth: .infinity)
             .coordinateSpace(name: "liveTable")
             .onPreferenceChange(CardFramePreference.self) { frames = $0 }
             .overlay(alignment: .topLeading) {
                 draggingCard
-                flyingCard
+                if flight?.play.seat == .south { flyingCard(in: nil) }
             }
         }
-        .background(GameColorToken.tableBackgroundPrimary.swiftUIColor)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("tarneeb-live-table")
         .confirmationDialog("Start a new game?", isPresented: $showsNewGameConfirmation, titleVisibility: .visible) {
@@ -92,7 +94,7 @@ struct LiveTableView: View {
             if id == nil { releasedCardOrigins.removeAll() }
         }
         .onChange(of: game) { _, _ in
-            if let selectedCard, !TrickPlayRules.isLegal(card: selectedCard, for: .south, in: game) {
+            if let selectedCard, !TrickPlayRules.isLegal(card: selectedCard, for: .south, in: inputGame) {
                 selectedID = nil
             } else if selectedCard == nil {
                 selectedID = nil
@@ -101,166 +103,89 @@ struct LiveTableView: View {
     }
 
     private var header: some View {
-        HStack(spacing: 12) {
-            MatchScoreHeading(score: score)
-            Spacer(minLength: 0)
-            LastTrickRecallButton(trick: game.trickPlayState?.completedTricks.last, blocked: blocked, pause: pause, resume: resume)
+        HStack {
+            RoomScoreHeading(score: score)
+            Spacer(minLength: 4)
             Menu {
                 AISkillOptions()
                 Toggle("Sound effects", isOn: $soundEnabled)
                 Toggle("Haptics", isOn: $hapticsEnabled)
                 Divider()
-                Button("New Game", systemImage: "arrow.counterclockwise") {
-                    pause()
-                    showsNewGameConfirmation = true
-                }
+                Button("New Game", systemImage: "arrow.counterclockwise") { pause(); showsNewGameConfirmation = true }
             } label: {
-                Image(systemName: "ellipsis")
-                    .font(.title3.weight(.semibold))
-                    .frame(width: 44, height: 36)
+                Image(systemName: "ellipsis").font(.system(size: 17)).frame(width: 44, height: 44)
+                    .background(RoomColor.felt.opacity(0.6), in: Circle())
+                    .overlay(Circle().stroke(RoomColor.edge, lineWidth: 0.65))
             }
-            .accessibilityLabel("Game options")
-            .accessibilityIdentifier("tarneeb-game-options")
-        }
-        .foregroundStyle(ink)
-        .lineLimit(1)
-        .minimumScaleFactor(0.7)
-        .frame(height: 36)
+            .accessibilityLabel("Game options").accessibilityIdentifier("tarneeb-game-options")
+        }.foregroundStyle(ink).frame(height: 50)
     }
 
-    private var contract: some View {
-        VStack(spacing: 2) {
-            if let summary = game.postBiddingSummary,
-               let progress = ContractProgressPresentation(summary: summary, trick: game.trickPlayState) {
-                HStack {
-                    Text("\(summary.highBidderSeat == .south ? "You bid" : summary.highBidderSeat.displayLabel + " bids") \(summary.bidValue.displayLabel)")
-                        .accessibilityIdentifier("tarneeb-live-contract-bid")
-                    Text(summary.tarneebSuit.displaySymbol)
-                        .foregroundStyle(accent)
-                        .accessibilityLabel("Tarneeb \(summary.tarneebSuit.rawValue)")
-                    Spacer()
-                    if progress.milestone == .secured {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(accent)
-                            .transition(reduceMotion ? .identity : .scale.combined(with: .opacity))
-                            .accessibilityHidden(true)
-                    }
-                    Text(progress.visibleLabel)
-                        .monospacedDigit()
-                        .foregroundStyle(progress.milestone == .oneAway || progress.milestone == .secured ? accent : GameColorToken.textSecondary.swiftUIColor)
-                        .accessibilityLabel(progress.label)
-                        .accessibilityValue(progress.accessibilityValue)
-                        .accessibilityIdentifier("tarneeb-contract-progress")
-                }
-                .animation(reduceMotion ? nil : .easeOut(duration: ContractProgressToken.duration), value: progress.milestone)
-                GeometryReader { proxy in
-                    ZStack(alignment: .leading) {
-                        Capsule().fill(GameColorToken.textSecondary.swiftUIColor.opacity(TableFinishToken.dividerOpacity))
-                        Capsule().fill(accent)
-                            .frame(width: proxy.size.width * progress.fraction)
-                    }
-                    .animation(reduceMotion ? nil : .easeOut(duration: ContractProgressToken.duration), value: progress.fraction)
-                }
-                .frame(height: ContractProgressToken.barHeight)
-                .accessibilityHidden(true)
-            }
-        }
-        .font(.subheadline.weight(.medium))
-        .foregroundStyle(GameColorToken.textSecondary.swiftUIColor)
-        .lineLimit(1)
-        .minimumScaleFactor(0.7)
-        .frame(height: 24)
-    }
+    private var contract: some View { RoomContract(game: game, reduceMotion: reduceMotion).frame(height: 66) }
 
     private var table: some View {
         GeometryReader { proxy in
-            let geometry = LiveTrickGeometry(size: proxy.size)
-            let felt = CircularTableGeometry(size: proxy.size)
+            let geometry = RoomTableGeometry(size: proxy.size)
             ZStack(alignment: .topLeading) {
-                TableFeltSurface()
-                    .frame(width: felt.diameter, height: felt.diameter)
-                    .position(felt.center)
-                Text(TableTitlePresentation().text)
-                    .font(.custom(TableTitlePresentation().fontName, size: TableTitlePresentation().fontPointSize))
-                    .foregroundStyle(GameColorToken.tableTitleText.swiftUIColor.opacity(0.32))
-                    .position(x: proxy.size.width / 2, y: geometry.slot(.west).y)
-                    .accessibilityHidden(true)
-
-                ForEach([Seat.north, .west, .east], id: \.self) { seat in
-                    station(seat)
-                        .liveAnchor("station-\(seat.rawValue)")
-                        .position(geometry.station(seat))
-                }
-
+                RoomFelt(warmth: winnerWarmth).frame(width: geometry.feltRect.width, height: geometry.feltRect.height)
+                    .roomGeometry("felt", in: continuity, properties: .frame)
+                    .position(x: geometry.feltRect.midX, y: geometry.feltRect.midY)
                 ForEach(Seat.allCases, id: \.self) { seat in
-                    Color.clear
-                        .frame(width: LiveTableToken.cardWidth, height: LiveTableToken.cardHeight)
-                        .liveAnchor("slot-\(seat.rawValue)")
-                        .position(geometry.slot(seat))
-                        .accessibilityHidden(true)
-                    if let played = game.trickPlayState?.playedCard(for: seat) {
-                        ReadableCardFace(card: played.card)
-                            .overlay {
-                                if winner == seat {
-                                    RoundedRectangle(cornerRadius: 7).stroke(accent, lineWidth: 3)
-                                }
-                            }
-                            .scaleEffect(collecting && !reduceMotion ? LiveTableToken.collectionScale : 1)
-                            .opacity(collecting && reduceMotion ? 0 : 1)
-                            .position(collecting && !reduceMotion ? geometry.station(winner ?? seat) : geometry.slot(seat))
+                    station(seat, compact: geometry.compact)
+                        .roomGeometry("station-\(seat.rawValue)", in: continuity)
+                        .liveAnchor("station-\(seat.rawValue)").position(geometry.station(seat)).zIndex(20)
+                }
+                if flight?.play.seat != .south { flyingCard(in: frames["drop-table"]).zIndex(10) }
+                ForEach(Seat.allCases, id: \.self) { seat in
+                    Color.clear.frame(width: 64 * geometry.cardScale, height: 90 * geometry.cardScale)
+                        .liveAnchor("slot-\(seat.rawValue)").position(geometry.slot(seat)).accessibilityHidden(true)
+                    if let played = game.trickPlayState?.playedCard(for: seat), flight?.play.id != played.id {
+                        ReadableCardFace(card: played.card, roomStyle: true)
+                            .overlay(RoundedRectangle(cornerRadius: 7).stroke(accent, lineWidth: winner == seat ? 2 : 0))
+                            .scaleEffect(geometry.cardScale)
+                            .rotationEffect(.degrees(reduceMotion ? 0 : seat == .west ? -6 : seat == .east ? 6 : 0))
+                            .modifier(RoomCollection(progress: collecting ? 1 : 0, source: geometry.slot(seat), target: geometry.collection(winner ?? seat), reduceMotion: reduceMotion))
                             .zIndex(collecting ? 5 : 1)
                             .accessibilityLabel("\(seat.displayLabel), \(played.card.rank.displayLabel) of \(played.card.suit.rawValue)\(winner == seat ? ", winning card" : "")")
                             .accessibilityIdentifier("tarneeb-live-played-\(seat.rawValue)")
                     }
                 }
-            }
-            .contentShape(Rectangle())
+            }.contentShape(Rectangle())
         }
-        .liveAnchor("drop-table")
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("tarneeb-live-trick")
+        .liveAnchor("drop-table").accessibilityElement(children: .contain).accessibilityIdentifier("tarneeb-live-trick")
+        .task(id: winner) {
+            winnerWarmth = 0
+            guard winner == .north || winner == .south, !reduceMotion else { return }
+            withAnimation(.easeOut(duration: 0.12)) { winnerWarmth = 1 }
+            do { try await Task.sleep(for: .seconds(0.12)) } catch { winnerWarmth = 0; return }
+            withAnimation(.easeOut(duration: 0.53)) { winnerWarmth = 0 }
+        }
     }
 
-    private func station(_ seat: Seat) -> some View {
+    private func station(_ seat: Seat, compact: Bool) -> some View {
         let active = game.currentTrickTurnSeat == seat && winner == nil
-        let count = game.trickPlayState?.completedTricks.filter { $0.winnerSeat == seat }.count ?? 0
-        return HStack(spacing: 5) {
-            Image("card_back")
-                .resizable().scaledToFit().frame(width: 18, height: 26)
-                .clipShape(RoundedRectangle(cornerRadius: 2))
-                .opacity(game.players.first { $0.seat == seat }?.hand.isEmpty == true ? 0 : 1)
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 0) {
-                HStack(spacing: 3) {
-                    Text(seat.displayLabel).font(.caption.weight(.bold))
-                    if game.dealerSeat == seat { CompactDealerBadge() }
-                }
-                Text("\(count) tricks").font(.caption2).monospacedDigit()
-                    .foregroundStyle(active || winner == seat ? accent : GameColorToken.textSecondary.swiftUIColor)
-            }
-            .foregroundStyle(active || winner == seat ? accent : ink)
-        }
-        .frame(width: 92, height: 34)
-        .lineLimit(1)
-        .minimumScaleFactor(0.7)
-        .overlay(alignment: .bottom) {
-            Capsule().fill(active ? accent : Color.clear).frame(width: 30, height: 2)
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(seat.displayLabel), \(count) tricks\(game.dealerSeat == seat ? ", dealer" : "")\(active ? ", playing" : "")")
-        .accessibilityIdentifier("tarneeb-live-station-\(seat.rawValue)")
+        let ownership = RoomTrickOwnership(trick: game.trickPlayState)
+        let lastWinner = game.trickPlayState?.completedTricks.last?.winnerSeat
+        let nextLead = active && game.trickPlayState?.currentTrick.isEmpty == true && lastWinner == seat
+        let detail = winner == seat ? "Wins trick \((game.trickPlayState?.completedTricks.count ?? 0) + 1)" : nextLead ? "Leads next" : seat == .south ? (active ? "Your turn" : "") : ""
+        return RoomStation(seat: seat, detail: detail, active: active, winner: winner == seat,
+                           dealer: game.dealerSeat == seat && seat != .south, cards: seat != .south && game.players.first { $0.seat == seat }?.hand.isEmpty != true,
+                           detailInFooter: seat == .north && compact,
+                           packetAnchor: "packet-\(seat.rawValue)")
+            .accessibilityLabel("\(seat == .north ? "North, your partner" : seat == .south ? "You" : seat.displayLabel), \(ownership.count(for: seat)) tricks\(game.dealerSeat == seat ? ", dealer" : "")\(active ? ", playing" : "")")
+            .accessibilityIdentifier("tarneeb-live-station-\(seat.rawValue)")
     }
 
     private func handView(width: Double) -> some View {
         let layout = LiveHandLayout(width: width)
         return ZStack(alignment: .topLeading) {
             ForEach(Array(hand.enumerated()), id: \.element.id) { index, card in
-                let legal = TrickPlayRules.isLegal(card: card, for: .south, in: game)
+                let legal = TrickPlayRules.isLegal(card: card, for: .south, in: inputGame)
                 let selected = selectedID == card.id
                 Button {
                     select(card)
                 } label: {
-                    ReadableCardFace(card: card, subdued: canSelect && !legal)
+                    ReadableCardFace(card: card, subdued: canSelect && !legal, roomStyle: true)
                         .overlay {
                             if selected {
                                 RoundedRectangle(cornerRadius: 7).stroke(accent, lineWidth: 3)
@@ -286,6 +211,7 @@ struct LiveTableView: View {
             }
         }
         .frame(width: width, height: layout.height)
+        .roomGeometry("south-hand", in: continuity)
         .liveAnchor("station-south")
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("tarneeb-live-hand")
@@ -294,11 +220,11 @@ struct LiveTableView: View {
     private func cardGesture(_ card: Card) -> some Gesture {
         DragGesture(coordinateSpace: .named("liveTable"))
             .updating($handDrag) { value, drag, _ in
-                guard canSelect, TrickPlayRules.isLegal(card: card, for: .south, in: game) else { return }
+                guard canSelect, TrickPlayRules.isLegal(card: card, for: .south, in: inputGame) else { return }
                 drag = HandCardDrag(card: card, translation: value.translation)
             }
             .onEnded { value in
-                guard canSelect, TrickPlayRules.isLegal(card: card, for: .south, in: game),
+                guard canSelect, TrickPlayRules.isLegal(card: card, for: .south, in: inputGame),
                       frames["drop-table"]?.contains(value.location) == true,
                       let source = frames[card.id] else { return }
                 // Continue the landing animation from the release point, not the hand.
@@ -309,7 +235,7 @@ struct LiveTableView: View {
                 TapGesture(count: 2)
                     .exclusively(before: TapGesture(count: 1))
                     .onEnded { gesture in
-                        guard canSelect, TrickPlayRules.isLegal(card: card, for: .south, in: game) else { return }
+                        guard canSelect, TrickPlayRules.isLegal(card: card, for: .south, in: inputGame) else { return }
                         switch gesture {
                         case .first: play(card)
                         case .second: select(card)
@@ -321,7 +247,7 @@ struct LiveTableView: View {
     @ViewBuilder
     private var draggingCard: some View {
         if let drag = handDrag, canSelect, let source = frames[drag.card.id] {
-            ReadableCardFace(card: drag.card)
+            ReadableCardFace(card: drag.card, roomStyle: true)
                 .position(x: source.midX + drag.translation.width, y: source.midY + drag.translation.height)
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
@@ -329,7 +255,7 @@ struct LiveTableView: View {
     }
 
     private func select(_ card: Card) {
-        guard canSelect, TrickPlayRules.isLegal(card: card, for: .south, in: game) else { return }
+        guard canSelect, TrickPlayRules.isLegal(card: card, for: .south, in: inputGame) else { return }
         withAnimation(reduceMotion ? nil : .snappy(duration: 0.18)) {
             selectedID = selectedID == card.id ? nil : card.id
         }
@@ -337,63 +263,60 @@ struct LiveTableView: View {
     }
 
     private var actionBar: some View {
-        HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(status).font(.subheadline.weight(.semibold))
-                    .accessibilityIdentifier("tarneeb-live-status")
-                if let ledSuit = game.trickPlayState?.ledSuit, winner == nil {
-                    Text("Led \(ledSuit.displaySymbol)").font(.caption).foregroundStyle(GameColorToken.textSecondary.swiftUIColor)
+        let ownership = RoomTrickOwnership(trick: game.trickPlayState)
+        return VStack(spacing: 7) {
+            (Text(status) + Text(canSelect && winner == nil && selectedCard == nil ? (inputGame.trickPlayState?.ledSuit.map { " · Follow \($0.rawValue)" } ?? "") + " · Double-tap or drag to play" : ""))
+                .font(.system(size: 12, weight: .medium)).foregroundStyle(RoomColor.muted)
+                .lineLimit(1).minimumScaleFactor(0.75).accessibilityLabel(status)
+                .accessibilityHint(canSelect ? "Double-tap or drag to play" : "").accessibilityIdentifier("tarneeb-live-status")
+            HStack(alignment: .center, spacing: 14) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("YOUR TEAM").font(.system(size: 9, weight: .medium)).tracking(1).foregroundStyle(RoomColor.muted)
+                    HStack(spacing: 3) {
+                        Text("\(ownership.count(for: .teamA)) ·").accessibilityLabel("Your team tricks").accessibilityValue("\(ownership.count(for: .teamA))").accessibilityIdentifier("tarneeb-live-team-tricks")
+                        Text("You \(ownership.count(for: .south))").accessibilityLabel("Your tricks").accessibilityValue("\(ownership.count(for: .south))").accessibilityIdentifier("tarneeb-live-south-tricks")
+                        if game.dealerSeat == .south { RoomDealerBadge().accessibilityLabel("You, dealer").accessibilityIdentifier("tarneeb-live-dealer-south") }
+                    }.font(.system(size: 16, weight: .semibold)).monospacedDigit()
                 }
+                Spacer(minLength: 0)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("OPPONENTS").font(.system(size: 9, weight: .medium)).tracking(1).foregroundStyle(RoomColor.muted)
+                    Text("\(ownership.count(for: .teamB)) tricks").font(.system(size: 16)).monospacedDigit()
+                }
+                LastTrickRecallButton(trick: game.trickPlayState?.completedTricks.last, blocked: blocked, pause: pause, resume: resume)
+                    // Keep the approved 44×36 ornament; expand only the button's input region.
+                    .background(Circle().fill(RoomColor.felt.opacity(0.6)).frame(width: 44, height: 36))
+                    .overlay(Circle().stroke(RoomColor.edge, lineWidth: 0.65).frame(width: 44, height: 36))
             }
-            .lineLimit(2)
-            .minimumScaleFactor(0.8)
-            Spacer(minLength: 0)
-            let count = game.trickPlayState?.completedTricks.filter { $0.winnerSeat == .south }.count ?? 0
-            Text("Your tricks: \(count)")
-                .font(.subheadline.weight(.semibold))
-                .monospacedDigit()
-                .fixedSize()
-                .accessibilityLabel("Your tricks")
-                .accessibilityValue("\(count)")
-                .accessibilityIdentifier("tarneeb-live-south-tricks")
-            if game.dealerSeat == .south {
-                CompactDealerBadge()
-                    .accessibilityLabel("You, dealer")
-                    .accessibilityIdentifier("tarneeb-live-dealer-south")
-            }
-        }
-        .foregroundStyle(ink)
-        .frame(height: 48)
+        }.foregroundStyle(ink).frame(height: 72)
     }
 
     private var status: String {
         if game.phase == .handComplete { return roundResult }
-        if let winner { return "\(winner == .south ? "You take" : winner.displayLabel + " takes") the trick" }
+        if let winner { return winner == .north ? "Partner takes the trick · That one is ours" : winner == .south ? "You take the trick" : "\(winner.displayLabel) takes the trick" }
+        if let selectedCard, canSelect { return "\(selectedCard.rank.displayLabel)\(selectedCard.suit.displaySymbol) selected · Double-tap or drag to play" }
+        if canSelect { return "Your turn" }
         if let flight { return flight.play.seat == .south ? "You play" : "\(flight.play.seat.displayLabel) plays" }
-        if let selectedCard, canSelect { return "\(selectedCard.rank.displayLabel)\(selectedCard.suit.displaySymbol) selected" }
-        if game.currentTrickTurnSeat == .south { return "Your turn" }
+        if game.currentTrickTurnSeat == .north, game.trickPlayState?.currentTrick.isEmpty == true { return "Partner leads next" }
         return "\(game.currentTrickTurnSeat?.displayLabel ?? "") is playing"
     }
 
-    @ViewBuilder
-    private var flyingCard: some View {
+    @ViewBuilder private func flyingCard(in tableFrame: CGRect?) -> some View {
         if let flight {
-            let sourceKey = flight.play.seat == .south ? flight.play.card.id : "station-\(flight.play.seat.rawValue)"
-            if let source = releasedCardOrigins[sourceKey] ?? frames[sourceKey], let target = frames["slot-\(flight.play.seat.rawValue)"] {
-                ReadableCardFace(card: flight.play.card)
+            let sourceKey = flight.play.seat == .south ? flight.play.card.id : "packet-\(flight.play.seat.rawValue)"
+            if let source = releasedCardOrigins[sourceKey] ?? frames[sourceKey] ?? frames["station-\(flight.play.seat.rawValue)"], let target = frames["slot-\(flight.play.seat.rawValue)"] {
+                let origin = tableFrame?.origin ?? .zero
+                ReadableCardFace(card: flight.play.card, roomStyle: true)
+                    .scaleEffect(min(1, target.width / LiveTableToken.cardWidth))
                     .id(flight.play.id)
-                    .shadow(color: GameColorToken.cardShadow.swiftUIColor, radius: flight.arrived ? 2 : 10, y: flight.arrived ? 1 : 8)
-                    .opacity(reduceMotion && !flight.arrived ? 0 : 1)
-                    .position(
-                        x: flight.arrived || reduceMotion ? target.midX : source.midX,
-                        y: flight.arrived || reduceMotion ? target.midY : source.midY
-                    )
-                    .allowsHitTesting(false)
-                    .accessibilityHidden(true)
-                    .accessibilityIdentifier("tarneeb-live-flight")
+                    .modifier(RoomCardTravel(progress: flight.arrived ? 1 : 0, contact: flight.contact,
+                                             source: CGPoint(x: source.midX - origin.x, y: source.midY - origin.y), target: CGPoint(x: target.midX - origin.x, y: target.midY - origin.y), reduceMotion: reduceMotion,
+                                             sourceScale: flight.play.seat == .south ? 1 : min(1, source.width / target.width)))
+                    .allowsHitTesting(false).accessibilityHidden(true).accessibilityIdentifier("tarneeb-live-flight")
             }
         }
     }
+
 }
 
 struct MatchScoreHeading: View {
@@ -497,67 +420,100 @@ struct LastTrickRecallButton: View {
             recalled = RecallPresentation(trick: trick)
             pause()
         } label: {
-            Image(systemName: "clock.arrow.circlepath").frame(width: 44, height: 36)
+            Image(systemName: "clock.arrow.circlepath").font(.system(size: 17)).frame(width: 44, height: 36)
+                .padding(.vertical, 4).contentShape(Rectangle())
         }
         .disabled(trick == nil || (blocked && recalled == nil))
         .accessibilityLabel("Last trick")
         .accessibilityIdentifier("tarneeb-last-trick")
         .help("Last trick")
         .sheet(item: $recalled, onDismiss: resume) { presentation in
-            let recalled = presentation.trick
-                VStack(spacing: 24) {
-                    HStack {
-                        Text("Last trick").font(.title2.bold()).accessibilityAddTraits(.isHeader)
-                        Spacer()
-                        Button { self.recalled = nil } label: {
-                            Image(systemName: "xmark").frame(width: RecallToken.closeTarget, height: RecallToken.closeTarget)
-                        }
-                        .accessibilityLabel("Close last trick")
-                        .accessibilityIdentifier("tarneeb-close-last-trick")
-                    }
-                    Text("\(recalled.winnerSeat == .south ? "You" : recalled.winnerSeat.displayLabel) won the trick")
-                        .font(.headline)
-                    HStack(spacing: RecallToken.cardGap) {
-                        ForEach(recalled.playedCards) { play in
-                            VStack(spacing: 8) {
-                                Text(play.seat == .south ? "You" : play.seat.displayLabel).font(.caption.weight(.semibold))
-                                ReadableCardFace(card: play.card)
-                                    .frame(width: LiveTableToken.cardWidth, height: LiveTableToken.cardHeight)
-                                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(
-                                        GameColorToken.stationOutlineActive.swiftUIColor,
-                                        lineWidth: play.seat == recalled.winnerSeat ? 3 : 0
-                                    ))
-                                Image(systemName: "crown.fill")
-                                    .opacity(play.seat == recalled.winnerSeat ? 1 : 0)
-                                    .foregroundStyle(GameColorToken.stationOutlineActive.swiftUIColor)
-                            }
-                            .accessibilityElement(children: .ignore)
-                            .accessibilityLabel("\(play.seat.displayLabel), \(play.card.rank.displayLabel) of \(play.card.suit.rawValue)\(play.seat == recalled.winnerSeat ? ", winner" : "")")
-                            .accessibilityIdentifier("tarneeb-recalled-\(play.seat.rawValue)")
-                        }
-                    }
-                    Spacer(minLength: 0)
-                }
-                .padding(20)
-                .foregroundStyle(GameColorToken.textPrimary.swiftUIColor)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .presentationDetents([.height(RecallToken.sheetHeight)])
-                .presentationDragIndicator(.visible)
-                .presentationBackground(GameColorToken.tableBackgroundPrimary.swiftUIColor)
-                .accessibilityElement(children: .contain)
-                .accessibilityIdentifier("tarneeb-trick-recall")
+            TrickRecallSheet(trick: presentation.trick) { self.recalled = nil }
         }
+    }
+}
+
+private struct TrickRecallSheet: View {
+    @Environment(\.dynamicTypeSize) private var typeSize
+    let trick: CompletedTrick
+    let close: () -> Void
+
+    var body: some View {
+        Group {
+            if typeSize.isAccessibilitySize {
+                ScrollView { contents }
+            } else {
+                contents.frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        .foregroundStyle(RoomColor.ivory)
+        .presentationDetents(typeSize.isAccessibilitySize ? [.large] : [.height(RecallToken.sheetHeight)])
+        .presentationDragIndicator(.visible)
+        .presentationBackground(RoomColor.forest)
+        .preferredColorScheme(.dark)
+        .tint(RoomColor.brass)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("tarneeb-trick-recall")
+    }
+
+    private var contents: some View {
+        VStack(spacing: 24) {
+            HStack {
+                Text("Last trick").font(.title2.bold()).accessibilityAddTraits(.isHeader)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer()
+                Button(action: close) {
+                    Image(systemName: "xmark").font(.system(size: 17))
+                        .frame(width: RecallToken.closeTarget, height: RecallToken.closeTarget)
+                }
+                .accessibilityLabel("Close last trick")
+                .accessibilityIdentifier("tarneeb-close-last-trick")
+            }
+            Text("\(trick.winnerSeat == .south ? "You" : (trick.winnerSeat == .north ? "Partner" : trick.winnerSeat.displayLabel)) won the trick")
+                .font(.headline).fixedSize(horizontal: false, vertical: true)
+            if typeSize.isAccessibilitySize {
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 24) {
+                    ForEach(trick.playedCards) { recalledCard($0) }
+                }
+            } else {
+                HStack(spacing: RecallToken.cardGap) {
+                    ForEach(trick.playedCards) { recalledCard($0) }
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity)
+    }
+
+    private func recalledCard(_ play: PlayedCard) -> some View {
+        VStack(spacing: 8) {
+            Text(play.seat == .south ? "You" : play.seat.displayLabel).font(.caption.weight(.semibold))
+                .fixedSize(horizontal: false, vertical: true)
+            ReadableCardFace(card: play.card, roomStyle: true)
+                .frame(width: LiveTableToken.cardWidth, height: LiveTableToken.cardHeight)
+                .overlay(RoundedRectangle(cornerRadius: 6).stroke(
+                    RoomColor.brass, lineWidth: play.seat == trick.winnerSeat ? 3 : 0
+                ))
+            Image(systemName: "checkmark.circle.fill").font(.system(size: 17))
+                .opacity(play.seat == trick.winnerSeat ? 1 : 0)
+                .foregroundStyle(RoomColor.brass)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(play.seat.displayLabel), \(play.card.rank.displayLabel) of \(play.card.suit.rawValue)\(play.seat == trick.winnerSeat ? ", winner" : "")")
+        .accessibilityIdentifier("tarneeb-recalled-\(play.seat.rawValue)")
     }
 }
 
 struct ReadableCardFace: View {
     let card: Card
     var subdued = false
+    var roomStyle = false
 
     var body: some View {
         ZStack(alignment: .topLeading) {
             RoundedRectangle(cornerRadius: 7)
-                .fill(GameColorToken.cardBackground.swiftUIColor)
+                .fill(roomStyle ? RoomColor.paper : GameColorToken.cardBackground.swiftUIColor)
                 .overlay(RoundedRectangle(cornerRadius: 7).stroke(GameColorToken.cardBorder.swiftUIColor, lineWidth: 1))
             VStack(spacing: -3) {
                 Text(card.rank.displayLabel).font(.system(size: LiveTableToken.rankSize, weight: .bold, design: .rounded))
@@ -574,7 +530,7 @@ struct ReadableCardFace: View {
                 .rotationEffect(.degrees(180))
                 .position(x: 53, y: 79)
         }
-        .foregroundStyle(card.suit.colorToken.swiftUIColor.opacity(subdued ? LiveTableToken.unavailableOpacity : 1))
+        .foregroundStyle((roomStyle ? (card.suit == .hearts || card.suit == .diamonds ? RoomColor.burgundy : RoomColor.ink) : card.suit.colorToken.swiftUIColor).opacity(subdued ? LiveTableToken.unavailableOpacity : 1))
         .frame(width: LiveTableToken.cardWidth, height: LiveTableToken.cardHeight)
         .compositingGroup()
         .shadow(color: GameColorToken.cardShadow.swiftUIColor, radius: 2, y: 2)

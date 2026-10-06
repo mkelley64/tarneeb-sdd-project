@@ -13,48 +13,12 @@
                     <view key="view" contentMode="scaleToFill" id="launch-root">
                         <rect key="frame" x="0.0" y="0.0" width="393" height="852"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
-                        <subviews>
-                            <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="launch-group">
-                                <rect key="frame" x="36.5" y="275" width="320" height="302"/>
-                                <subviews>
-                                    <label opaque="NO" userInteractionEnabled="NO" contentMode="left" text="طرنيب" textAlignment="center" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" tag="100" translatesAutoresizingMaskIntoConstraints="NO" id="launch-title">
-                                        <rect key="frame" x="0.0" y="0.0" width="320" height="80"/>
-                                        <fontDescription key="fontDescription" name="GeezaPro" family="Geeza Pro" pointSize="52"/>
-                                        <!-- Matches GameColorToken.tableTitleText (#BBAA7E). -->
-                                        <color key="textColor" red="0.7333333333" green="0.6666666667" blue="0.4941176471" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
-                                        <nil key="highlightedColor"/>
-                                    </label>
-                                    <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFit" image="LaunchCardFan" tag="101" translatesAutoresizingMaskIntoConstraints="NO" id="launch-fan">
-                                        <rect key="frame" x="0.0" y="92" width="320" height="210"/>
-                                    </imageView>
-                                </subviews>
-                                <constraints>
-                                    <constraint firstAttribute="height" constant="302" id="group-height"/>
-                                    <constraint firstItem="launch-title" firstAttribute="top" secondItem="launch-group" secondAttribute="top" id="title-top"/>
-                                    <constraint firstItem="launch-title" firstAttribute="leading" secondItem="launch-group" secondAttribute="leading" id="title-left"/>
-                                    <constraint firstAttribute="trailing" secondItem="launch-title" secondAttribute="trailing" id="title-right"/>
-                                    <constraint firstItem="launch-title" firstAttribute="height" constant="80" id="title-height"/>
-                                    <constraint firstItem="launch-fan" firstAttribute="top" secondItem="launch-title" secondAttribute="bottom" constant="12" id="fan-top"/>
-                                    <constraint firstItem="launch-fan" firstAttribute="leading" secondItem="launch-group" secondAttribute="leading" id="fan-left"/>
-                                    <constraint firstAttribute="trailing" secondItem="launch-fan" secondAttribute="trailing" id="fan-right"/>
-                                    <constraint firstAttribute="bottom" secondItem="launch-fan" secondAttribute="bottom" id="fan-bottom"/>
-                                </constraints>
-                            </view>
-                        </subviews>
                         <viewLayoutGuide key="safeArea" id="launch-safe"/>
-                        <!-- Matches GameColorToken.tableBackgroundPrimary (#1E5A3C). -->
-                        <color key="backgroundColor" red="0.1176470588" green="0.3529411765" blue="0.2352941176" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
-                        <constraints>
-                            <constraint firstItem="launch-group" firstAttribute="centerX" secondItem="launch-root" secondAttribute="centerX" id="group-center-x"/>
-                            <constraint firstItem="launch-group" firstAttribute="centerY" secondItem="launch-safe" secondAttribute="centerY" id="group-center-y"/>
-                            <constraint firstItem="launch-group" firstAttribute="width" constant="320" priority="750" id="group-width"/>
-                            <constraint firstItem="launch-group" firstAttribute="leading" relation="greaterThanOrEqual" secondItem="launch-safe" secondAttribute="leading" constant="16" id="group-inset"/>
-                        </constraints>
+                        <color key="backgroundColor" red="0.062745098" green="0.235294118" blue="0.192156863" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
                     </view>
                 </viewController>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="launch-responder" userLabel="First Responder" sceneMemberID="firstResponder"/>
             </objects>
         </scene>
     </scenes>
-    <resources><image name="LaunchCardFan" width="320" height="210"/></resources>
 </document>
