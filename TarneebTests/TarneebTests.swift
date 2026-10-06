@@ -2,38 +2,72 @@ import Foundation
 import AVFoundation
 import ImageIO
 import XCTest
+@testable import Tarneeb
 import Darwin
 
 extension TarneebTests {
     @MainActor
     func testLaunchScreenLayout() throws {
-        XCTAssertEqual(Bundle.main.object(forInfoDictionaryKey:"UILaunchStoryboardName") as? String,"LaunchScreen")
-        for size in [CGSize(width:320,height:568),CGSize(width:393,height:852),CGSize(width:430,height:932)] {
-            let vc = try XCTUnwrap(UIStoryboard(name:"LaunchScreen",bundle:.main).instantiateInitialViewController())
-            vc.loadViewIfNeeded(); vc.view.frame = CGRect(origin:.zero,size:size); vc.view.layoutIfNeeded()
-            let title = try XCTUnwrap(vc.view.viewWithTag(100) as? UILabel)
-            let fan = try XCTUnwrap(vc.view.viewWithTag(101) as? UIImageView)
-            XCTAssertEqual(title.text,TableTitlePresentation().text); XCTAssertNotNil(fan.image)
-            XCTAssertEqual(title.font.fontName,"GeezaPro")
-            XCTAssertEqual(title.font.pointSize,52)
-            XCTAssertLessThanOrEqual(title.intrinsicContentSize.height,title.bounds.height)
-            XCTAssertLessThanOrEqual(title.intrinsicContentSize.width,title.bounds.width)
+        XCTAssertEqual(Bundle.main.object(forInfoDictionaryKey: "UILaunchStoryboardName") as? String, "LaunchScreen")
+        for size in [CGSize(width: 320, height: 568), CGSize(width: 393, height: 852), CGSize(width: 430, height: 932)] {
+            let vc = try XCTUnwrap(UIStoryboard(name: "LaunchScreen", bundle: .main).instantiateInitialViewController())
+            vc.loadViewIfNeeded(); vc.view.frame = CGRect(origin: .zero, size: size); vc.view.layoutIfNeeded()
+            XCTAssertTrue(vc.view.subviews.isEmpty, "System handoff must contain no branded splash or progress UI")
+            XCTAssertNil(vc.view.viewWithTag(100)); XCTAssertNil(vc.view.viewWithTag(101))
             XCTAssertFalse(vc.view.hasAmbiguousLayout)
-            XCTAssertFalse(try XCTUnwrap(title.superview).hasAmbiguousLayout)
-            XCTAssertTrue(vc.view.bounds.contains(fan.convert(fan.bounds,to:vc.view)))
-            XCTAssertLessThan(title.frame.maxY,fan.frame.minY)
             var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, alpha: CGFloat = 0
-            vc.view.backgroundColor?.getRed(&red,green:&green,blue:&blue,alpha:&alpha)
-            XCTAssertEqual(red,30.0/255,accuracy:0.001); XCTAssertEqual(green,90.0/255,accuracy:0.001)
-            XCTAssertEqual(blue,60.0/255,accuracy:0.001)
-            title.textColor.getRed(&red,green:&green,blue:&blue,alpha:&alpha)
-            XCTAssertEqual(red,187.0/255,accuracy:0.001)
-            XCTAssertEqual(green,170.0/255,accuracy:0.001)
-            XCTAssertEqual(blue,126.0/255,accuracy:0.001)
-            let image = UIGraphicsImageRenderer(size:size).image { _ in vc.view.drawHierarchy(in:vc.view.bounds,afterScreenUpdates:true) }
-            let attachment = XCTAttachment(image:image); attachment.name = "Launch-\(Int(size.width))x\(Int(size.height))"
+            try XCTUnwrap(vc.view.backgroundColor).getRed(&red, green: &green, blue: &blue, alpha: &alpha)
+            XCTAssertEqual(red, 16.0 / 255, accuracy: 0.001)
+            XCTAssertEqual(green, 60.0 / 255, accuracy: 0.001)
+            XCTAssertEqual(blue, 49.0 / 255, accuracy: 0.001)
+            XCTAssertEqual(alpha, 1, accuracy: 0.001)
+            let image = UIGraphicsImageRenderer(size: size).image { _ in vc.view.drawHierarchy(in: vc.view.bounds, afterScreenUpdates: true) }
+            let attachment = XCTAttachment(image: image); attachment.name = "Forest launch handoff \(Int(size.width))x\(Int(size.height))"
             attachment.lifetime = .keepAlways; add(attachment)
         }
+    }
+
+    func testOpeningArrivalStartsOnceOnlyOnFreshReadyActiveTable() throws {
+        var arrival = OpeningArrival()
+        XCTAssertNil(arrival.begin(eligible: true, ready: true, active: false, blocked: false, reduceMotion: false))
+        XCTAssertNil(arrival.begin(eligible: true, ready: false, active: true, blocked: false, reduceMotion: false))
+        XCTAssertNil(arrival.begin(eligible: true, ready: true, active: true, blocked: true, reduceMotion: false))
+        let id = try XCTUnwrap(arrival.begin(eligible: true, ready: true, active: true, blocked: false, reduceMotion: false))
+        XCTAssertTrue(arrival.permitsFeedback(id, ready: true, active: true, blocked: false, reduceMotion: false))
+        XCTAssertNil(arrival.begin(eligible: true, ready: true, active: true, blocked: false, reduceMotion: false))
+    }
+
+    func testOpeningArrivalCancellationRejectsLateSquareAndResume() throws {
+        var arrival = OpeningArrival()
+        let id = try XCTUnwrap(arrival.begin(eligible: true, ready: true, active: true, blocked: false, reduceMotion: false))
+        arrival.cancel()
+        XCTAssertFalse(arrival.permitsFeedback(id, ready: true, active: true, blocked: false, reduceMotion: false))
+        XCTAssertNil(arrival.begin(eligible: true, ready: true, active: true, blocked: false, reduceMotion: false))
+    }
+
+    func testOpeningArrivalReducedMotionNeverStartsOrEmitsFeedback() {
+        var arrival = OpeningArrival()
+        XCTAssertNil(arrival.begin(eligible: true, ready: true, active: true, blocked: false, reduceMotion: true))
+        XCTAssertTrue(arrival.consumed)
+        XCTAssertNil(arrival.generation)
+        XCTAssertNil(arrival.begin(eligible: true, ready: true, active: true, blocked: false, reduceMotion: false))
+    }
+
+    func testOpeningArrivalRestoredTableIsIneligible() {
+        var arrival = OpeningArrival()
+        XCTAssertNil(arrival.begin(eligible: false, ready: true, active: true, blocked: false, reduceMotion: false))
+        XCTAssertNil(arrival.generation)
+    }
+
+    func testOpeningArrivalFeedbackRequiresCurrentActiveUnblockedReadyGeneration() throws {
+        var arrival = OpeningArrival()
+        let id = try XCTUnwrap(arrival.begin(eligible: true, ready: true, active: true, blocked: false, reduceMotion: false))
+        for flags in [(false, true, false, false), (true, false, false, false), (true, true, true, false), (true, true, false, true)] {
+            XCTAssertFalse(arrival.permitsFeedback(id, ready: flags.0, active: flags.1, blocked: flags.2, reduceMotion: flags.3))
+        }
+        XCTAssertFalse(arrival.permitsFeedback(UUID(), ready: true, active: true, blocked: false, reduceMotion: false))
+        arrival.finish(id)
+        XCTAssertFalse(arrival.permitsFeedback(id, ready: true, active: true, blocked: false, reduceMotion: false))
     }
 
     /// Explicit device diagnostic. No defaults, saves or actual app match are mutated.
@@ -138,6 +172,43 @@ extension TarneebTests {
 }
 
 final class TarneebTests: XCTestCase {
+    func testRoomOwnershipIncludesPendingPartnerWinExactlyOnce() {
+        let north = CompletedTrick(leaderSeat: .south, winnerSeat: .north, ledSuit: .spades, playedCards: [])
+        let south = CompletedTrick(leaderSeat: .south, winnerSeat: .south, ledSuit: .spades, playedCards: [])
+        let east = CompletedTrick(leaderSeat: .east, winnerSeat: .east, ledSuit: .spades, playedCards: [])
+        let previous = [south, south, south, north, east, east]
+        let pending = RoomTrickOwnership(trick: TrickPlayState(declarerSeat: .south, tarneebSuit: .spades, pendingCompletedTrick: north, completedTricks: previous))
+        let collected = RoomTrickOwnership(trick: TrickPlayState(declarerSeat: .south, tarneebSuit: .spades, completedTricks: previous + [north]))
+        XCTAssertEqual(pending.count(for: Team.forSeat(.south)), 5)
+        XCTAssertEqual(pending.count(for: .south), 3)
+        XCTAssertEqual(pending.count(for: Team.forSeat(.east)), 2)
+        for seat in Seat.allCases { XCTAssertEqual(pending.count(for: seat), collected.count(for: seat)) }
+    }
+
+    func testFeedbackIdentityGatePreventsReplayAndResetsOnlyForNewMatch() {
+        var gate = FeedbackEventGate()
+        XCTAssertTrue(gate.accept("match1-round0-trick0-land-card"))
+        XCTAssertFalse(gate.accept("match1-round0-trick0-land-card"))
+        XCTAssertTrue(gate.accept("match1-round0-trick0-collect"))
+        XCTAssertFalse(gate.accept("match1-round0-trick0-collect"))
+        XCTAssertTrue(gate.accept("match1-round1-trick0-land-card"))
+        gate.reset()
+        XCTAssertTrue(gate.accept("match1-round0-trick0-land-card"))
+    }
+
+    func testRoomGeometryCollectionEndsBelowPartnerLabelAcrossPhoneSizes() {
+        for size in [CGSize(width: 351, height: 228), CGSize(width: 378, height: 328), CGSize(width: 416, height: 400)] {
+            let geometry = RoomTableGeometry(size: size)
+            for seat in Seat.allCases {
+                XCTAssertTrue(CGRect(origin: .zero, size: size).contains(geometry.slot(seat)))
+                XCTAssertTrue(CGRect(origin: .zero, size: size).contains(geometry.collection(seat)))
+            }
+            XCTAssertGreaterThan(geometry.collection(.north).y, geometry.station(.north).y + 30)
+            XCTAssertLessThan(geometry.slot(.west).x, geometry.slot(.north).x)
+            XCTAssertGreaterThan(geometry.slot(.east).x, geometry.slot(.north).x)
+        }
+    }
+
     func testExpertRolloutIsStableWhileFallbackUsesRevisedAdvanced() {
         let c = AIDecisionContext(seat: .south, ownHand: [Card(suit: .clubs,rank: .two),
             Card(suit: .clubs,rank: .seven),Card(suit: .clubs,rank: .ace)],
@@ -452,7 +523,7 @@ final class TarneebTests: XCTestCase {
     }
 
     @MainActor
-    func testMissingCardRecordingsFallBackAndResultChimesStayUnchanged() {
+    func testMissingCardRecordingsFallBackAndOutcomeResponsesUseSynthesizedAudio() {
         let withoutRecordings = Bundle(for: NSObject.self)
         let variation = PaperSoundVariation(index: 0)
         for event in TableFeedback.Event.allCases {
@@ -469,7 +540,7 @@ final class TarneebTests: XCTestCase {
     }
 
     @MainActor
-    func testGeneratedPaperSoundsHaveDistinctValidSamplesAndStableResultChimes() {
+    func testGeneratedPaperSoundsHaveDistinctValidSamplesAndStableOutcomeResponses() {
         for event in TableFeedback.Event.allCases {
             let samples = (0..<3).map { TableFeedback.synthesizedSoundData(event, variation: PaperSoundVariation(index: $0)) }
             for data in samples {
@@ -479,8 +550,8 @@ final class TarneebTests: XCTestCase {
                 XCTAssertTrue(data.dropFirst(44).contains { $0 != 0 })
             }
             switch event {
-            case .select, .land, .collect: XCTAssertEqual(Set(samples).count, 3)
-            case .roundWin, .roundLoss, .matchWin: XCTAssertEqual(Set(samples).count, 1)
+            case .select, .land, .collect, .openingSquare: XCTAssertEqual(Set(samples).count, 3)
+            case .roundWin, .defenseWin, .roundLoss, .matchWin: XCTAssertEqual(Set(samples).count, 1)
             }
         }
     }
@@ -2135,6 +2206,10 @@ final class TarneebTests: XCTestCase {
 
         XCTAssertFalse(legalSouthCards.isEmpty)
         XCTAssertTrue(legalSouthCards.allSatisfy { $0.suit == .spades })
+        let projected = RoomInputProjection(authoritative: state)
+        XCTAssertEqual(projected.game, state)
+        XCTAssertFalse(projected.canPlay(illegalSouthCard))
+        for card in legalSouthCards { XCTAssertTrue(projected.canPlay(card)) }
 
         let rejectedState = TrickPlayService().playSouthCard(illegalSouthCard, in: state)
         XCTAssertEqual(rejectedState, state)
@@ -4623,10 +4698,58 @@ final class TarneebTests: XCTestCase {
             .appendingPathComponent("project.pbxproj")
         let source = try String(contentsOf: projectFile)
 
-        XCTAssertTrue(source.contains("INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;"))
+        let project = try XCTUnwrap(try PropertyListSerialization.propertyList(
+            from: Data(source.utf8), options: [], format: nil
+        ) as? [String: Any])
+        let objects = try XCTUnwrap(project["objects"] as? [String: [String: Any]])
+        let projectID = try XCTUnwrap(project["rootObject"] as? String)
+        let projectObject = try XCTUnwrap(objects[projectID])
+
+        func configurations(for object: [String: Any]) throws -> [[String: Any]] {
+            let listID = try XCTUnwrap(object["buildConfigurationList"] as? String)
+            let list = try XCTUnwrap(objects[listID])
+            let configurationIDs = try XCTUnwrap(list["buildConfigurations"] as? [String])
+            XCTAssertFalse(configurationIDs.isEmpty, "Missing build configurations")
+            XCTAssertEqual(Set(configurationIDs).count, configurationIDs.count,
+                           "Duplicate build configuration references")
+            return try configurationIDs.map { try XCTUnwrap(objects[$0]) }
+        }
+
+        let projectConfigurations = try configurations(for: projectObject)
+        let requiredNames = Set(try projectConfigurations.map {
+            try XCTUnwrap($0["name"] as? String)
+        })
+        XCTAssertFalse(requiredNames.isEmpty)
+        let targetIDs = try XCTUnwrap(projectObject["targets"] as? [String])
+        XCTAssertFalse(targetIDs.isEmpty, "Missing native targets")
+        var applicationCount = 0
+        for targetID in targetIDs {
+            let target = try XCTUnwrap(objects[targetID])
+            let targetName = try XCTUnwrap(target["name"] as? String)
+            let productType = try XCTUnwrap(target["productType"] as? String)
+            let isApplication = productType == "com.apple.product-type.application"
+            if isApplication { applicationCount += 1 }
+            let targetConfigurations = try configurations(for: target)
+            let names = try targetConfigurations.map { try XCTUnwrap($0["name"] as? String) }
+            XCTAssertEqual(Set(names), requiredNames, "\(targetName): missing or unexpected configuration")
+            XCTAssertEqual(Set(names).count, names.count, "\(targetName): duplicate configuration name")
+            for configuration in targetConfigurations {
+                let name = try XCTUnwrap(configuration["name"] as? String)
+                let settings = try XCTUnwrap(configuration["buildSettings"] as? [String: Any])
+                let context = "\(targetName)/\(name)"
+                XCTAssertEqual(settings["TARGETED_DEVICE_FAMILY"] as? String, "1",
+                               "\(context): every target configuration must explicitly support iPhone only")
+                XCTAssertFalse(settings.keys.contains { $0.contains("UISupportedInterfaceOrientations_iPad") },
+                               "\(context): unexpected iPad orientation setting")
+                if isApplication {
+                    XCTAssertEqual(settings["INFOPLIST_KEY_UISupportedInterfaceOrientations"] as? String,
+                                   "UIInterfaceOrientationPortrait",
+                                   "\(context): every app configuration must explicitly lock portrait")
+                }
+            }
+        }
+        XCTAssertEqual(applicationCount, 1, "Expected one application target")
         XCTAssertFalse(source.contains("INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad"))
-        XCTAssertEqual(source.components(separatedBy: "TARGETED_DEVICE_FAMILY = 1;").count - 1, 6)
-        XCTAssertFalse(source.contains("TARGETED_DEVICE_FAMILY = \"1,2\";"))
     }
 
     private func makeFourPlayers() -> [Player] {
@@ -4878,4 +5001,262 @@ private struct AssetCatalogImage: Decodable {
     let idiom: String
     let size: String?
     let scale: String?
+}
+
+final class TarneebRoomOutcomeTests: XCTestCase {
+    func testOutcomeOwnershipAcrossEveryLegalBidAndTrickCount() throws {
+        for team in [Team.teamA, .teamB] {
+            for bid in 7...13 {
+                for tricks in 0...13 {
+                    let result = try XCTUnwrap(TarneebScoringService().scoreRound(declaringTeam: team, bid: bid, declaringTricks: tricks))
+                    var score = GameScore(northSouth: -15, eastWest: -16)
+                    score.apply(result)
+                    let summary = RoundResultPresentation(result: result, score: score)
+                    let room = RoomOutcomePresentation(presentation: summary)
+                    XCTAssertEqual(summary.previousScore(for: .teamA), -15)
+                    XCTAssertEqual(summary.previousScore(for: .teamB), -16)
+                    for scoredTeam in [Team.teamA, .teamB] {
+                        let delta = result.scoreDelta(for: scoredTeam)
+                        let expected = "\(summary.previousScore(for: scoredTeam)) \(delta < 0 ? "−" : "+") \(abs(delta)) = \(score.points(for: scoredTeam))"
+                        XCTAssertEqual(room.equation(for: scoredTeam), expected)
+                    }
+                    XCTAssertEqual(room.isDefense, team == .teamB && tricks < bid)
+                    XCTAssertEqual(room.kicker, tricks >= bid ? "CONTRACT MADE" : team == .teamB ? "CONTRACT DEFEATED" : "CONTRACT MISSED")
+                    XCTAssertTrue(room.detail.contains("\(team == .teamB && tricks < bid ? 13 - tricks : tricks)"))
+                    XCTAssertTrue(room.earned.contains("\(result.scoreDelta(for: .teamA)) points"))
+                    XCTAssertEqual(room.title, team == .teamB && tricks < bid ? "You held the line." : team == .teamA && tricks >= bid ? "You brought it home." : tricks >= bid ? "They made the contract." : "The contract slipped away.")
+                }
+            }
+        }
+    }
+    func testCompactPlayedCardsClearNorthIdentityEachOtherAndSouthStation() {
+        for height in [228.0, 240, 280] {
+            let room = RoomTableGeometry(size: CGSize(width: 351, height: height))
+            let halfCard = 45 * room.cardScale
+            XCTAssertGreaterThanOrEqual(room.slot(.north).y - halfCard, 64)
+            XCTAssertGreaterThanOrEqual(room.slot(.south).y - halfCard - (room.slot(.north).y + halfCard), 6)
+            XCTAssertLessThan(room.slot(.south).y + halfCard, room.station(.south).y - 7)
+            XCTAssertGreaterThanOrEqual(64 * room.cardScale, 44)
+        }
+    }
+    func testPreferencesStayIndependentAndInactiveFeedbackIsSuppressed() {
+        for sound in [false, true] { for haptic in [false, true] { for requested in [false, true] { for active in [false, true] {
+            let policy = FeedbackPreferencePolicy(soundEnabled: sound, hapticsEnabled: haptic, requestsHaptic: requested, active: active)
+            XCTAssertEqual(policy.sound, sound && active)
+            XCTAssertEqual(policy.haptic, haptic && requested && active)
+        } } } }
+    }
+    @MainActor func testOutcomeSoundHierarchyAndMutedWoodEnvelopes() {
+        XCTAssertLessThan(TableFeedback.Event.defenseWin.duration, TableFeedback.Event.roundWin.duration)
+        XCTAssertLessThan(TableFeedback.Event.roundWin.duration, TableFeedback.Event.matchWin.duration)
+        XCTAssertEqual(TableFeedback.Event.openingSquare.duration, 0.07)
+        for event in [TableFeedback.Event.defenseWin, .roundWin, .roundLoss, .matchWin] {
+            let data = TableFeedback.synthesizedSoundData(event, variation: PaperSoundVariation(index: 0))
+            let values = stride(from: 44, to: data.count - 1, by: 2).map { Double(Int16(bitPattern: UInt16(data[$0]) | UInt16(data[$0 + 1]) << 8)) / Double(Int16.max) }
+            XCTAssertLessThan(abs(values.first ?? 1), 0.001)
+            XCTAssertLessThan(abs(values.last ?? 1), 0.001)
+            XCTAssertGreaterThan(values.map(abs).max() ?? 0, 0.015)
+            XCTAssertLessThan(values.map(abs).max() ?? 1, 0.4)
+        }
+    }
+}
+
+final class TarneebReleaseStateTests: XCTestCase {
+    func testSeededStandardMatchesPreserveLegalStateAndDiskResume() throws { try verifyMatches(skill: .standard) }
+    func testSeededAdvancedMatchesPreserveLegalStateAndDiskResume() throws { try verifyMatches(skill: .advanced) }
+    func testSeededExpertMatchesPreserveLegalStateAndDiskResume() throws { try verifyMatches(skill: .expert) }
+
+    private func verifyMatches(skill: AISkill) throws {
+        for seed in [UInt64(731_001), UInt64(731_019)] {
+            let suite = "release-\(skill.rawValue)-\(seed)-\(UUID().uuidString)"
+            let prefs = try XCTUnwrap(UserDefaults(suiteName: suite))
+            defer { prefs.removePersistentDomain(forName: suite) }
+            prefs.set(skill.rawValue, forKey: AISkill.preferenceKey)
+            var rng = AISeededGenerator(state: seed)
+            let url = FileManager.default.temporaryDirectory.appendingPathComponent(suite).appendingPathComponent("match.json")
+            defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+            let store = MatchStore(url: url)
+            func makeModel() -> TarneebPresentationState {
+                TarneebPresentationState(
+                    dealService: DealService(shuffler: CardShuffler { $0.shuffled(using: &rng) }, handLogger: HandLogger { _ in }),
+                    dealerSelector: EnvironmentDealerSelector(environment: ["TARNEEB_INITIAL_DEALER": "west"]),
+                    aiPreferences: prefs)
+            }
+            var model = makeModel()
+            model.enablePersistence(store)
+            model.deal()
+            var commands = 0, redeals = 0, plays = 0, restores = 0
+            var expectedScore = GameScore()
+            while model.winnerTeam == nil && commands < 5_000 {
+                commands += 1
+                let state = model.gameState
+                let before = model.snapshot
+                switch state.phase {
+                case .notStarted:
+                    XCTFail("Unexpected reset: \(skill) seed \(seed), command \(commands)")
+                    return
+                case .dealt:
+                    if state.biddingCompletionOutcome == .allPassRedeal {
+                        model.automaticRedealAfterAllPass()
+                        redeals += 1
+                        XCTAssertEqual(model.gameState.dealerSeat, state.dealerSeat.nextCounterclockwiseDealer)
+                        XCTAssertEqual(model.completedRoundCount, before.completedRounds)
+                    } else if state.biddingState?.isWaitingForSouth == true {
+                        let legal = state.biddingState!.southLegalValues
+                        let choice = try XCTUnwrap(legal.randomElement(using: &rng))
+                        model.submitSouthBid(choice)
+                    } else if state.biddingStatus == .inProgress {
+                        let request = try XCTUnwrap(model.prepareAIBidDecision())
+                        let result = AIBiddingEngine.select(request, seed: rng.next())
+                        if request.useSkillPolicy && skill != .standard {
+                            XCTAssertTrue(request.context.legalValues.contains(result.recommendation.bid))
+                        }
+                        XCTAssertTrue(model.applyAIBidDecision(result, request: request))
+                        // Standard recommendations are intentionally normalized by the
+                        // existing bidding service; check the accepted action, not raw advice.
+                        let acceptedBid = try XCTUnwrap(model.gameState.bids[request.context.auction.seat]?.resolvedValue)
+                        XCTAssertTrue(request.context.legalValues.contains(acceptedBid))
+                        XCTAssertFalse(model.applyAIBidDecision(result, request: request))
+                    } else if state.postBiddingSummary == nil {
+                        XCTAssertEqual(state.highestBidSeat, .south)
+                        model.submitSouthTarneebSuit(Suit.allCases[Int(rng.next() % 4)])
+                    } else {
+                        model.startTrickPlayIfReady()
+                    }
+                case .trickPlay:
+                    if state.isCurrentTrickComplete {
+                        model.clearCompletedTrickIfNeeded()
+                        if model.gameState.phase == .handComplete {
+                            expectedScore.apply(try XCTUnwrap(TarneebScoringService().scoreRound(in: model.gameState)))
+                            XCTAssertEqual(model.gameScore, expectedScore)
+                            let scored = model.snapshot
+                            model.clearCompletedTrickIfNeeded()
+                            XCTAssertEqual(model.snapshot, scored, "Repeated collection must not score twice")
+                        }
+                    } else if state.currentTrickTurnSeat == .south {
+                        let legal = TrickPlayRules.legalCards(for: .south, in: state)
+                        let card = try XCTUnwrap(legal.randomElement(using: &rng))
+                        model.playSouthCard(card)
+                        let accepted = model.snapshot
+                        model.playSouthCard(card)
+                        XCTAssertEqual(model.snapshot, accepted, "Repeated play must not consume a second card")
+                        plays += 1
+                    } else {
+                        let request = try XCTUnwrap(model.prepareAIDecision())
+                        let result = AIDecisionEngine.select(request.context, skill: skill, seed: rng.next())
+                        XCTAssertTrue(request.context.legalCards.contains(try XCTUnwrap(result.card)))
+                        XCTAssertTrue(model.applyAIDecision(result, request: request))
+                        XCTAssertFalse(model.applyAIDecision(result, request: request))
+                        plays += 1
+                    }
+                case .handComplete:
+                    model.startNextRound()
+                    let next = model.snapshot
+                    model.startNextRound()
+                    XCTAssertEqual(model.snapshot, next, "Repeated Next Hand must not skip a deal")
+                    XCTAssertEqual(model.gameState.dealerSeat, state.dealerSeat.nextCounterclockwiseDealer)
+                }
+                XCTAssertEqual(model.activeAISkill, skill)
+                XCTAssertNil(model.saveNotice)
+                let cards = model.gameState.players.flatMap(\.hand) + (model.gameState.deck ?? []) + (model.gameState.trickPlayState?.playedCards.map(\.card) ?? [])
+                XCTAssertEqual(cards.count, 52)
+                XCTAssertEqual(Set(cards), Set(DeckFactory.makeCanonicalDeck()))
+                XCTAssertEqual(try store.load(), model.snapshot, "Save rejected: \(skill), seed \(seed), command \(commands)")
+                if commands.isMultiple(of: 17) || model.gameState.isCurrentTrickComplete || model.gameState.phase == .handComplete {
+                    let restored = makeModel()
+                    restored.enablePersistence(store)
+                    XCTAssertNil(restored.saveNotice)
+                    XCTAssertEqual(restored.snapshot, model.snapshot)
+                    model = restored
+                    restores += 1
+                }
+            }
+            XCTAssertNotNil(model.winnerTeam, "Bounded match stalled: \(skill), seed \(seed)")
+            XCTAssertEqual(model.gameScore, expectedScore)
+            XCTAssertEqual(plays, model.completedRoundCount * 52)
+            let terminal = model.snapshot
+            model.startNextRound()
+            XCTAssertEqual(model.snapshot, terminal)
+            model.newGame()
+            XCTAssertEqual(try store.load(), model.snapshot)
+            XCTAssertEqual(model.gameScore, GameScore())
+            XCTAssertEqual(model.completedRoundCount, 0)
+            XCTAssertEqual(model.gameState.phase, .notStarted)
+            print("RELEASE MATCH skill=\(skill.rawValue) seed=\(seed) rounds=\(terminal.completedRounds) plays=\(plays) redeals=\(redeals) restores=\(restores) winner=\(terminal.score.winnerTeam!) score=\(terminal.score)")
+        }
+    }
+}
+
+final class DealLandingSequenceTests: XCTestCase {
+    private func establish(_ dealer: Tarneeb.Seat) -> DealAnimationPlayback {
+        var p = DealAnimationPlayback(presentation: .init(dealerSeat: dealer))
+        for index in 0..<3 { XCTAssertTrue(p.issuePacket(index)); XCTAssertTrue(p.landPacket(index)) }
+        XCTAssertTrue(p.retainDealerHand()); XCTAssertTrue(p.finishSettle())
+        return p
+    }
+    func testEveryDealerMovesThreePacketsAndRetains13WithoutSelfFlight() {
+        let orders: [(Tarneeb.Seat, [Tarneeb.Seat])] = [(.south,[.east,.north,.west]),(.east,[.north,.west,.south]),(.north,[.west,.south,.east]),(.west,[.south,.east,.north])]
+        for (dealer, expected) in orders {
+            var p = DealAnimationPlayback(presentation: .init(dealerSeat: dealer))
+            XCTAssertEqual(p.recipientOrder, expected); XCTAssertEqual(p.centralCardCount, 52)
+            for index in 0..<3 {
+                XCTAssertTrue(p.issuePacket(index)); XCTAssertEqual(p.flyingPackets.count, 1)
+                XCTAssertEqual(p.centralCardCount, 52 - index * 13, "Counts advance only after the native packet lands")
+                XCTAssertEqual(p.seat(forPacket: index), expected[index]); XCTAssertNotEqual(p.seat(forPacket: index), dealer)
+                XCTAssertFalse(p.issuePacket(index + 1), "No next packet until the current packet lands")
+                XCTAssertFalse(p.beginSpread()); XCTAssertEqual(p.southSpreadProgress, 0); XCTAssertEqual(p.southRevealedCardCount, 0)
+                XCTAssertTrue(p.landPacket(index)); XCTAssertFalse(p.landPacket(index)); XCTAssertTrue(p.flyingPackets.isEmpty)
+                XCTAssertEqual(p.establishedCardCount, (index + 1) * 13)
+                XCTAssertEqual(p.centralCardCount, [39,26,13][index])
+                XCTAssertEqual(p.landedCount(for: expected[index]), 13)
+                for waitingSeat in expected.dropFirst(index + 1) { XCTAssertEqual(p.landedCount(for: waitingSeat), 0) }
+                XCTAssertEqual(p.landedCount(for: dealer), 0)
+                if index < 2 { XCTAssertFalse(p.retainDealerHand()) }
+            }
+            XCTAssertEqual(p.issuedPackets.count, 3); XCTAssertEqual(p.landedPackets.count, 3); XCTAssertFalse(p.issuePacket(3))
+            XCTAssertTrue(p.retainDealerHand()); XCTAssertFalse(p.retainDealerHand()); XCTAssertEqual(p.establishedCardCount, 52)
+            for seat in Tarneeb.Seat.dealerRotationOrder { XCTAssertEqual(p.landedCount(for: seat), 13) }
+            XCTAssertEqual(p.southRevealState, .settlingBacks); XCTAssertEqual(p.southFaceDownCardCount, 13)
+            XCTAssertFalse(p.beginSpread(), "The explicit brief settle must finish first")
+            XCTAssertTrue(p.finishSettle()); XCTAssertTrue(p.beginSpread()); XCTAssertFalse(p.finishSpread())
+            p.southSpreadProgress = 1; XCTAssertTrue(p.finishSpread()); p.southRevealState = .flipping
+            for count in 1...13 { XCTAssertTrue(p.issueReveal(count)); XCTAssertFalse(p.dealCompletionAvailable) }
+            for count in 1...12 { XCTAssertFalse(p.completeReveal(count)); XCTAssertFalse(p.dealCompletionAvailable) }
+            XCTAssertTrue(p.completeReveal(13)); XCTAssertTrue(p.dealCompletionAvailable)
+        }
+    }
+    func testStationHandoffCannotCommitBeforeCompleteDistributionSpreadAndReveal() {
+        for dealer in Tarneeb.Seat.dealerRotationOrder {
+            var p = DealAnimationPlayback(presentation: .init(dealerSeat: dealer))
+            XCTAssertFalse(p.beginStationHandoff())
+            for index in 0..<3 { XCTAssertTrue(p.issuePacket(index)); XCTAssertTrue(p.landPacket(index)) }
+            XCTAssertTrue(p.retainDealerHand()); XCTAssertTrue(p.finishSettle())
+            XCTAssertFalse(p.beginStationHandoff())
+            XCTAssertTrue(p.beginSpread()); p.southSpreadProgress = 1; XCTAssertTrue(p.finishSpread())
+            p.southRevealState = .flipping
+            for count in 1...13 { XCTAssertTrue(p.issueReveal(count)); _ = p.completeReveal(count) }
+            XCTAssertTrue(p.beginStationHandoff()); XCTAssertFalse(p.beginStationHandoff())
+            XCTAssertFalse(p.stationHandoffCompleted); XCTAssertFalse(p.finishStationHandoff())
+            p.stationHandoffProgress = 1
+            XCTAssertTrue(p.finishStationHandoff()); XCTAssertTrue(p.stationHandoffCompleted)
+            XCTAssertFalse(p.finishStationHandoff())
+            XCTAssertEqual(p.issuedPackets.count, 3); XCTAssertEqual(p.establishedCardCount, 52)
+        }
+    }
+    func testUnissuedDuplicateAndOutOfOrderPacketsCannotAdvanceTheDeal() {
+        var p = DealAnimationPlayback(presentation: .init(dealerSeat: .south))
+        XCTAssertFalse(p.landPacket(0)); XCTAssertFalse(p.issuePacket(1)); XCTAssertFalse(p.finishSettle())
+        XCTAssertTrue(p.issuePacket(0)); XCTAssertFalse(p.issuePacket(1)); XCTAssertFalse(p.landPacket(1))
+        XCTAssertTrue(p.landPacket(0)); XCTAssertFalse(p.landPacket(0)); XCTAssertFalse(p.retainDealerHand())
+        XCTAssertTrue(p.issuePacket(1)); XCTAssertEqual(p.flyingPackets, [1])
+        XCTAssertEqual(p.landedCount(for: .south), 0, "South dealer has no self-flight")
+    }
+    func testOutOfOrderRevealCompletionWaitsForAll13AfterTheRetainedHand() {
+        var p = establish(.east)
+        XCTAssertTrue(p.beginSpread()); p.southSpreadProgress = 1; XCTAssertTrue(p.finishSpread()); p.southRevealState = .flipping
+        XCTAssertFalse(p.completeReveal(0))
+        for count in 1...13 { XCTAssertTrue(p.issueReveal(count)) }
+        XCTAssertFalse(p.completeReveal(13)); for count in 1...11 { XCTAssertFalse(p.completeReveal(count)) }
+        XCTAssertTrue(p.completeReveal(12)); XCTAssertFalse(p.completeReveal(12))
+    }
 }
