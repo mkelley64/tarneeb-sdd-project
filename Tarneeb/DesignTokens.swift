@@ -15,6 +15,16 @@ struct RoomTableGeometry {
         case .east: return CGPoint(x: size.width - 30, y: size.height * 0.54)
         }
     }
+    func dealerDeckOrigin(_ seat: Seat) -> CGPoint {
+        // Keep the full deck inside the felt, clear of station labels and dealer badges.
+        let inset = min(112.0, size.width / 2 - 40)
+        switch seat {
+        case .north: return CGPoint(x: size.width / 2, y: 112)
+        case .west: return CGPoint(x: inset, y: size.height * 0.54)
+        case .east: return CGPoint(x: size.width - inset, y: size.height * 0.54)
+        case .south: return CGPoint(x: size.width / 2, y: size.height - 90)
+        }
+    }
     func slot(_ seat: Seat) -> CGPoint {
         let horizontal = min(73.0, size.width * 0.20)
         switch seat {

@@ -5260,3 +5260,22 @@ final class DealLandingSequenceTests: XCTestCase {
         XCTAssertTrue(p.completeReveal(12)); XCTAssertFalse(p.completeReveal(12))
     }
 }
+
+extension TarneebTests {
+    func testDealerDeckOriginsStayInsideFeltAndClearOfStations() {
+        for width in [296.0, 351.0, 369.0, 406.0, 416.0] {
+            for height in [196.0, 228.0, 290.0, 400.0] {
+                let geometry = RoomTableGeometry(size: CGSize(width: width, height: height))
+                for seat in Seat.allCases {
+                    let point = geometry.dealerDeckOrigin(seat)
+                    let deck = CGRect(x: point.x - 44.5, y: point.y - 58, width: 89, height: 113)
+                    XCTAssertTrue(geometry.feltRect.contains(deck), "\(width)x\(height) \(seat)")
+                    let station = geometry.station(seat)
+                    let label = CGRect(x: station.x - (seat == .north || seat == .south ? 80 : 31),
+                                       y: station.y - 14, width: seat == .north || seat == .south ? 160 : 62, height: 28)
+                    XCTAssertFalse(deck.intersects(label), "Deck overlaps \(seat) station")
+                }
+            }
+        }
+    }
+}

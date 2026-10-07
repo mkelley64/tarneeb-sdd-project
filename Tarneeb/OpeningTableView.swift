@@ -97,6 +97,8 @@ struct OpeningTableView: View {
     private var hand: [Card] {
         SouthHandPresentation.sortedCards(from: (pendingGame ?? game).players.first { $0.seat == .south }?.hand ?? [])
     }
+    @State private var dealDeckOrigin: CGPoint?
+
     private var isDealing: Bool { playback != nil }
     private var waitingForSouth: Bool { game.biddingState?.isWaitingForSouth == true && !blocked && !isDealing }
     private var ready: Bool { game.phase == .notStarted && !isDealing }
@@ -145,6 +147,9 @@ struct OpeningTableView: View {
             if phase == .active { beginArrival() } else { cancelArrival() }
         }
         .onChange(of: isDealing) { _, dealing in if dealing { cancelArrival() } }
+        .onChange(of: playback?.generation) { _, generation in
+            if generation == nil { dealDeckOrigin = nil }
+        }
         .onChange(of: blocked) { _, value in if value { cancelArrival() } }
         .onChange(of: reduceMotion) { _, value in if value { cancelArrival() } }
         .onDisappear { cancelArrival() }
@@ -209,8 +214,16 @@ struct OpeningTableView: View {
         }
         if choosingTrump { return "You won the bid: \(game.highestBidValue?.displayLabel ?? "")" }
         if game.biddingCompletionOutcome == .allPassRedeal { return "All passed. Dealing again" }
-        if let seat = game.highestBidSeat, let bid = game.highestBidValue { return "Talab · \(seat.displayLabel) leads with \(bid.displayLabel)" }
-        return "Talab · Bidding"
+        if let seat = game.highestBidSeat, let bid = game.highestBidValue { return "طلب · \(seat.displayLabel) leads with \(bid.displayLabel)" }
+        return "طلب · Bidding"
+    }
+    private var phaseSummaryText: Text {
+        if phaseSummary.hasPrefix("طلب") {
+            // Isolate the Arabic word within the primary English paragraph.
+            return Text("\u{200E}\u{2067}طلب\u{2069}\u{200E}").font(.custom("GeezaPro", fixedSize: 17).weight(.semibold))
+                + Text(String(phaseSummary.dropFirst(3))).font(.system(size: 17, weight: .semibold))
+        }
+        return Text(phaseSummary).font(.system(size: 17, weight: .semibold))
     }
     private func phaseBanner(compact: Bool) -> some View {
         HStack {
@@ -218,7 +231,7 @@ struct OpeningTableView: View {
                 Text(isDealing ? "DEALING" : choosingTrump ? (compact ? "Choose tarneeb" : "AUCTION WON") : "BIDDING").font(.system(size: 9, weight: .medium)).tracking(1.4).foregroundStyle(RoomColor.muted)
                     .accessibilityLabel(isDealing ? "Dealing" : choosingTrump && compact ? "Tarneeb" : choosingTrump ? "Auction won" : "Bidding")
                     .accessibilityIdentifier(choosingTrump && compact ? "tarneeb-suit-heading" : "tarneeb-phase-kicker")
-                Text(phaseSummary).font(.system(size: 17, weight: .semibold)).accessibilityIdentifier("tarneeb-opening-status")
+                phaseSummaryText.accessibilityLabel(phaseSummary).accessibilityIdentifier("tarneeb-opening-status")
             }
             Spacer(minLength: 4)
             if game.dealerSeat == .south {
@@ -237,6 +250,12 @@ struct OpeningTableView: View {
         GeometryReader { proxy in
             let geometry = RoomTableGeometry(size: proxy.size)
             ZStack {
+                Color.clear.frame(width: 71, height: 100)
+                    .openingAnchor("dealer-deck-origin")
+                    .accessibilityElement(children: .ignore).accessibilityLabel("Dealer deck departure position")
+                    .accessibilityIdentifier("tarneeb-deck-source")
+                    .accessibilityHidden(!exposesDeckOrigin)
+                    .position(geometry.dealerDeckOrigin(game.dealerSeat))
                 RoomFelt(warmth: warmth).frame(width: geometry.feltRect.width, height: geometry.feltRect.height)
                     .roomGeometry("felt", in: continuity, properties: .frame)
                     .position(x: geometry.feltRect.midX, y: geometry.feltRect.midY)
@@ -271,12 +290,13 @@ struct OpeningTableView: View {
                     trumpChoices(compact: compact).position(x: proxy.size.width / 2, y: proxy.size.height * 0.54 + (compact ? 8 : 0))
                 } else if waitingForSouth {
                     bidChoices.position(x: proxy.size.width / 2, y: max(137, proxy.size.height - 107))
-                } else if !isDealing {
+                } else if !isDealing && !ready {
                     Text(game.currentBiddingSeat.map { "\($0 == .north ? "Partner" : $0.displayLabel) is bidding" } ?? "Preparing the table")
                         .font(.system(size: 17, weight: .medium)).position(x: proxy.size.width / 2, y: proxy.size.height * 0.54)
                 }
             }
         }.frame(minHeight: ready ? 196 : 228)
+            .openingAnchor("dealer-deck-table")
     }
     private func station(_ seat: Seat, compact: Bool) -> some View {
         let delivered = playback?.deliveredSeats.contains(seat) ?? (game.phase == .dealt)
@@ -371,7 +391,7 @@ struct OpeningTableView: View {
     }
     @ViewBuilder private var actions: some View {
         if game.phase == .notStarted {
-            Button(isDealing ? "Dealing" : "Deal") { cancelArrival(); deal() }
+            Button(isDealing ? "Dealing" : "Deal") { cancelArrival(); dealDeckOrigin = frames["dealer-deck-origin"].map { CGPoint(x: $0.midX, y: $0.midY) }; deal() }
                 .buttonStyle(RoomCommandStyle(arrow: true, reduceMotion: reduceMotion))
                 .disabled(!canDeal || isDealing || blocked).accessibilityIdentifier("tarneeb-deal-button")
         } else if choosingTrump {
@@ -407,11 +427,25 @@ struct OpeningTableView: View {
                                    : (label.height - detailHeight) / 2 + 1.5
         return CGPoint(x: center.x, y: center.y + offset)
     }
+    private var exposesDeckOrigin: Bool {
+        #if DEBUG
+        return ProcessInfo.processInfo.environment["TARNEEB_OPENING_FIXTURE"] != nil
+        #else
+        return false
+        #endif
+    }
+    private var deckSource: CGPoint? {
+        if playback != nil, let dealDeckOrigin { return dealDeckOrigin }
+        guard let table = frames["dealer-deck-table"] else { return nil }
+        let dealer = playback?.presentation.dealerSeat ?? game.dealerSeat
+        let point = RoomTableGeometry(size: table.size).dealerDeckOrigin(dealer)
+        return CGPoint(x: table.minX + point.x, y: table.minY + point.y)
+    }
     @ViewBuilder private var dealerDeck: some View {
         if ready || (playback != nil && playback?.dealerHandRetained == false),
-           let source = frames["deal-hand-\(game.dealerSeat.rawValue)"] {
+           let source = deckSource {
             RoomPacket(width: ready ? 71 : 64, fan: ready ? fan : 0, squared: true)
-                .position(x: source.midX, y: source.midY)
+                .position(source)
                 .accessibilityElement(children: .ignore).accessibilityLabel("Dealer deck at \(game.dealerSeat.displayLabel)")
                 .accessibilityValue("\(playback?.centralCardCount ?? 52) cards")
                 .accessibilityIdentifier("tarneeb-opening-deck")
@@ -424,11 +458,11 @@ struct OpeningTableView: View {
                        y: layout.height / 2 + (final.y - layout.height / 2) * progress)
     }
     @ViewBuilder private var packetFlight: some View {
-        if let playback, let source = frames["deal-hand-\(playback.presentation.dealerSeat.rawValue)"] {
+        if let playback, let source = deckSource {
             ForEach(playback.flyingPackets, id: \.self) { index in
                 let seat = playback.seat(forPacket: index)
                 if let target = frames["deal-hand-\(seat.rawValue)"] {
-                    OpeningPacketFlight(source: CGPoint(x: source.midX, y: source.midY),
+                    OpeningPacketFlight(source: source,
                                       target: CGPoint(x: target.midX, y: target.midY),
                                       reduceMotion: reduceMotion) {
                         packetLanded(playback.generation, index)

@@ -584,7 +584,7 @@ final class TarneebOpeningTableUITests: XCTestCase {
         app.buttons["tarneeb-deal-button"].coordinate(withNormalizedOffset: CGVector(dx: 0.1, dy: 0.5)).tap()
         XCTAssertFalse(app.buttons["tarneeb-deal-button"].isEnabled)
         waitForBid(app)
-        XCTAssertEqual(app.staticTexts["tarneeb-opening-status"].label, "Talab · Bidding")
+        XCTAssertEqual(app.staticTexts["tarneeb-opening-status"].label, "طلب · Bidding")
         let shot = XCTAttachment(screenshot: app.screenshot())
         shot.name = "Opening readable hand and bidding"
         shot.lifetime = .keepAlways
@@ -693,7 +693,7 @@ final class TarneebOpeningTableUITests: XCTestCase {
         let app = launch(reducedMotion: true, dealer: "south", bids: "east:8,north:pass,west:pass")
         app.buttons["tarneeb-deal-button"].tap()
         waitForBid(app)
-        XCTAssertEqual(app.staticTexts["tarneeb-opening-status"].label, "Talab · East leads with 8")
+        XCTAssertEqual(app.staticTexts["tarneeb-opening-status"].label, "طلب · East leads with 8")
         XCTAssertFalse(app.buttons["7"].exists)
         XCTAssertFalse(app.buttons["8"].exists)
         XCTAssertTrue(app.buttons["9"].exists)
@@ -1185,7 +1185,7 @@ final class TarneebLaunchUITests: XCTestCase {
         XCTAssertTrue(app.otherElements["tarneeb-opening-hand"].exists)
         XCTAssertTrue(app.buttons["tarneeb-pass-button-south"].isHittable)
         XCTAssertFalse(app.buttons["tarneeb-deal-button"].exists)
-        XCTAssertEqual(app.staticTexts["tarneeb-opening-status"].label, "Talab · Bidding")
+        XCTAssertEqual(app.staticTexts["tarneeb-opening-status"].label, "طلب · Bidding")
     }
     func testDealPacketLandingsStaySequentialBeforeCompletion() {
         let app = launch(reducedMotion: false)
@@ -1661,7 +1661,7 @@ final class TarneebDealLandingSequenceUITests: XCTestCase {
             app.launchEnvironment["TARNEEB_CAPTURE_PACKET_LANDINGS"] = "1"
             app.launchEnvironment["TARNEEB_REDUCE_MOTION"] = reduced ? "1" : "0"
             app.launch()
-            let anchor = app.descendants(matching: .any).matching(identifier: "tarneeb-deal-anchor-\(dealer)").firstMatch
+            let anchor = app.descendants(matching: .any).matching(identifier: "tarneeb-deck-source").firstMatch
             let deck = app.otherElements["tarneeb-opening-deck"]
             XCTAssertEqual(deck.value as? String, "52 cards")
             XCTAssertTrue(deck.label.contains(dealer.capitalized))
@@ -1792,5 +1792,117 @@ final class TarneebDealerNormalPacingUITests: XCTestCase {
     }
     private func capture(_ name: String, _ app: XCUIApplication) {
         let a = XCTAttachment(screenshot: app.screenshot()); a.name = name; a.lifetime = .keepAlways; add(a)
+    }
+}
+
+final class TarneebBuild3PolishUITests: XCTestCase {
+    override func setUpWithError() throws { continueAfterFailure = false }
+    private func shot(_ name: String, _ app: XCUIApplication) {
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = "Build3-\(name)"; attachment.lifetime = .keepAlways; add(attachment)
+    }
+    func testLiveWordmarkCenteredWithChangingScoreWidths() {
+        var originalY: CGFloat?
+        for score in ["0,0", "9,9", "15,-15", "-29,30"] {
+            let app = XCUIApplication()
+            app.launchArguments = ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"]
+            app.launchEnvironment["TARNEEB_LIVE_FIXTURE"] = "balanced"
+            app.launchEnvironment["TARNEEB_HEADER_SCORE"] = score
+            app.launchEnvironment["TARNEEB_REDUCE_MOTION"] = "1"
+            app.launch()
+            let title = app.staticTexts["tarneeb-live-wordmark"]
+            XCTAssertTrue(title.waitForExistence(timeout: 8))
+            XCTAssertEqual(title.frame.midX, app.frame.midX, accuracy: 0.5)
+            if let originalY { XCTAssertEqual(title.frame.midY, originalY, accuracy: 0.5) }
+            else { originalY = title.frame.midY }
+            XCTAssertEqual(title.label, "طرنيب")
+            shot("live-score-\(score)", app)
+            app.terminate()
+        }
+    }
+    func testEveryDealerDeckIsClearAndKeepsFirstDepartureOrigin() {
+        for dealer in ["north", "east", "south", "west"] {
+            let app = XCUIApplication()
+            app.launchArguments = ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"]
+            app.launchEnvironment["TARNEEB_OPENING_FIXTURE"] = "1"
+            app.launchEnvironment["TARNEEB_INITIAL_DEALER"] = dealer
+            app.launchEnvironment["TARNEEB_CAPTURE_DEAL"] = "1"
+            app.launchEnvironment["TARNEEB_CAPTURE_PACKET_LANDINGS"] = "1"
+            app.launchEnvironment["TARNEEB_REDUCE_MOTION"] = "0"
+            app.launch()
+            waitForInteractiveOpening(app)
+            let deck = app.otherElements["tarneeb-opening-deck"]
+            XCTAssertTrue(deck.waitForExistence(timeout: 8))
+            let before = deck.frame
+            XCTAssertTrue(app.frame.contains(before))
+            for station in ["north", "east", "west"] {
+                let label = app.otherElements["tarneeb-opening-station-\(station)"]
+                if label.exists { XCTAssertFalse(before.intersects(label.frame), "\(dealer) overlaps \(station)") }
+            }
+            shot("\(dealer)-ready-deck", app)
+            app.buttons["tarneeb-deal-button"].tap()
+            let advance = app.buttons["tarneeb-deal-phase-continue"]
+            XCTAssertTrue(advance.waitForExistence(timeout: 12))
+            XCTAssertEqual(advance.value as? String, "packet-1-landed")
+            XCTAssertTrue(deck.exists)
+            XCTAssertEqual(deck.frame.midX, before.midX, accuracy: 0.5)
+            XCTAssertEqual(deck.frame.midY, before.midY, accuracy: 0.5)
+            shot("\(dealer)-first-packet-landed", app)
+            app.terminate()
+        }
+    }
+    func testArabicTalabLabelAndAccessibleBiddingRemainReadable() {
+        for (mode, category) in [("Normal", "UICTContentSizeCategoryL"), ("Maximum", "UICTContentSizeCategoryAccessibilityXXXL")] {
+            let app = XCUIApplication()
+            app.launchArguments = ["-UIPreferredContentSizeCategoryName", category]
+            app.launchEnvironment["TARNEEB_OPENING_FIXTURE"] = "1"
+            app.launchEnvironment["TARNEEB_INITIAL_DEALER"] = "west"
+            app.launchEnvironment["TARNEEB_SIMULATED_BIDS"] = "east:pass,north:pass,west:pass"
+            app.launchEnvironment["TARNEEB_REDUCE_MOTION"] = "1"
+            app.launch()
+            app.buttons["tarneeb-deal-button"].tap()
+            XCTAssertTrue(app.buttons["tarneeb-bid-button-south"].waitForExistence(timeout: 30))
+            let status = app.staticTexts["tarneeb-opening-status"]
+            let kicker = app.staticTexts["tarneeb-phase-kicker"]
+            XCTAssertEqual(status.label, "طلب · Bidding")
+            XCTAssertTrue(status.isHittable)
+            XCTAssertTrue(app.frame.contains(status.frame))
+            XCTAssertLessThanOrEqual(status.frame.height, 32, "Arabic should match the adjacent approved 17-point English text")
+            XCTAssertLessThanOrEqual(status.frame.maxY - kicker.frame.minY, 62, "Both lines must fit the existing phase banner")
+            XCTAssertEqual(app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH %@", "tarneeb-opening-card-")).count, 13)
+            shot(mode == "Normal" ? "Arabic-request-bidding-and-13-card-hand" : "Arabic-request-maximum-text-and-13-card-hand", app)
+            app.terminate()
+        }
+    }
+    func testAllPassRedealUsesTheRotatedDealerDepartureOrigin() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"]
+        app.launchEnvironment["TARNEEB_OPENING_FIXTURE"] = "1"
+        app.launchEnvironment["TARNEEB_INITIAL_DEALER"] = "west"
+        app.launchEnvironment["TARNEEB_SIMULATED_BIDS"] = "east:pass,north:pass,west:pass"
+        app.launchEnvironment["TARNEEB_REDUCE_MOTION"] = "1"
+        app.launchEnvironment["TARNEEB_CAPTURE_DEAL"] = "1"
+        app.launchEnvironment["TARNEEB_CAPTURE_PACKET_LANDINGS"] = "1"
+        app.launch()
+        app.buttons["tarneeb-deal-button"].tap()
+        let advance = app.buttons["tarneeb-deal-phase-continue"]
+        XCTAssertTrue(advance.waitForExistence(timeout: 12))
+        XCTAssertEqual(advance.value as? String, "packet-1-landed")
+        for phase in ["packet-2-landed", "3-packets-landed-13-retained-stack", "spread-settled-backs", "reveal-settled-faces"] {
+            advance.tap()
+            expectation(for: NSPredicate(format: "value == %@", phase), evaluatedWith: advance)
+            waitForExpectations(timeout: 12)
+        }
+        advance.tap()
+        XCTAssertTrue(app.buttons["tarneeb-pass-button-south"].waitForExistence(timeout: 25))
+        app.buttons["tarneeb-pass-button-south"].tap()
+        XCTAssertTrue(advance.waitForExistence(timeout: 25))
+        XCTAssertEqual(advance.value as? String, "packet-1-landed")
+        let deck = app.otherElements["tarneeb-opening-deck"]
+        let source = app.descendants(matching: .any).matching(identifier: "tarneeb-deck-source").firstMatch
+        XCTAssertTrue(deck.label.contains("South"))
+        XCTAssertEqual(deck.frame.midX, source.frame.midX, accuracy: 0.5)
+        XCTAssertEqual(deck.frame.midY, source.frame.midY + 1.5, accuracy: 0.5)
+        shot("all-pass-rotated-South-dealer-origin", app)
     }
 }

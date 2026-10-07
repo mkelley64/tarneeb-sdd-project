@@ -102,9 +102,25 @@ struct LiveTableView: View {
         }
     }
 
+    private var isWordmarkGeometryTest: Bool {
+        #if DEBUG
+        return ProcessInfo.processInfo.environment["TARNEEB_HEADER_SCORE"] != nil
+        #else
+        return false
+        #endif
+    }
+    private var headerScore: GameScore {
+        #if DEBUG
+        if let values = ProcessInfo.processInfo.environment["TARNEEB_HEADER_SCORE"]?.split(separator: ","),
+           values.count == 2, let ours = Int(values[0]), let theirs = Int(values[1]) {
+            return GameScore(northSouth: ours, eastWest: theirs)
+        }
+        #endif
+        return score
+    }
     private var header: some View {
         HStack {
-            RoomScoreHeading(score: score)
+            RoomScoreHeading(score: headerScore, centersWordmark: true)
             Spacer(minLength: 4)
             Menu {
                 AISkillOptions()
@@ -119,6 +135,16 @@ struct LiveTableView: View {
             }
             .accessibilityLabel("Game options").accessibilityIdentifier("tarneeb-game-options")
         }.foregroundStyle(ink).frame(height: 50)
+        .overlayPreferenceValue(ScoreWordmarkAnchor.self) { anchor in
+            GeometryReader { proxy in
+                if let anchor {
+                    Text("طرنيب").font(.custom("GeezaPro", fixedSize: 23)).foregroundStyle(RoomColor.brass)
+                        .position(x: proxy.size.width / 2, y: proxy[anchor].midY)
+                        .accessibilityHidden(!isWordmarkGeometryTest)
+                        .accessibilityIdentifier("tarneeb-live-wordmark")
+                }
+            }.allowsHitTesting(false)
+        }
     }
 
     private var contract: some View { RoomContract(game: game, reduceMotion: reduceMotion).frame(height: 66) }

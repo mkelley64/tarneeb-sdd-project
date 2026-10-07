@@ -143,8 +143,14 @@ struct RoomStation: View {
     }
 }
 
+struct ScoreWordmarkAnchor: PreferenceKey {
+    static var defaultValue: Anchor<CGRect>? = nil
+    static func reduce(value: inout Anchor<CGRect>?, nextValue: () -> Anchor<CGRect>?) { value = nextValue() ?? value }
+}
+
 struct RoomScoreHeading: View {
     let score: GameScore
+    var centersWordmark = false
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .center) {
@@ -152,6 +158,8 @@ struct RoomScoreHeading: View {
                     .foregroundStyle(RoomColor.muted).accessibilityIdentifier("tarneeb-match-target")
                 Spacer(minLength: 12)
                 Text("طرنيب").font(.custom("GeezaPro", fixedSize: 23)).foregroundStyle(RoomColor.brass)
+                    .opacity(centersWordmark ? 0 : 1)
+                    .anchorPreference(key: ScoreWordmarkAnchor.self, value: .bounds) { centersWordmark ? $0 : nil }
                     .accessibilityHidden(true)
             }
             HStack(spacing: 12) {
