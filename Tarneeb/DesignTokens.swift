@@ -207,6 +207,7 @@ enum LiveTableToken {
     static let maximumColumns = 7
     static let rowSpacing: Double = -12
     static let selectionLift: Double = 12
+    static let handFooterHeight: Double = 72
     static let minimumTableHeight: Double = 232
     static let horizontalSlotOffset: Double = 76
     static let verticalSlotOffset: Double = 49
@@ -241,11 +242,61 @@ struct LiveHandLayout {
     func center(at index: Int, cardCount: Int) -> CGPoint {
         let row = index / columns
         let count = min(columns, max(0, cardCount - row * columns))
-        let rowWidth = Double(max(0, count - 1)) * stride + LiveTableToken.cardWidth
+        return center(column: index % columns, row: row, rowCount: count)
+    }
+
+    func center(column: Int, row: Int, rowCount: Int) -> CGPoint {
+        let rowWidth = Double(max(0, rowCount - 1)) * stride + LiveTableToken.cardWidth
         return CGPoint(
-            x: (width - rowWidth) / 2 + LiveTableToken.cardWidth / 2 + Double(index % columns) * stride,
+            x: (width - rowWidth) / 2 + LiveTableToken.cardWidth / 2 + Double(column) * stride,
             y: LiveTableToken.selectionLift + LiveTableToken.cardHeight / 2 + Double(row) * (LiveTableToken.cardHeight + LiveTableToken.rowSpacing)
         )
+    }
+}
+
+// Presentation-only plan: derive from the original deal, including public South plays,
+// so suit rows survive view recreation/resume without adding saved game state.
+struct SouthHandRowPlan {
+    // Shared across reveal, bidding, trump selection and play. Public South plays
+    // recover the original deal so entering play/resuming cannot change suit rows.
+    static func presentationRows(orderedHand: [Card], southPlayedCards: [Card] = []) -> [[Card]] {
+        #if DEBUG
+        let original = SouthHandPresentation.sortedCards(from: orderedHand + southPlayedCards)
+        return Self(orderedOriginalHand: original).rows(for: orderedHand)
+        #else
+        return [Array(orderedHand.prefix(7)), Array(orderedHand.dropFirst(7))]
+        #endif
+    }
+
+    let upperSuits: Set<Suit>?
+
+    init(orderedOriginalHand: [Card]) {
+        let suits = Suit.allCases.filter { suit in orderedOriginalHand.contains { $0.suit == suit } }
+        var best: (suits: Set<Suit>, moved: Int, upperCount: Int)?
+        for mask in 0..<(1 << suits.count) {
+            let upper = Set(suits.enumerated().compactMap { index, suit in
+                mask & (1 << index) != 0 ? suit : nil
+            })
+            let count = orderedOriginalHand.filter { upper.contains($0.suit) }.count
+            guard count <= 7, orderedOriginalHand.count - count <= 7 else { continue }
+            let moved = orderedOriginalHand.enumerated().filter { index, card in
+                upper.contains(card.suit) != (index < 7)
+            }.count
+            if best == nil || moved < best!.moved || (moved == best!.moved && count > best!.upperCount) {
+                best = (upper, moved, count)
+            }
+        }
+        upperSuits = best?.suits
+    }
+
+    func rows(for orderedHand: [Card]) -> [[Card]] {
+        // One deliberate transition preserves the approved upper-anchored short hand.
+        guard orderedHand.count > 7 else { return [orderedHand, []] }
+        guard let upperSuits else {
+            return [Array(orderedHand.prefix(7)), Array(orderedHand.dropFirst(7))]
+        }
+        return [orderedHand.filter { upperSuits.contains($0.suit) },
+                orderedHand.filter { !upperSuits.contains($0.suit) }]
     }
 }
 

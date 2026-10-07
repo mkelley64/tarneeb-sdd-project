@@ -202,10 +202,17 @@ struct LiveTableView: View {
             .accessibilityIdentifier("tarneeb-live-station-\(seat.rawValue)")
     }
 
+    private var handRows: [[Card]] {
+        let played = game.trickPlayState?.playedCards.filter { $0.seat == .south }.map(\.card) ?? []
+        return SouthHandRowPlan.presentationRows(orderedHand: hand, southPlayedCards: played)
+    }
+
     private func handView(width: Double) -> some View {
         let layout = LiveHandLayout(width: width)
+        let rows = handRows
+        let displayedHand = rows.flatMap { $0 }
         return ZStack(alignment: .topLeading) {
-            ForEach(Array(hand.enumerated()), id: \.element.id) { index, card in
+            ForEach(Array(displayedHand.enumerated()), id: \.element.id) { index, card in
                 let legal = TrickPlayRules.isLegal(card: card, for: .south, in: inputGame)
                 let selected = selectedID == card.id
                 Button {
@@ -224,7 +231,9 @@ struct LiveTableView: View {
                 .offset(y: selected ? -LiveTableToken.selectionLift : 0)
                 .liveAnchor(card.id)
                 .opacity(flight?.play.card.id == card.id || handDrag?.card.id == card.id ? 0 : 1)
-                .position(layout.center(at: index, cardCount: hand.count))
+                .position(layout.center(column: index < rows[0].count ? index : index - rows[0].count,
+                                        row: index < rows[0].count ? 0 : 1,
+                                        rowCount: index < rows[0].count ? rows[0].count : rows[1].count))
                 .zIndex(Double(index))
                 .accessibilityLabel("\(card.rank.displayLabel) of \(card.suit.rawValue)")
                 .accessibilityValue(selected ? "Selected" : (legal ? "Playable" : "Unavailable"))
@@ -314,7 +323,7 @@ struct LiveTableView: View {
                     .background(Circle().fill(RoomColor.felt.opacity(0.6)).frame(width: 44, height: 36))
                     .overlay(Circle().stroke(RoomColor.edge, lineWidth: 0.65).frame(width: 44, height: 36))
             }
-        }.foregroundStyle(ink).frame(height: 72)
+        }.foregroundStyle(ink).frame(height: LiveTableToken.handFooterHeight)
     }
 
     private var status: String {

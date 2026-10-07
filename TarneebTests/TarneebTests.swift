@@ -5279,3 +5279,80 @@ extension TarneebTests {
         }
     }
 }
+
+
+extension TarneebTests {
+    func testB2SuitPackingDistributionsAndStableShrinkingAtPhoneWidths() {
+        XCTAssertEqual(LiveTableToken.cardWidth, 64)
+        XCTAssertEqual(LiveTableToken.cardHeight, 90)
+        let distributions = [[2,3,5,3], [4,4,3,2], [5,4,3,1], [6,3,2,2], [7,3,2,1],
+                             [8,2,2,1], [10,1,1,1], [13,0,0,0], [4,3,3,3], [5,5,3,0]]
+        for counts in distributions {
+            let original = zip(Suit.allCases, counts).flatMap { suit, count in
+                Rank.allCases.prefix(count).map { Card(suit: suit, rank: $0) }
+            }
+            let plan = SouthHandRowPlan(orderedOriginalHand: original)
+            let packable = counts.max()! <= 7 && counts != [5,5,3,0]
+            XCTAssertEqual(plan.upperSuits != nil, packable, "\(counts)")
+            let initial = plan.rows(for: original)
+            XCTAssertEqual(initial.map(\.count).sorted(), [6,7])
+            if packable {
+                for suit in Suit.allCases {
+                    XCTAssertFalse(initial[0].contains { $0.suit == suit } && initial[1].contains { $0.suit == suit })
+                }
+            } else {
+                XCTAssertEqual(initial[0], Array(original.prefix(7)))
+                XCTAssertEqual(initial[1], Array(original.dropFirst(7)))
+            }
+            // Every possible subset catches row jumps regardless of play order.
+            for mask in 0..<(1 << original.count) {
+                let remaining = original.enumerated().compactMap { index, card in
+                    mask & (1 << index) != 0 ? card : nil
+                }
+                let rows = plan.rows(for: remaining)
+                XCTAssertEqual(Set(rows.flatMap { $0 }), Set(remaining))
+                XCTAssertEqual(rows.flatMap { $0 }.count, remaining.count)
+                XCTAssertTrue(rows.allSatisfy { $0.count <= 7 })
+                if remaining.count <= 7 { XCTAssertEqual(rows, [remaining, []]) }
+                for (rowIndex, row) in rows.enumerated() {
+                    XCTAssertEqual(row, remaining.filter { row.contains($0) })
+                    if packable && remaining.count > 7 {
+                        XCTAssertEqual(row, initial[rowIndex].filter { remaining.contains($0) })
+                    }
+                    for width in [351.0, 369, 406] {
+                        let layout = LiveHandLayout(width: width)
+                        for index in row.indices {
+                            let center = layout.center(column: index, row: rowIndex, rowCount: row.count)
+                            XCTAssertGreaterThanOrEqual(center.x - 32, 0)
+                            XCTAssertLessThanOrEqual(center.x + 32, width)
+                            XCTAssertLessThanOrEqual(center.y + 45, layout.height)
+                            if index > 0 {
+                                XCTAssertGreaterThanOrEqual(center.x - layout.center(column: index - 1, row: rowIndex, rowCount: row.count).x, 44)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+extension TarneebTests {
+    func testB2SharedRevealedHandPolicyKeepsOriginalRowsDuringPlay() {
+        for counts in [[2,3,5,3], [4,4,3,2], [6,3,2,2], [7,3,2,1], [8,2,2,1], [5,5,3,0]] {
+            let suits = Suit.allCases.sorted { $0.southDisplayOrder < $1.southDisplayOrder }
+            let original = zip(suits, counts).flatMap { suit, count in
+                Rank.allCases.prefix(count).map { Card(suit: suit, rank: $0) }
+            }
+            let plan = SouthHandRowPlan(orderedOriginalHand: original)
+            XCTAssertEqual(SouthHandRowPlan.presentationRows(orderedHand: original), plan.rows(for: original))
+            for playedCount in 0...13 {
+                let remaining = Array(original.dropFirst(playedCount))
+                let played = Array(original.prefix(playedCount).reversed())
+                XCTAssertEqual(SouthHandRowPlan.presentationRows(orderedHand: remaining, southPlayedCards: played),
+                               plan.rows(for: remaining), "\(counts), \(playedCount) plays")
+            }
+        }
+    }
+}

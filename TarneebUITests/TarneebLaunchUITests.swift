@@ -490,15 +490,15 @@ final class TarneebRoundResultUITests: XCTestCase {
 final class TarneebOpeningTableUITests: XCTestCase {
     override func setUpWithError() throws { continueAfterFailure = false }
 
-    private func launch(reducedMotion: Bool = false, dealer: String = "west", bids: String = "east:pass,north:pass,west:pass") -> XCUIApplication {
+    private func launch(reducedMotion: Bool = false, dealer: String = "west", bids: String = "east:pass,north:pass,west:pass", fixture: String = "1") -> XCUIApplication {
         let app = XCUIApplication()
-        if name.contains("testIndividualFaceDownHandBeforeFlipPreservesFaceUpGeometry") {
+        if name.contains("testIndividualFaceDownHandBeforeFlipPreservesFaceUpGeometry") || name.contains("B2BiddingSuitPacking") || name.contains("B2RepresentativeDistributions") {
             app.launchEnvironment["TARNEEB_CAPTURE_DEAL"] = "1"
         }
         if name.contains("DealBidTrumpAndLivePlayWithoutScrolling") {
             app.launchEnvironment["TARNEEB_AUDIT_BIDDING_PUBLICATIONS"] = "1"
         }
-        app.launchEnvironment["TARNEEB_OPENING_FIXTURE"] = "1"
+        app.launchEnvironment["TARNEEB_OPENING_FIXTURE"] = fixture
         app.launchEnvironment["TARNEEB_INITIAL_DEALER"] = dealer
         app.launchEnvironment["TARNEEB_SIMULATED_BIDS"] = bids
         app.launchEnvironment["TARNEEB_REDUCE_MOTION"] = reducedMotion ? "1" : "0"
@@ -516,6 +516,94 @@ final class TarneebOpeningTableUITests: XCTestCase {
         XCTAssertTrue(app.frame.contains(app.buttons["tarneeb-bid-button-south"].frame))
         XCTAssertFalse(app.otherElements["tarneeb-opening-deck"].exists)
         XCTAssertFalse(app.scrollViews.firstMatch.exists)
+    }
+
+    func testB2BiddingSuitPackingPersistsThroughRevealTrumpAndPlay() {
+        verifyB2PhaseContinuity(fixture: "b2")
+    }
+
+    func testB2RepresentativeDistributionsKeepAbsoluteHandPositionsAcrossPhases() {
+        for fixture in ["4-4-3-2", "6-3-2-2", "7-3-2-1", "8-2-2-1", "5-5-3-0"] {
+            verifyB2PhaseContinuity(fixture: fixture)
+        }
+    }
+
+    private func verifyB2PhaseContinuity(fixture: String) {
+        let app = launch(fixture: fixture)
+        defer { app.terminate() }
+        app.buttons["tarneeb-deal-button"].tap()
+        let hand = app.otherElements["tarneeb-opening-hand"]
+        expectation(for: NSPredicate { _, _ in
+            (hand.value as? String ?? "").contains("state=settlingBacks")
+        }, evaluatedWith: hand)
+        waitForExpectations(timeout: 25)
+        let advance = app.buttons["tarneeb-deal-phase-continue"]
+        advance.tap()
+        expectation(for: NSPredicate(format: "value == %@", "spread-settled-backs"), evaluatedWith: advance)
+        waitForExpectations(timeout: 5)
+        let cards = app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH %@", "tarneeb-opening-card-"))
+        let backFrames = Dictionary(uniqueKeysWithValues: cards.allElementsBoundByIndex.map { ($0.identifier, $0.frame) })
+        XCTAssertEqual(backFrames.count, 13)
+        advance.tap()
+        expectation(for: NSPredicate(format: "value == %@", "reveal-settled-faces"), evaluatedWith: advance)
+        waitForExpectations(timeout: 5)
+        advance.tap()
+        waitForBid(app)
+        let bidding = Dictionary(uniqueKeysWithValues: cards.allElementsBoundByIndex.map { ($0.identifier, $0.frame) })
+        let upperY = bidding.values.map(\.midY).min()!
+        let counts = [bidding.values.filter { abs($0.midY - upperY) < 1 }.count,
+                      bidding.values.filter { $0.midY > upperY + 60 }.count]
+        XCTAssertEqual(counts.sorted(), [6, 7])
+        let fallback = ["8-2-2-1", "5-5-3-0"].contains(fixture)
+        for suit in ["hearts", "clubs", "diamonds", "spades"] where !fallback {
+            let suitFrames = bidding.filter { $0.key.contains("-\(suit)-") }.values
+            XCTAssertLessThanOrEqual((suitFrames.map(\.midY).max() ?? 0) - (suitFrames.map(\.midY).min() ?? 0), 0.5)
+        }
+        if fallback {
+            let suits = ["hearts", "clubs", "diamonds", "spades"]
+            let distribution = fixture.split(separator: "-").compactMap { Int($0) }
+            let orderedIDs = zip(suits, distribution).flatMap { suit, count in
+                Array(["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"].prefix(count)).map { "tarneeb-opening-card-\(suit)-\($0)" }
+            }
+            for (index, id) in orderedIDs.enumerated() {
+                XCTAssertEqual(bidding[id]!.midY, index < 7 ? upperY : upperY + 78, accuracy: 0.5)
+            }
+        }
+        for (id, frame) in bidding {
+            if fixture == "b2" {
+                let upper = id.contains("-hearts-") || id.contains("-diamonds-")
+                XCTAssertEqual(frame.midY, upper ? upperY : upperY + 78, accuracy: 0.5)
+            }
+            XCTAssertEqual(frame.midX, backFrames[id]!.midX, accuracy: 0.5)
+            XCTAssertEqual(frame.midY, backFrames[id]!.midY, accuracy: 0.5)
+            XCTAssertTrue(app.frame.contains(frame))
+            XCTAssertFalse(app.buttons[id].exists)
+        }
+        let shot = XCTAttachment(screenshot: app.screenshot())
+        shot.name = "B2 bidding phase continuity \(fixture)"
+        shot.lifetime = .keepAlways
+        add(shot)
+        app.buttons["7"].tap()
+        app.buttons["tarneeb-bid-button-south"].tap()
+        let confirmTrump = app.buttons["tarneeb-post-bidding-suit-button-south"]
+        XCTAssertTrue(confirmTrump.waitForExistence(timeout: 25))
+        for card in cards.allElementsBoundByIndex {
+            XCTAssertEqual(card.frame.midX, bidding[card.identifier]!.midX, accuracy: 0.5)
+            XCTAssertEqual(card.frame.midY, bidding[card.identifier]!.midY, accuracy: 0.5)
+        }
+        app.buttons["tarneeb-bid-suit-option-spades"].tap()
+        confirmTrump.tap()
+        XCTAssertTrue(app.otherElements["tarneeb-live-table"].waitForExistence(timeout: 5))
+        let live = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "tarneeb-live-card-")).allElementsBoundByIndex
+        XCTAssertEqual(live.count, 13)
+        for card in live {
+            let openingID = card.identifier.replacingOccurrences(of: "tarneeb-live-card-", with: "tarneeb-opening-card-")
+            XCTAssertEqual(card.frame.midX, bidding[openingID]!.midX, accuracy: 0.5)
+            XCTAssertEqual(card.frame.midY, bidding[openingID]!.midY, accuracy: 0.5)
+            XCTAssertEqual(card.frame.width, bidding[openingID]!.width, accuracy: 0.5)
+            XCTAssertEqual(card.frame.height, bidding[openingID]!.height, accuracy: 0.5)
+            XCTAssertTrue(card.isHittable)
+        }
     }
 
     func testIndividualFaceDownHandBeforeFlipPreservesFaceUpGeometry() {
@@ -755,6 +843,60 @@ final class TarneebLiveTableUITests: XCTestCase {
         return app
     }
 
+    func testB2DistributionMatrixAndPackedHandStability() {
+        for fixture in ["4-4-3-2", "5-4-3-1", "6-3-2-2", "7-3-2-1",
+                        "8-2-2-1", "10-1-1-1", "13-0-0-0", "4-3-3-3", "5-5-3-0"] {
+            let app = launchLiveTable(fixture: fixture)
+            let cards = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "tarneeb-live-card-"))
+            XCTAssertEqual(cards.count, 13)
+            let elements = cards.allElementsBoundByIndex
+            let upperY = elements.map { $0.frame.midY }.min()!
+            let upper = elements.filter { abs($0.frame.midY - upperY) < 1 }
+            let lower = elements.filter { $0.frame.midY > upperY + 60 }
+            XCTAssertEqual([upper.count, lower.count].sorted(), [6, 7])
+            let fallback = ["8-2-2-1", "10-1-1-1", "13-0-0-0", "5-5-3-0"].contains(fixture)
+            for suit in ["spades", "clubs", "hearts", "diamonds"] where !fallback {
+                XCTAssertFalse(upper.contains { $0.identifier.contains("-\(suit)-") } && lower.contains { $0.identifier.contains("-\(suit)-") })
+            }
+            for card in elements {
+                // Accessibility includes the one-point face border and pixel rounding.
+                XCTAssertEqual(card.frame.width, 65, accuracy: 0.5)
+                XCTAssertEqual(card.frame.height, 91, accuracy: 0.5)
+                XCTAssertTrue(app.frame.contains(card.frame))
+                XCTAssertTrue(card.isHittable)
+            }
+            let shot = XCTAttachment(screenshot: app.screenshot())
+            shot.name = "B2 distribution \(fixture)"
+            shot.lifetime = .keepAlways
+            add(shot)
+            if fixture == "4-4-3-2" {
+                let initialY = Dictionary(uniqueKeysWithValues: elements.map { ($0.identifier, $0.frame.midY) })
+                for remaining in stride(from: 13, through: 2, by: -1) {
+                    let legal = cards.matching(NSPredicate(format: "enabled == true")).firstMatch
+                    XCTAssertTrue(legal.waitForExistence(timeout: 20))
+                    XCTAssertEqual(cards.count, remaining)
+                    for card in cards.allElementsBoundByIndex {
+                        XCTAssertEqual(card.frame.midY, remaining > 7 ? initialY[card.identifier]! : upperY, accuracy: 0.5)
+                    }
+                    legal.tap()
+                    expectation(for: NSPredicate(format: "value == %@", "Selected"), evaluatedWith: legal)
+                    waitForExpectations(timeout: 3)
+                    // Accessibility bounds include the original button and lifted face.
+                    let expectedMinY = (remaining > 7 ? initialY[legal.identifier]! : upperY) - 45.5 - 12
+                    expectation(for: NSPredicate { _, _ in abs(legal.frame.minY - expectedMinY) <= 2 }, evaluatedWith: legal)
+                    waitForExpectations(timeout: 3)
+                    if remaining == 13 {
+                        legal.press(forDuration: 0.05, thenDragTo: app.otherElements["tarneeb-live-trick"])
+                    } else { legal.doubleTap() }
+                    expectation(for: NSPredicate { _, _ in cards.count < remaining }, evaluatedWith: cards)
+                    waitForExpectations(timeout: 6)
+                }
+                XCTAssertTrue(app.otherElements["tarneeb-round-result"].waitForExistence(timeout: 25))
+            }
+            app.terminate()
+        }
+    }
+
     func testReadableHandSelectionAndOneCompleteTrick() {
         verifyOneTrick(reducedMotion: false)
     }
@@ -933,8 +1075,14 @@ final class TarneebLiveTableUITests: XCTestCase {
         if app.buttons["Keep Playing"].exists {
             tapSettledConfirmation("Keep Playing", in: app)
         } else {
-            // iOS 26 presents this as a popover with tap-outside cancellation.
-            app.staticTexts["tarneeb-contract-progress"].tap()
+            // The modal can make underlying semantic elements non-hittable.
+            // Tap outside using screen coordinates rather than a hidden label.
+            // Large accessibility text can expand the popover nearly edge-to-edge.
+            let outside = app.coordinate(withNormalizedOffset: CGVector(dx: 0.005, dy: 0.25))
+            XCTAssertFalse(app.buttons["Cancel Game"].frame.contains(outside.screenPoint))
+            outside.tap()
+            expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: app.buttons["Cancel Game"])
+            waitForExpectations(timeout: 4)
         }
         let card = app.buttons["tarneeb-live-card-spades-2"]
         expectation(for: NSPredicate(format: "enabled == true"), evaluatedWith: card)

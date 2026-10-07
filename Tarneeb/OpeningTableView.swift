@@ -104,11 +104,21 @@ struct OpeningTableView: View {
     private var ready: Bool { game.phase == .notStarted && !isDealing }
     private var legalNumbers: [BidValue] { (game.biddingState?.southLegalValues ?? []).filter { $0 != .pass } }
 
+    private var actionHeight: Double {
+        guard !ready else { return 48 }
+        #if DEBUG
+        // Reserve the same footer as trick play so revealed cards stay anchored.
+        return LiveTableToken.handFooterHeight
+        #else
+        return 48
+        #endif
+    }
+
     var body: some View {
         GeometryReader { proxy in
             let width = proxy.size.width - 24
             // Match the table reservation without moving the approved South hand.
-            let compact = proxy.size.height - 16 - 50 - 62 - LiveHandLayout(width: width).height - 48 - 32 < 290
+            let compact = proxy.size.height - 16 - 50 - 62 - LiveHandLayout(width: width).height - actionHeight - 32 < 290
             VStack(spacing: 8) {
                 header
                 if ready {
@@ -130,7 +140,7 @@ struct OpeningTableView: View {
                             .font(.system(size: 12)).foregroundStyle(RoomColor.muted)
                     }.frame(height: 58)
                 }
-                actions.frame(height: 48)
+                actions.frame(height: actionHeight)
             }
             .frame(width: width, height: proxy.size.height - 16)
             .padding(.vertical, 8).frame(maxWidth: .infinity)
@@ -361,6 +371,8 @@ struct OpeningTableView: View {
     }
     private func southHand(width: Double) -> some View {
         let layout = LiveHandLayout(width: width)
+        let rows = SouthHandRowPlan.presentationRows(orderedHand: hand)
+        let displayedHand = rows.flatMap { $0 }
         let showCards = playback.map { $0.landedCount(for: .south) > 0 } ?? (game.phase == .dealt)
         return ZStack(alignment: .topLeading) {
             Color.clear.frame(width: 64, height: 90).position(x: width / 2, y: layout.height / 2)
@@ -372,10 +384,12 @@ struct OpeningTableView: View {
                     RoomPacket(width: 64, squared: true).position(x: width / 2, y: layout.height / 2)
                 }
                 ForEach(Array(hand.enumerated()), id: \.element.id) { index, card in
+                    let displayIndex = displayedHand.firstIndex(of: card) ?? index
                     let revealed = playback == nil || index < (playback?.southRevealedCardCount ?? 0)
                     OpeningFlipCard(card: card, angle: revealed ? 180 : 0, reduceMotion: reduceMotion)
                         .opacity(playback == nil || index < (playback?.southFaceDownCardCount ?? 13) ? 1 : 0)
-                        .position(southCardPosition(index: index, count: hand.count, width: width, layout: layout))
+                        .position(southCardPosition(index: displayIndex, rows: rows, width: width, layout: layout))
+                        .zIndex(Double(displayIndex))
                         .accessibilityElement(children: .ignore).accessibilityLabel(revealed ? "\(card.rank.displayLabel) of \(card.suit.rawValue)" : "Face-down card")
                         .accessibilityIdentifier("tarneeb-opening-card-\(card.id)")
                 }
@@ -451,8 +465,10 @@ struct OpeningTableView: View {
                 .accessibilityIdentifier("tarneeb-opening-deck")
         }
     }
-    private func southCardPosition(index: Int, count: Int, width: Double, layout: LiveHandLayout) -> CGPoint {
-        let final = layout.center(at: index, cardCount: count)
+    private func southCardPosition(index: Int, rows: [[Card]], width: Double, layout: LiveHandLayout) -> CGPoint {
+        let upper = index < rows[0].count
+        let final = layout.center(column: upper ? index : index - rows[0].count,
+                                  row: upper ? 0 : 1, rowCount: upper ? rows[0].count : rows[1].count)
         let progress = playback?.southSpreadProgress ?? 1
         return CGPoint(x: width / 2 + (final.x - width / 2) * progress,
                        y: layout.height / 2 + (final.y - layout.height / 2) * progress)

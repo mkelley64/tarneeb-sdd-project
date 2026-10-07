@@ -53,10 +53,20 @@ struct ContentView: View {
         var isRestoringMatch = true
         #if DEBUG
         if ProcessInfo.processInfo.environment["TARNEEB_LIVE_FIXTURE"] != nil {
+            let distribution = ProcessInfo.processInfo.environment["TARNEEB_LIVE_FIXTURE"]?.split(separator: "-").compactMap { Int($0) } ?? []
             let balanced = ProcessInfo.processInfo.environment["TARNEEB_LIVE_FIXTURE"] == "balanced"
             initialPresentation = TarneebPresentationState(
                 dealService: DealService(shuffler: CardShuffler { cards in
-                    balanced ? (0..<52).map { cards[($0 % 13) * 4 + $0 / 13] } : cards
+                    if distribution.count == 4, distribution.reduce(0, +) == 13,
+                       distribution.allSatisfy({ (0...13).contains($0) }) {
+                        let south = zip(Suit.allCases, distribution).flatMap { suit, count in
+                            Array(cards.filter { $0.suit == suit }.prefix(count))
+                        }
+                        let others = cards.filter { !south.contains($0) }
+                        // South receives the first thirteen in Seat.dealOrder.
+                        return south + others
+                    }
+                    return balanced ? (0..<52).map { cards[($0 % 13) * 4 + $0 / 13] } : cards
                 }, handLogger: HandLogger { _ in }),
                 dealerSelector: EnvironmentDealerSelector(environment: ["TARNEEB_INITIAL_DEALER": "west"]),
                 biddingService: BiddingService(bidGenerator: BidGenerator { _ in .pass })
@@ -81,7 +91,17 @@ struct ContentView: View {
             let sweep = ProcessInfo.processInfo.environment["TARNEEB_OPENING_FIXTURE"] == "sweep"
             initialPresentation = TarneebPresentationState(
                 dealService: DealService(shuffler: CardShuffler { cards in
-                    sweep ? cards : (0..<52).map { cards[($0 % 13) * 4 + $0 / 13] }
+                    let fixture = ProcessInfo.processInfo.environment["TARNEEB_OPENING_FIXTURE"] ?? ""
+                    let distribution = fixture == "b2" ? [2, 3, 5, 3] : fixture.split(separator: "-").compactMap { Int($0) }
+                    if distribution.count == 4, distribution.reduce(0, +) == 13,
+                       distribution.allSatisfy({ (0...13).contains($0) }) {
+                        let suits = Suit.allCases.sorted { $0.southDisplayOrder < $1.southDisplayOrder }
+                        let south = zip(suits, distribution).flatMap { suit, count in
+                            Array(cards.filter { $0.suit == suit }.prefix(count))
+                        }
+                        return south + cards.filter { !south.contains($0) }
+                    }
+                    return sweep ? cards : (0..<52).map { cards[($0 % 13) * 4 + $0 / 13] }
                 }, handLogger: HandLogger { _ in })
             )
         }
