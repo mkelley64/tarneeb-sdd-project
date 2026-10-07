@@ -260,12 +260,8 @@ struct SouthHandRowPlan {
     // Shared across reveal, bidding, trump selection and play. Public South plays
     // recover the original deal so entering play/resuming cannot change suit rows.
     static func presentationRows(orderedHand: [Card], southPlayedCards: [Card] = []) -> [[Card]] {
-        #if DEBUG
         let original = SouthHandPresentation.sortedCards(from: orderedHand + southPlayedCards)
         return Self(orderedOriginalHand: original).rows(for: orderedHand)
-        #else
-        return [Array(orderedHand.prefix(7)), Array(orderedHand.dropFirst(7))]
-        #endif
     }
 
     let upperSuits: Set<Suit>?

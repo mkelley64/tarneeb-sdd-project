@@ -2,6 +2,7 @@ import Foundation
 import AVFoundation
 import ImageIO
 import XCTest
+import SwiftUI
 @testable import Tarneeb
 import Darwin
 
@@ -5354,5 +5355,27 @@ extension TarneebTests {
                                plan.rows(for: remaining), "\(counts), \(playedCount) plays")
             }
         }
+    }
+}
+
+
+extension TarneebTests {
+    @MainActor
+    func testB2OpeningFooterMatchesLiveReservationAfterDealInEveryConfiguration() {
+        let state = Tarneeb.TarneebPresentationState(
+            dealService: Tarneeb.DealService(shuffler: Tarneeb.CardShuffler { $0 }, handLogger: Tarneeb.HandLogger { _ in })
+        )
+        func view() -> OpeningTableView {
+            OpeningTableView(
+                game: state.gameState, pendingGame: nil, score: state.gameScore, playback: nil,
+                reduceMotion: true, blocked: false, canDeal: true, canReset: true, choosingTrump: false,
+                draftBid: .constant(.seven), draftSuit: .constant(nil),
+                deal: {}, newGame: {}, submitBid: {}, submitTrump: {}, selectionFeedback: {}
+            )
+        }
+        XCTAssertEqual(view().actionHeight, 48)
+        state.deal()
+        XCTAssertEqual(view().actionHeight, LiveTableToken.handFooterHeight)
+        XCTAssertEqual(view().actionHeight, 72)
     }
 }

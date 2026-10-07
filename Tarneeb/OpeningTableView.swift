@@ -104,14 +104,10 @@ struct OpeningTableView: View {
     private var ready: Bool { game.phase == .notStarted && !isDealing }
     private var legalNumbers: [BidValue] { (game.biddingState?.southLegalValues ?? []).filter { $0 != .pass } }
 
-    private var actionHeight: Double {
+    var actionHeight: Double {
         guard !ready else { return 48 }
-        #if DEBUG
         // Reserve the same footer as trick play so revealed cards stay anchored.
         return LiveTableToken.handFooterHeight
-        #else
-        return 48
-        #endif
     }
 
     var body: some View {
