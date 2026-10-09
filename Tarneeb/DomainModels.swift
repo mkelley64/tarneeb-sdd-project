@@ -2740,12 +2740,51 @@ final class TarneebPresentationState {
     private var isDealing = false
     private var matchStore: MatchStore?
     private(set) var saveNotice: String?
+    private(set) var currentHandCoach = CurrentHandCoach()
+    private(set) var coachUsageDirty = false
+    private(set) var saveRevision: UInt64 = 0
+    private var coachPresentationToken: UUID?
+    private var coachPresentationCounted = false
+
+    func reserveTrackerPresentation(handID: UUID, enabled: Bool) -> UUID? {
+        guard enabled, handID == currentHandCoach.handID, coachPresentationToken == nil else { return nil }
+        let token = UUID()
+        coachPresentationToken = token
+        coachPresentationCounted = false
+        return token
+    }
+
+    @discardableResult
+    func commitTrackerPresentation(token: UUID, handID: UUID, enabled: Bool) -> Bool {
+        guard enabled, handID == currentHandCoach.handID,
+              token == coachPresentationToken, !coachPresentationCounted else { return false }
+        coachPresentationCounted = true
+        currentHandCoach.recordOpen()
+        coachUsageDirty = true
+        checkpoint()
+        return true
+    }
+
+    func cancelTrackerPresentation(_ token: UUID) {
+        guard coachPresentationToken == token else { return }
+        coachPresentationToken = nil
+        coachPresentationCounted = false
+    }
+
+    func retrySave() { checkpoint() }
+
+    private func resetHandCoach() {
+        currentHandCoach = CurrentHandCoach()
+        coachUsageDirty = true
+        coachPresentationToken = nil
+        coachPresentationCounted = false
+    }
     private(set) var announcedRound: Int?
 
     var snapshot: MatchSnapshot {
         MatchSnapshot(game: gameState, score: gameScore, lastRound: lastRoundScore,
                       completedRounds: completedRoundCount, hasStarted: hasStartedGame, announcedRound: announcedRound,
-                      activeAISkill: activeAISkill)
+                      activeAISkill: activeAISkill, currentHandCoach: currentHandCoach)
     }
 
     func enablePersistence(_ store: MatchStore, restoring: Bool = true) {
@@ -2761,6 +2800,11 @@ final class TarneebPresentationState {
                 hasStartedGame = saved.hasStarted
                 announcedRound = saved.announcedRound
                 activeAISkill = saved.restoredAISkill
+                currentHandCoach = saved.currentHandCoach ?? CurrentHandCoach()
+                coachUsageDirty = saved.currentHandCoach == nil
+                coachPresentationToken = nil
+                coachPresentationCounted = false
+                if saved.coachMetadataWasInvalid { saveNotice = "Tracker usage could not be restored. This hand starts at zero checks." }
                 locksSkillOnFirstDeal = false
             } else if !restoring { checkpoint() }
         } catch {
@@ -2773,12 +2817,16 @@ final class TarneebPresentationState {
         checkpoint()
     }
 
+    // Writes are synchronous through this single owner: no queued old game/count pair
+    // or late completion can overwrite the current hand. Retry writes absolute state.
     private func checkpoint() {
+        saveRevision &+= 1
         decisionRevision = UUID()
         decisionRequestID = nil
         guard let matchStore else { return }
         do {
             try matchStore.save(snapshot)
+            coachUsageDirty = false
             saveNotice = nil
         } catch {
             saveNotice = "This match could not be saved. Progress may be lost when the app closes."
@@ -2839,6 +2887,7 @@ final class TarneebPresentationState {
         }
 
         gameState = dealtState
+        resetHandCoach()
         if locksSkillOnFirstDeal {
             activeAISkill = AISkill.preference(in: aiPreferences)
             locksSkillOnFirstDeal = false
@@ -2880,6 +2929,7 @@ final class TarneebPresentationState {
         completedRoundCount = 0
         hasStartedGame = false
         gameState = .initial(dealerSeat: dealerSelector.selectDealer())
+        resetHandCoach()
     }
 
     func submitSouthBid(_ bid: BidValue, selectedTarneebSuit: Suit? = nil) {
@@ -2988,6 +3038,7 @@ final class TarneebPresentationState {
         }
 
         gameState = dealtState
+        resetHandCoach()
     }
 
     private func requestDeal(dealerSeat: Seat) -> GameState? {

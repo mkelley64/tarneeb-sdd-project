@@ -12,6 +12,8 @@ struct RoundResultView: View {
     let newGame: () -> Void
     let announce: () -> Void
     var lastTrick: CompletedTrick? = nil
+    var coachUsage: String? = nil
+    @AppStorage(CoachPreference.key) private var coachEnabled = false
 
     @State private var entered = false
     @State private var factsVisible = false
@@ -47,6 +49,10 @@ struct RoundResultView: View {
                     victoryFacts.opacity(factsVisible ? 1 : 0)
                 }
                 Spacer(minLength: 0)
+                if coachEnabled, let coachUsage {
+                    Text(coachUsage).font(.footnote).fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("tarneeb-coach-result")
+                }
                 Button(winner == nil ? "Next Hand" : "New Game", action: winner == nil ? nextHand : newGame)
                     .buttonStyle(RoomCommandStyle(arrow: true, reduceMotion: reduceMotion))
                     .disabled(blocked)
@@ -101,6 +107,7 @@ struct RoundResultView: View {
             LastTrickRecallButton(trick: lastTrick, blocked: blocked)
             Menu {
                 AISkillOptions()
+                CoachOptions()
                 Toggle("Sound effects", isOn: $soundEnabled)
                 Toggle("Haptics", isOn: $hapticsEnabled)
                 if winner == nil {

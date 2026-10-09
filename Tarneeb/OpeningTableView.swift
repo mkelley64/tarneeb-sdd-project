@@ -22,6 +22,15 @@ struct OpeningArrival {
     }
 }
 
+struct CoachOptions: View {
+    @AppStorage(CoachPreference.key) private var enabled = false
+    var body: some View {
+        Toggle("Coach", isOn: $enabled)
+            .accessibilityIdentifier("tarneeb-coach-switch")
+        Text("Show a tracker of cards already played. Does not change AI difficulty.")
+    }
+}
+
 struct AISkillOptions: View {
     @AppStorage(AISkill.preferenceKey) private var preference = AISkill.standard.rawValue
 
@@ -196,6 +205,7 @@ struct OpeningTableView: View {
             Spacer(minLength: 4)
             Menu {
                 AISkillOptions()
+                CoachOptions()
                 Toggle("Sound effects", isOn: $soundEnabled)
                 Toggle("Haptics", isOn: $hapticsEnabled)
                 Divider()

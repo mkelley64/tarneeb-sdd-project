@@ -35,6 +35,12 @@ struct LiveTableView: View {
     let resume: () -> Void
     let roundResult: String
     var continuity: Namespace.ID? = nil
+    var coachEnabled = false
+    var trackerAvailable = false
+    var trackerVisible = false
+    var openTracker: () -> Void = {}
+    var trackerFocusRevision = 0
+    @AccessibilityFocusState private var playedFocused: Bool
 
     @State private var winnerWarmth = 0.0
     @State private var selectedID: String?
@@ -62,12 +68,12 @@ struct LiveTableView: View {
         GeometryReader { proxy in
             let contentWidth = min(proxy.size.width - 24, 560)
             VStack(spacing: 8) {
-                header
-                contract
-                table
+                header.accessibilityHidden(trackerVisible)
+                contract.accessibilityHidden(trackerVisible)
+                table.accessibilityHidden(trackerVisible)
                     .frame(minHeight: 228)
                 handView(width: contentWidth)
-                actionBar
+                actionBar.accessibilityHidden(trackerVisible)
             }
             .frame(width: contentWidth, height: proxy.size.height - 16)
             .padding(.vertical, 8)
@@ -93,6 +99,7 @@ struct LiveTableView: View {
         .onChange(of: flight?.play.id) { _, id in
             if id == nil { releasedCardOrigins.removeAll() }
         }
+        .onChange(of: trackerFocusRevision) { _, _ in playedFocused = true }
         .onChange(of: game) { _, _ in
             if let selectedCard, !TrickPlayRules.isLegal(card: selectedCard, for: .south, in: inputGame) {
                 selectedID = nil
@@ -124,6 +131,7 @@ struct LiveTableView: View {
             Spacer(minLength: 4)
             Menu {
                 AISkillOptions()
+                CoachOptions()
                 Toggle("Sound effects", isOn: $soundEnabled)
                 Toggle("Haptics", isOn: $hapticsEnabled)
                 Divider()
@@ -239,6 +247,7 @@ struct LiveTableView: View {
                 .accessibilityValue(selected ? "Selected" : (legal ? "Playable" : "Unavailable"))
                 .accessibilityHint(legal ? "Select card. Use the Play action to play it." : "")
                 .accessibilityIdentifier("tarneeb-live-card-\(card.id)")
+                .accessibilityHidden(trackerVisible)
                 .accessibilityAction(named: "Play") {
                     guard canSelect, legal else { return }
                     play(card)
@@ -300,7 +309,7 @@ struct LiveTableView: View {
     private var actionBar: some View {
         let ownership = RoomTrickOwnership(trick: game.trickPlayState)
         return VStack(spacing: 7) {
-            (Text(status) + Text(canSelect && winner == nil && selectedCard == nil ? (inputGame.trickPlayState?.ledSuit.map { " · Follow \($0.rawValue)" } ?? "") + " · Double-tap or drag to play" : ""))
+            (Text(trackerVisible ? "Close Played cards to continue" : status) + Text(canSelect && winner == nil && selectedCard == nil ? (inputGame.trickPlayState?.ledSuit.map { " · Follow \($0.rawValue)" } ?? "") + " · Double-tap or drag to play" : ""))
                 .font(.system(size: 12, weight: .medium)).foregroundStyle(RoomColor.muted)
                 .lineLimit(1).minimumScaleFactor(0.75).accessibilityLabel(status)
                 .accessibilityHint(canSelect ? "Double-tap or drag to play" : "").accessibilityIdentifier("tarneeb-live-status")
@@ -322,6 +331,21 @@ struct LiveTableView: View {
                     // Keep the approved 44×36 ornament; expand only the button's input region.
                     .background(Circle().fill(RoomColor.felt.opacity(0.6)).frame(width: 44, height: 36))
                     .overlay(Circle().stroke(RoomColor.edge, lineWidth: 0.65).frame(width: 44, height: 36))
+            }
+            .overlay {
+                if coachEnabled {
+                    Button("Played", action: openTracker)
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(RoomColor.ivory)
+                        .frame(width: 76, height: 44)
+                        .background(RoomColor.forest, in: RoundedRectangle(cornerRadius: 10))
+                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(RoomColor.brass, lineWidth: 1))
+                        .disabled(!trackerAvailable)
+                        .accessibilityLabel("Played cards")
+                        .accessibilityHint(trackerAvailable ? "Opens the played-card tracker" : "Available on your turn after cards settle.")
+                        .accessibilityIdentifier("tarneeb-played-button")
+                        .accessibilityFocused($playedFocused)
+                }
             }
         }.foregroundStyle(ink).frame(height: LiveTableToken.handFooterHeight)
     }
@@ -577,5 +601,120 @@ private struct LiveHandButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .scaleEffect(configuration.isPressed ? 0.98 : 1)
+    }
+}
+
+/// Receives only an immutable public observation, never authoritative game state.
+struct PlayedTrackerModal: View {
+    @Environment(\.dynamicTypeSize) private var typeSize
+    let presentation: PlayedTrackerPresentation
+    let visible: () -> Void
+    let close: () -> Void
+    @State private var inspectedSuit: Suit?
+    @AccessibilityFocusState private var titleFocused: Bool
+
+    var body: some View {
+        GeometryReader { proxy in
+            let width = proxy.size.width > 24 ? min(proxy.size.width - 24, 440) : 351
+            let columns = width >= 360 && typeSize <= .large ? 13 : (typeSize.isAccessibilitySize ? 4 : 7)
+            VStack(alignment: .leading, spacing: 12) {
+                if typeSize.isAccessibilitySize {
+                    HStack(alignment: .top) {
+                        trackerTitle
+                        Spacer(minLength: 4)
+                        closeButton
+                    }
+                    trackerSummary.fixedSize(horizontal: false, vertical: true)
+                } else {
+                    HStack(alignment: .top) {
+                        VStack(alignment: .leading, spacing: 3) {
+                            trackerTitle
+                            trackerSummary
+                        }
+                        Spacer(minLength: 4)
+                        closeButton
+                    }
+                }
+                ScrollView(.vertical) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        ForEach(PlayedTrackerSnapshot.suits, id: \.self) { suit in
+                            suitGroup(suit, columns: columns)
+                        }
+                        Text("✓ Played · Unmarked: not yet played").font(.footnote)
+                        Text("Not yet played does not identify who holds it.").font(.footnote)
+                    }
+                }
+                .scrollIndicators(.visible)
+                .fixedSize(horizontal: false, vertical: typeSize <= .large)
+            }
+            .padding(16)
+            .foregroundStyle(RoomColor.ivory)
+            .background(RoomColor.forest, in: RoundedRectangle(cornerRadius: 16))
+            .overlay(RoundedRectangle(cornerRadius: 16).stroke(RoomColor.brass, lineWidth: 1))
+            .frame(width: width)
+            .frame(maxHeight: max(1, proxy.size.height - 24))
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("tarneeb-played-tracker")
+        .onAppear { titleFocused = true; visible() }
+    }
+
+    private var trackerTitle: some View {
+        Text("Played cards").font(.title3.bold())
+            .fixedSize(horizontal: false, vertical: true)
+            .accessibilityAddTraits(.isHeader).accessibilityFocused($titleFocused)
+    }
+
+    private var trackerSummary: some View {
+        Text("\(presentation.snapshot.played.count) of 52 played · This hand")
+            .font(.subheadline).accessibilityIdentifier("tarneeb-tracker-total")
+    }
+
+    private var closeButton: some View {
+        Button("Close", action: close)
+            .font(.body).frame(minWidth: 60, minHeight: 44)
+            .background(RoomColor.felt, in: RoundedRectangle(cornerRadius: 9))
+            .accessibilityIdentifier("tarneeb-tracker-close")
+    }
+
+    private func suitGroup(_ suit: Suit, columns: Int) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            if typeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("\(suit.displaySymbol)  \(suit.rawValue.capitalized)").font(.headline)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text("\(presentation.snapshot.count(in: suit)) played").font(.subheadline)
+                }
+            } else {
+                HStack {
+                    Text("\(suit.displaySymbol)  \(suit.rawValue.capitalized)").font(.headline)
+                    Spacer()
+                    Text("\(presentation.snapshot.count(in: suit)) played").font(.subheadline)
+                }
+            }
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 3), count: columns), spacing: 3) {
+                ForEach(PlayedTrackerSnapshot.ranks, id: \.self) { rank in
+                    let played = presentation.snapshot.played.contains(Card(suit: suit, rank: rank))
+                    Text(rank.displayLabel)
+                        .font(.body.weight(played ? .bold : .regular))
+                        .foregroundStyle(played ? RoomColor.forest : RoomColor.ivory)
+                        .frame(maxWidth: .infinity, minHeight: 26)
+                        .background(played ? RoomColor.brass : Color.clear, in: RoundedRectangle(cornerRadius: 4))
+                        .overlay(alignment: .bottomTrailing) {
+                            if played { Image(systemName: "checkmark").font(.system(size: 7, weight: .bold)).foregroundStyle(RoomColor.forest).padding(2) }
+                        }
+                        .accessibilityLabel("\(rank.displayLabel) of \(suit.rawValue), \(played ? "played" : "not yet played")")
+                        .accessibilityIdentifier("tarneeb-tracker-rank-\(suit.rawValue)-\(rank.rawValue)")
+                        .accessibilityHidden(inspectedSuit != suit)
+                }
+            }
+        }
+        .accessibilityElement(children: inspectedSuit == suit ? .contain : .ignore)
+        .accessibilityLabel(presentation.snapshot.summary(for: suit))
+        .accessibilityIdentifier("tarneeb-tracker-suit-\(suit.rawValue)")
+        .accessibilityAction(named: Text(inspectedSuit == suit ? "Use suit summary" : "Inspect ranks")) {
+            inspectedSuit = inspectedSuit == suit ? nil : suit
+        }
     }
 }

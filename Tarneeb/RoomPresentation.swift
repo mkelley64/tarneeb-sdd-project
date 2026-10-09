@@ -10,6 +10,7 @@ extension View {
 
 // Contemporary Levantine card-room presentation across the existing single-player game.
 enum RoomColor {
+    static let trackerScrim = color(0x000000)
     static let forest = color(0x103C31), felt = color(0x235443)
     static let ivory = color(0xF4EDE0), paper = color(0xFFFDF6)
     static let brass = color(0xDDC69C), muted = color(0xC0CEC1)

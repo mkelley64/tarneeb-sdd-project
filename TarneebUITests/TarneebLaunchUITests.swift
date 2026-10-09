@@ -1,4 +1,5 @@
 import XCTest
+import UIKit
 
 private func waitForInteractiveOpening(_ app: XCUIApplication, file: StaticString = #filePath, line: UInt = #line) {
     let deal = app.buttons["tarneeb-deal-button"]
@@ -2052,5 +2053,240 @@ final class TarneebBuild3PolishUITests: XCTestCase {
         XCTAssertEqual(deck.frame.midX, source.frame.midX, accuracy: 0.5)
         XCTAssertEqual(deck.frame.midY, source.frame.midY + 1.5, accuracy: 0.5)
         shot("all-pass-rotated-South-dealer-origin", app)
+    }
+}
+
+final class TarneebCoachUITests: XCTestCase {
+    override func setUpWithError() throws { continueAfterFailure = false }
+
+    private func launch(coach: Bool, fixture: String = "contract-six", reduced: Bool = false, maximumText: Bool = false, saveID: String? = nil) -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchArguments += ["-tarneeb.coachEnabled", coach ? "YES" : "NO", "-tarneeb.aiSkill", "standard"]
+        if !fixture.isEmpty { app.launchEnvironment["TARNEEB_LIVE_FIXTURE"] = fixture }
+        if let saveID { app.launchEnvironment["TARNEEB_SAVE_TEST_ID"] = saveID }
+        app.launchEnvironment["TARNEEB_REDUCE_MOTION"] = reduced ? "1" : "0"
+        if maximumText { app.launchArguments += ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"] }
+        app.launch()
+        XCTAssertTrue(app.otherElements["tarneeb-live-table"].waitForExistence(timeout: 10))
+        return app
+    }
+    private func capture(_ name: String, _ app: XCUIApplication) {
+        let shot = XCTAttachment(screenshot: app.screenshot()); shot.name = name; shot.lifetime = .keepAlways; add(shot)
+    }
+    private func open(_ app: XCUIApplication) {
+        let played = app.buttons["tarneeb-played-button"]
+        let ready = XCTNSPredicateExpectation(predicate: NSPredicate(format: "enabled == true"), object: played)
+        XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 15), .completed)
+        played.tap()
+        XCTAssertTrue(app.otherElements["tarneeb-played-tracker"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["tarneeb-tracker-close"].isHittable)
+    }
+
+    func testCoachOffEquivalentGeometryAndOptionsSwitchIndependentOfSkill() {
+        let off = launch(coach: false, fixture: "4-4-3-2")
+        XCTAssertFalse(off.buttons["tarneeb-played-button"].exists)
+        let cardID = "tarneeb-live-card-spades-2"
+        let handFrame = off.buttons[cardID].frame
+        let scoreFrame = off.staticTexts["North South score 0"].frame
+        let recallFrame = off.buttons["tarneeb-last-trick"].frame
+        capture("Coach OFF baseline table", off)
+        off.buttons["tarneeb-game-options"].tap()
+        let coach = off.descendants(matching: .any)["tarneeb-coach-switch"]
+        XCTAssertTrue(coach.waitForExistence(timeout: 3))
+        XCTAssertTrue(off.descendants(matching: .any)["tarneeb-ai-skill"].exists)
+        off.terminate()
+        let on = launch(coach: true, fixture: "4-4-3-2")
+        XCTAssertTrue(on.buttons["tarneeb-played-button"].exists)
+        XCTAssertEqual(on.buttons[cardID].frame, handFrame)
+        XCTAssertEqual(on.staticTexts["North South score 0"].frame, scoreFrame)
+        XCTAssertEqual(on.buttons["tarneeb-last-trick"].frame, recallFrame)
+        XCTAssertFalse(on.buttons["tarneeb-played-button"].frame.intersects(on.buttons["tarneeb-last-trick"].frame))
+        XCTAssertFalse(on.buttons["tarneeb-played-button"].frame.intersects(on.staticTexts["tarneeb-live-south-tricks"].frame))
+        capture("Coach ON entry without geometry change", on)
+        on.terminate()
+    }
+
+    func testCoachModalPublicTruthPreservesSelectionBlocksInputAndReturnsClosed() {
+        verifyPublicModal(reduced: false)
+    }
+
+    func testCoachReduceMotionModalPreservesPublicTruthAndSelection() {
+        verifyPublicModal(reduced: true)
+    }
+
+    private func verifyPublicModal(reduced: Bool) {
+        let app = launch(coach: true, reduced: reduced)
+        let selected = app.buttons["tarneeb-live-card-spades-8"]
+        selected.tap()
+        expectation(for: NSPredicate(format: "value == %@", "Selected"), evaluatedWith: selected)
+        waitForExpectations(timeout: 3)
+        let original = selected.frame
+        open(app)
+        XCTAssertEqual(app.staticTexts["tarneeb-tracker-total"].label, "24 of 52 played · This hand")
+        for suit in ["spades","hearts","clubs","diamonds"] {
+            let summary = app.otherElements["tarneeb-tracker-suit-\(suit)"]
+            XCTAssertTrue(summary.exists)
+            XCTAssertTrue(summary.label.contains("6 played"))
+            XCTAssertTrue(summary.label.contains("A, K, Q, J, 10, 9, 8"))
+            XCTAssertTrue(summary.label.contains("7, 6, 5, 4, 3, 2"))
+        }
+        XCTAssertFalse(app.buttons["tarneeb-live-card-spades-8"].isHittable)
+        XCTAssertFalse(app.buttons["tarneeb-game-options"].isHittable)
+        capture("Coach public tracker six completed tricks", app)
+        app.tapCoordinate(original.origin)
+        XCTAssertTrue(app.buttons["tarneeb-tracker-close"].exists)
+        app.buttons["tarneeb-tracker-close"].tap()
+        XCTAssertTrue(selected.waitForExistence(timeout: 3))
+        XCTAssertEqual(selected.value as? String, "Selected")
+        XCTAssertEqual(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "tarneeb-live-card-")).count, 7)
+        selected.doubleTap()
+        expectation(for: NSPredicate(format: "enabled == true"), evaluatedWith: app.buttons["tarneeb-played-button"])
+        waitForExpectations(timeout: 15)
+        open(app)
+        XCTAssertEqual(app.staticTexts["tarneeb-tracker-total"].label, "28 of 52 played · This hand")
+        capture("Coach public tracker seven completed tricks", app)
+        app.buttons["tarneeb-tracker-close"].tap()
+        app.terminate()
+    }
+
+    func testCoachBackgroundAndDiskRestoreRetainUsageButNeverReopen() {
+        let id = UUID().uuidString
+        let app = launch(coach: true, reduced: true, saveID: id)
+        open(app)
+        XCUIDevice.shared.press(.home)
+        app.activate()
+        XCTAssertFalse(app.otherElements["tarneeb-played-tracker"].exists)
+        open(app)
+        app.buttons["tarneeb-tracker-close"].tap()
+        app.terminate()
+        app.launchEnvironment.removeValue(forKey: "TARNEEB_LIVE_FIXTURE")
+        app.launch()
+        XCTAssertTrue(app.buttons["tarneeb-played-button"].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.otherElements["tarneeb-played-tracker"].exists)
+        for rank in ["8","9","10","J","Q","K"] {
+            let card = app.buttons["tarneeb-live-card-spades-\(rank)"]
+            XCTAssertTrue(card.waitForExistence(timeout: 12))
+            let ready = XCTNSPredicateExpectation(predicate: NSPredicate(format: "enabled == true"), object: app.buttons["tarneeb-played-button"])
+            XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 15), .completed)
+            card.doubleTap()
+        }
+        let usage = app.staticTexts["tarneeb-coach-result"]
+        XCTAssertTrue(usage.waitForExistence(timeout: 25))
+        XCTAssertEqual(usage.label, "You checked the played-card tracker 2 times this hand.")
+        capture("Coach neutral current-hand result", app)
+        app.terminate()
+    }
+
+    func testCoachMaximumTextKeepsCloseFixedAndAllSuitSummariesReachable() {
+        let app = launch(coach: true, maximumText: true)
+        open(app)
+        let close = app.buttons["tarneeb-tracker-close"]
+        let fixed = close.frame
+        XCTAssertGreaterThanOrEqual(fixed.width, 44)
+        XCTAssertGreaterThanOrEqual(fixed.height, 44)
+        let total = app.staticTexts["tarneeb-tracker-total"]
+        XCTAssertEqual(total.label, "24 of 52 played · This hand")
+        let font = UIFont.preferredFont(forTextStyle: .subheadline,
+            compatibleWith: UITraitCollection(preferredContentSizeCategory: .accessibilityExtraExtraExtraLarge))
+        let requiredHeight = (total.label as NSString).boundingRect(
+            with: CGSize(width: total.frame.width, height: CGFloat.greatestFiniteMagnitude),
+            options: [.usesLineFragmentOrigin, .usesFontLeading], attributes: [.font: font], context: nil).height
+        XCTAssertGreaterThanOrEqual(total.frame.height + 2, ceil(requiredHeight), "The full summary must fit without truncation")
+        XCTAssertTrue(app.frame.contains(total.frame))
+        capture("Coach maximum text tracker top", app)
+        let scroll = app.scrollViews.firstMatch
+        XCTAssertLessThanOrEqual(total.frame.maxY, scroll.frame.minY + 1)
+        for suit in ["spades","hearts","clubs","diamonds"] {
+            let summary = app.otherElements["tarneeb-tracker-suit-\(suit)"]
+            for _ in 0..<6 where !summary.isHittable { scroll.swipeUp() }
+            XCTAssertTrue(summary.isHittable)
+            XCTAssertEqual(close.frame, fixed)
+        }
+        let clarification = app.staticTexts["Not yet played does not identify who holds it."]
+        for _ in 0..<12 {
+            if clarification.isHittable && scroll.frame.insetBy(dx: -1, dy: -1).contains(clarification.frame) { break }
+            scroll.swipeUp()
+        }
+        XCTAssertTrue(clarification.isHittable)
+        XCTAssertTrue(scroll.frame.insetBy(dx: -1, dy: -1).contains(clarification.frame))
+        XCTAssertEqual(close.frame, fixed)
+        capture("Coach maximum text tracker bottom", app)
+        close.tap()
+        XCTAssertTrue(app.buttons["tarneeb-played-button"].exists)
+        app.terminate()
+    }
+}
+
+private extension XCUIApplication {
+    func tapCoordinate(_ point: CGPoint) {
+        coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: point.x, dy: point.y)).tap()
+    }
+}
+
+
+final class TarneebPlayedCenterUITests: XCTestCase {
+    override func setUpWithError() throws { continueAfterFailure = false }
+
+    func testPlayedStaysAtScreenMidpointWithAsymmetricNegativeAndDoubleDigitScores() {
+        for (fixture, northSouth, eastWest) in [("4-4-3-2", 0, 0), ("last-two", 0, 0),
+            ("round-made", 16, 0), ("round-missed", -7, 16), ("round-defense", 16, -9)] {
+            let off = launch(fixture: fixture, coach: false)
+            let baseline = frames(off, northSouth: northSouth, eastWest: eastWest)
+            XCTAssertFalse(off.buttons["tarneeb-played-button"].exists)
+            off.terminate()
+            let on = launch(fixture: fixture, coach: true)
+            let current = frames(on, northSouth: northSouth, eastWest: eastWest)
+            for (name, frame) in baseline { XCTAssertEqual(current[name], frame, "Coach must preserve \(name) geometry: \(fixture)") }
+            let played = on.buttons["tarneeb-played-button"].frame
+            XCTAssertEqual(played.midX, on.frame.midX, accuracy: 0.5, "Center must follow the screen, regardless of footer widths")
+            XCTAssertEqual(played.width, 76, accuracy: 1, "Accessibility bounds include the one-point border")
+            XCTAssertEqual(played.height, 44, accuracy: 1, "Accessibility bounds include the one-point border")
+            XCTAssertEqual(played.midY, current["recall"]!.midY, accuracy: 0.5, "Preserve the approved vertical position")
+            for name in ["your team", "your tricks", "opponents", "recall"] {
+                XCTAssertFalse(played.intersects(current[name]!), "Played must not cover \(name)")
+            }
+            let geometry = XCTAttachment(string: "screen=\(on.frame); Played=\(played); NS=\(northSouth); EW=\(eastWest); controls=\(current)")
+            geometry.name = "Played geometry \(Int(on.frame.width))pt \(fixture)"; geometry.lifetime = .keepAlways; add(geometry)
+            let shot = XCTAttachment(screenshot: on.screenshot())
+            shot.name = "Played centered \(Int(on.frame.width))pt NS\(northSouth) EW\(eastWest) \(fixture)"
+            shot.lifetime = .keepAlways; add(shot)
+            on.terminate()
+        }
+    }
+
+    private func frames(_ app: XCUIApplication, northSouth: Int, eastWest: Int) -> [String: CGRect] {
+        let ns = app.staticTexts["North South score \(northSouth)"]
+        let ew = app.staticTexts["East West score \(eastWest)"]
+        XCTAssertTrue(ns.exists); XCTAssertTrue(ew.exists)
+        let team = app.staticTexts["tarneeb-live-team-tricks"]
+        let own = app.staticTexts["tarneeb-live-south-tricks"]
+        let opponents = app.staticTexts["OPPONENTS"]
+        XCTAssertTrue(team.exists); XCTAssertTrue(own.exists); XCTAssertTrue(opponents.exists)
+        return ["NS score": ns.frame, "EW score": ew.frame, "your team": team.frame,
+            "your tricks": own.frame, "opponents": opponents.frame, "recall": app.buttons["tarneeb-last-trick"].frame]
+    }
+
+    private func launch(fixture: String, coach: Bool) -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchArguments += ["-tarneeb.coachEnabled", coach ? "YES" : "NO", "-tarneeb.aiSkill", "standard"]
+        app.launchEnvironment["TARNEEB_REDUCE_MOTION"] = "1"
+        app.launchEnvironment["TARNEEB_SIMULATED_BIDS"] = "east:pass,north:pass,west:pass"
+        if fixture.hasPrefix("round-") {
+            app.launchEnvironment["TARNEEB_RESULT_FIXTURE"] = fixture
+        } else { app.launchEnvironment["TARNEEB_LIVE_FIXTURE"] = fixture }
+        app.launch()
+        if fixture.hasPrefix("round-") {
+            let next = app.buttons["tarneeb-next-hand"]
+            XCTAssertTrue(next.waitForExistence(timeout: 10)); next.tap()
+            let bid = app.buttons["tarneeb-bid-button-south"]
+            XCTAssertTrue(bid.waitForExistence(timeout: 30))
+            let legalBid = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "tarneeb-bid-option-")).firstMatch
+            XCTAssertTrue(legalBid.exists); legalBid.tap(); bid.tap()
+            let trump = app.buttons["tarneeb-post-bidding-suit-button-south"]
+            XCTAssertTrue(trump.waitForExistence(timeout: 20))
+            app.buttons["tarneeb-bid-suit-option-spades"].tap(); trump.tap()
+        }
+        XCTAssertTrue(app.otherElements["tarneeb-live-table"].waitForExistence(timeout: 10))
+        return app
     }
 }

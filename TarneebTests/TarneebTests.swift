@@ -5379,3 +5379,230 @@ extension TarneebTests {
         XCTAssertEqual(view().actionHeight, 72)
     }
 }
+
+extension TarneebTests {
+    func testCoachPublicProjectionCoversAllRanksRejectsDuplicatesAndDeduplicatesPending() throws {
+        let id = UUID()
+        let deck = DeckFactory.makeCanonicalDeck()
+        let all = deck.map { PlayedCard(seat: .south, card: $0) }
+        let snapshot = try XCTUnwrap(PlayedTrackerSnapshot(handID: id, publicPlays: all))
+        XCTAssertEqual(snapshot.played.count, 52)
+        XCTAssertEqual(PlayedTrackerSnapshot.suits, [.spades, .hearts, .clubs, .diamonds])
+        XCTAssertEqual(PlayedTrackerSnapshot.ranks.map(\.rawValue), ["A","K","Q","J","10","9","8","7","6","5","4","3","2"])
+        for suit in PlayedTrackerSnapshot.suits { XCTAssertEqual(snapshot.count(in: suit), 13) }
+        XCTAssertNil(PlayedTrackerSnapshot(handID: id, publicPlays: all + [all[0]]))
+        XCTAssertEqual(PlayedTrackerSnapshot(handID: id, publicPlays: [])?.played.count, 0)
+        var trick = TrickPlayState(declarerSeat: .south, tarneebSuit: .spades)
+        for (seat, rank) in zip(Seat.dealOrder, Rank.allCases.prefix(4)) {
+            trick.appendPlayedCard(PlayedCard(seat: seat, card: Card(suit: .clubs, rank: rank)))
+        }
+        XCTAssertNotNil(trick.pendingCompletedTrick)
+        let pending = try XCTUnwrap(PlayedTrackerSnapshot(handID: id, publicPlays: trick.playedCards))
+        XCTAssertEqual(pending.played.count, 4)
+        trick.clearPendingCompletedTrick()
+        XCTAssertEqual(PlayedTrackerSnapshot(handID: id, publicPlays: trick.playedCards), pending)
+        XCTAssertTrue(pending.summary(for: .clubs).contains("4 played"))
+        XCTAssertTrue(pending.summary(for: .spades).contains("Played: none"))
+    }
+
+    func testCoachProjectionIsInvariantUnderHiddenHandPermutations() throws {
+        let dealt = try makeRoundRobinCompletedDeal()
+        let contract = try makeContractState(from: dealt, highBidderSeat: .south, bidValue: .seven, tarneebSuit: .hearts)
+        let publicGame = TrickPlayService().playSouthCard(Card(suit: .spades, rank: .six), in: contract.startingTrickPlayIfReady())
+        let id = UUID()
+        let expected = PlayedTrackerSnapshot(handID: id, publicPlays: publicGame.trickPlayState!.playedCards)
+        let hidden = publicGame.players.filter { $0.seat != .south }.map(\.hand)
+        for permutation in [[0,1,2],[0,2,1],[1,0,2],[1,2,0],[2,0,1],[2,1,0]] {
+            var players = publicGame.players
+            var offset = 0
+            for i in players.indices where players[i].seat != .south { players[i].hand = hidden[permutation[offset]]; offset += 1 }
+            let game = try XCTUnwrap(GameState(phase: publicGame.phase, players: players, dealerSeat: publicGame.dealerSeat,
+                deck: publicGame.deck, biddingState: publicGame.biddingState, postBiddingSummary: publicGame.postBiddingSummary,
+                trickPlayState: publicGame.trickPlayState))
+            XCTAssertEqual(PlayedTrackerSnapshot(handID: id, publicPlays: game.trickPlayState!.playedCards), expected)
+        }
+        XCTAssertEqual(expected?.played.count, 1)
+        XCTAssertFalse(expected!.played.contains(publicGame.players.first { $0.seat == .south }!.hand.first!))
+    }
+
+    func testCoachRevealGateRejectsEveryUnsettledAndOffState() {
+        // All conditions are independently necessary, including equality and rebound/collection.
+        func gate(_ failure: Int?) -> PlayedTrackerAvailability {
+            PlayedTrackerAvailability(enabled: failure != 0, active: failure != 1, paused: failure == 2,
+                confirming: failure == 3, flying: failure == 4, southTask: failure == 5, collecting: failure == 6,
+                visibleMatchesAuthority: failure != 7, playing: failure != 8, southTurn: failure != 9, pendingTrick: failure == 10)
+        }
+        XCTAssertTrue(gate(nil).canOpen)
+        for condition in 0...10 { XCTAssertFalse(gate(condition).canOpen, "Gate condition \(condition)") }
+    }
+
+    func testCoachDefaultOffAndToggleDoNotChangeSkillOrGame() throws {
+        let suite = "coach-\(UUID())"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        XCTAssertFalse(CoachPreference.enabled(in: defaults))
+        defaults.set(AISkill.expert.rawValue, forKey: AISkill.preferenceKey)
+        let model = TarneebPresentationState(dealService: DealService(shuffler: CardShuffler { $0 }, handLogger: HandLogger { _ in }), aiPreferences: defaults)
+        model.deal()
+        let before = model.snapshot
+        XCTAssertNil(model.reserveTrackerPresentation(handID: model.currentHandCoach.handID, enabled: false))
+        for enabled in [true, false, true, false] {
+            defaults.set(enabled, forKey: CoachPreference.key)
+            XCTAssertEqual(CoachPreference.enabled(in: defaults), enabled)
+            XCTAssertEqual(AISkill.preference(in: defaults), .expert)
+            XCTAssertEqual(model.snapshot, before)
+            XCTAssertEqual(model.activeAISkill, .expert)
+        }
+    }
+
+    func testCoachUsageTokensAreIdempotentCancelAndResetAtHandBoundaries() throws {
+        let model = TarneebPresentationState(dealService: DealService(shuffler: CardShuffler { $0 }, handLogger: HandLogger { _ in }),
+            dealerSelector: EnvironmentDealerSelector(environment: ["TARNEEB_INITIAL_DEALER": "west"]),
+            biddingService: BiddingService(bidGenerator: BidGenerator { _ in .pass }))
+        model.deal()
+        let originalID = model.currentHandCoach.handID
+        let cancelled = try XCTUnwrap(model.reserveTrackerPresentation(handID: originalID, enabled: true))
+        XCTAssertNil(model.reserveTrackerPresentation(handID: originalID, enabled: true))
+        model.cancelTrackerPresentation(cancelled)
+        XCTAssertFalse(model.commitTrackerPresentation(token: cancelled, handID: originalID, enabled: true))
+        for count in 1...3 {
+            let token = try XCTUnwrap(model.reserveTrackerPresentation(handID: originalID, enabled: true))
+            XCTAssertFalse(model.commitTrackerPresentation(token: token, handID: originalID, enabled: false))
+            XCTAssertTrue(model.commitTrackerPresentation(token: token, handID: originalID, enabled: true))
+            XCTAssertFalse(model.commitTrackerPresentation(token: token, handID: originalID, enabled: true))
+            XCTAssertEqual(model.currentHandCoach.openCount, count)
+            model.cancelTrackerPresentation(token)
+        }
+        XCTAssertEqual(model.currentHandCoach.resultCopy, "You checked the played-card tracker 3 times this hand.")
+        model.submitSouthBid(.pass)
+        for _ in 0..<3 { model.resolveNextSimulatedBid() }
+        model.automaticRedealAfterAllPass()
+        XCTAssertNotEqual(model.currentHandCoach.handID, originalID)
+        XCTAssertEqual(model.currentHandCoach.openCount, 0)
+        let redealID = model.currentHandCoach.handID
+        model.newGame()
+        XCTAssertNotEqual(model.currentHandCoach.handID, redealID)
+        XCTAssertEqual(model.currentHandCoach.openCount, 0)
+        XCTAssertEqual(CurrentHandCoach(openCount: 1).resultCopy, "You checked the played-card tracker 1 time this hand.")
+        XCTAssertEqual(CurrentHandCoach().resultCopy, "You checked the played-card tracker 0 times this hand.")
+    }
+
+    func testCoachSchemaOneAndTwoRemainReadableByOldReaderAndMalformedMetadataDoesNotLoseGame() throws {
+        // Exact pre-Coach envelope fields; synthesized old decoding ignores additive keys.
+        struct OldReader: Codable {
+            var version: Int
+            let game: GameState
+            let score: GameScore
+            let lastRound: RoundScoreResult?
+            let completedRounds: Int
+            let hasStarted: Bool
+            let announcedRound: Int?
+            var activeAISkill: AISkill?
+        }
+        let model = TarneebPresentationState()
+        for version in [1,2] {
+            var snapshot = model.snapshot
+            snapshot.version = version
+            let encoded = try JSONEncoder().encode(snapshot)
+            let old = try JSONDecoder().decode(OldReader.self, from: encoded)
+            XCTAssertEqual(old.game, snapshot.game)
+            let new = try JSONDecoder().decode(MatchSnapshot.self, from: JSONEncoder().encode(old)).validated()
+            XCTAssertNil(new.currentHandCoach)
+            XCTAssertEqual(new.game, snapshot.game)
+            var json = try XCTUnwrap(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+            for invalid: Any in ["bad", ["handID":"not-a-uuid","openCount":2], ["handID":UUID().uuidString,"openCount":-1], ["handID":UUID().uuidString,"openCount":"2"]] {
+                json["currentHandCoach"] = invalid
+                let restored = try JSONDecoder().decode(MatchSnapshot.self, from: JSONSerialization.data(withJSONObject: json)).validated()
+                XCTAssertEqual(restored.game, snapshot.game)
+                XCTAssertNil(restored.currentHandCoach)
+                XCTAssertTrue(restored.coachMetadataWasInvalid)
+            }
+        }
+    }
+
+    func testCoachSaveFailureRetryWritesAbsoluteCountAndRestoreKeepsSameHand() throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let blocker = folder.appendingPathComponent("blocked")
+        try Data("block".utf8).write(to: blocker)
+        let store = MatchStore(url: blocker.appendingPathComponent("match.json"))
+        let model = TarneebPresentationState()
+        model.enablePersistence(store, restoring: false)
+        let id = model.currentHandCoach.handID
+        let token = try XCTUnwrap(model.reserveTrackerPresentation(handID: id, enabled: true))
+        XCTAssertTrue(model.commitTrackerPresentation(token: token, handID: id, enabled: true))
+        XCTAssertEqual(model.currentHandCoach.openCount, 1)
+        XCTAssertTrue(model.coachUsageDirty)
+        XCTAssertNotNil(model.saveNotice)
+        model.retrySave()
+        XCTAssertEqual(model.currentHandCoach.openCount, 1)
+        try FileManager.default.removeItem(at: blocker)
+        model.retrySave()
+        XCTAssertFalse(model.coachUsageDirty)
+        XCTAssertNil(model.saveNotice)
+        let restored = TarneebPresentationState()
+        restored.enablePersistence(store)
+        XCTAssertEqual(restored.currentHandCoach, model.currentHandCoach)
+        XCTAssertEqual(restored.snapshot.game, model.snapshot.game)
+        XCTAssertFalse(restored.commitTrackerPresentation(token: token, handID: id, enabled: true))
+        let reopened = try XCTUnwrap(restored.reserveTrackerPresentation(handID: id, enabled: true))
+        XCTAssertTrue(restored.commitTrackerPresentation(token: reopened, handID: id, enabled: true))
+        XCTAssertEqual(try store.load()?.currentHandCoach?.openCount, 2)
+    }
+}
+
+extension TarneebTests {
+    func testCoachCompletedHandRetainsCountUntilAcceptedNextDealAndRejectsStaleToken() throws {
+        let model = TarneebPresentationState(dealService: DealService(shuffler: CardShuffler { $0 }, handLogger: HandLogger { _ in }),
+            dealerSelector: EnvironmentDealerSelector(environment: ["TARNEEB_INITIAL_DEALER": "west"]),
+            biddingService: BiddingService(bidGenerator: BidGenerator { _ in .pass }))
+        model.deal()
+        model.submitSouthBid(.seven, selectedTarneebSuit: .spades)
+        for _ in 0..<3 { model.resolveNextSimulatedBid() }
+        model.startTrickPlayIfReady()
+        let id = model.currentHandCoach.handID
+        let token = try XCTUnwrap(model.reserveTrackerPresentation(handID: id, enabled: true))
+        XCTAssertTrue(model.commitTrackerPresentation(token: token, handID: id, enabled: true))
+        for _ in 0..<13 {
+            for _ in 0..<4 {
+                if model.gameState.currentTrickTurnSeat == .south {
+                    model.playSouthCard(try XCTUnwrap(TrickPlayRules.legalCards(for: .south, in: model.gameState).first))
+                } else { model.resolveNextSimulatedTrickPlay() }
+            }
+            model.clearCompletedTrickIfNeeded()
+        }
+        XCTAssertEqual(model.gameState.phase, .handComplete)
+        XCTAssertEqual(model.currentHandCoach.handID, id)
+        XCTAssertEqual(model.currentHandCoach.openCount, 1)
+        XCTAssertEqual(model.gameState.trickPlayState?.playedCards.count, 52)
+        model.startNextRound()
+        XCTAssertEqual(model.gameState.phase, .dealt)
+        XCTAssertNotEqual(model.currentHandCoach.handID, id)
+        XCTAssertEqual(model.currentHandCoach.openCount, 0)
+        XCTAssertFalse(model.commitTrackerPresentation(token: token, handID: id, enabled: true))
+    }
+
+    func testCoachLegacyRestorePersistsFreshIdentityOnRetryWithoutChangingGame() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = MatchStore(url: directory.appendingPathComponent("match.json"))
+        let source = TarneebPresentationState()
+        var legacy = source.snapshot
+        legacy.currentHandCoach = nil
+        try store.save(legacy)
+        let restored = TarneebPresentationState()
+        restored.enablePersistence(store)
+        XCTAssertEqual(restored.gameState, legacy.game)
+        XCTAssertEqual(restored.currentHandCoach.openCount, 0)
+        XCTAssertTrue(restored.coachUsageDirty)
+        let identity = restored.currentHandCoach.handID
+        restored.retrySave()
+        XCTAssertFalse(restored.coachUsageDirty)
+        XCTAssertEqual(try store.load()?.currentHandCoach?.handID, identity)
+        let second = TarneebPresentationState()
+        second.enablePersistence(store)
+        XCTAssertEqual(second.currentHandCoach.handID, identity)
+        XCTAssertEqual(second.gameState, legacy.game)
+    }
+}

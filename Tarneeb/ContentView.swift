@@ -14,6 +14,9 @@ struct ContentView: View {
     @State private var southPlayTask: Task<Void, Never>?
     @State private var liveCollecting = false
     @State private var isLivePaused = false
+    @AppStorage(CoachPreference.key) private var coachEnabled = false
+    @State private var trackerPresentation: PlayedTrackerPresentation?
+    @State private var trackerFocusRevision = 0
     @State private var feedback = TableFeedback()
     @State private var presentationState: TarneebPresentationState
     @State private var gameState: GameState
@@ -170,7 +173,8 @@ struct ContentView: View {
                     settledOnArrival: restoredOutcomeRound == presentationState.completedRoundCount,
                     blocked: scenePhase != .active || isCancelGameConfirmationPresented || isLivePaused,
                     nextHand: startNextHand, newGame: newGame, announce: announceRoundResult,
-                    lastTrick: gameState.trickPlayState?.completedTricks.last
+                    lastTrick: gameState.trickPlayState?.completedTricks.last,
+                    coachUsage: presentationState.currentHandCoach.resultCopy
                 )
             } else if gameState.phase == .trickPlay || gameState.phase == .handComplete {
                 LiveTableView(
@@ -193,7 +197,12 @@ struct ContentView: View {
                         resumeLivePlay()
                     },
                     roundResult: statusLabelText,
-                    continuity: tableContinuity
+                    continuity: tableContinuity,
+                    coachEnabled: coachEnabled,
+                    trackerAvailable: trackerAvailability.canOpen,
+                    trackerVisible: trackerPresentation != nil,
+                    openTracker: openPlayedTracker,
+                    trackerFocusRevision: trackerFocusRevision
                 )
                 .transition(.identity)
             } else {
@@ -242,13 +251,30 @@ struct ContentView: View {
             }
             #endif
         }
+        .fullScreenCover(item: $trackerPresentation, onDismiss: {
+            trackerFocusRevision += 1
+        }) { presentation in
+            ZStack {
+                RoomColor.trackerScrim.opacity(0.48).ignoresSafeArea().contentShape(Rectangle()).onTapGesture { }
+                    .accessibilityHidden(true)
+                PlayedTrackerModal(presentation: presentation,
+                    visible: { commitPlayedTracker(presentation) }, close: closePlayedTracker)
+            }
+            .presentationBackground(.clear)
+            .interactiveDismissDisabled()
+        }
+        .onChange(of: coachEnabled) { _, enabled in if !enabled { closePlayedTracker() } }
         .onChange(of: gameState) { _, _ in
+            if let tracker = trackerPresentation, tracker.snapshot.handID != presentationState.currentHandCoach.handID {
+                closePlayedTracker()
+            }
             if let notice = presentationState.saveNotice { saveNotice = notice }
             auditBiddingPublication()
         }
         .onChange(of: isBiddingAreaFadingOut) { _, _ in auditBiddingPublication() }
         .onChange(of: scenePhase) { _, phase in
             if phase != .active {
+                closePlayedTracker(resuming: false)
                 suspendLivePlay()
                 suspendOpening()
             } else {
@@ -257,6 +283,7 @@ struct ContentView: View {
             }
         }
         .onDisappear {
+            closePlayedTracker(resuming: false)
             suspendLivePlay()
             suspendOpening()
         }
@@ -275,8 +302,56 @@ struct ContentView: View {
             Text("The current score and round progress will be lost.")
         }
         .alert("Match storage", isPresented: Binding(get: { saveNotice != nil }, set: { if !$0 { saveNotice = nil } })) {
+            if coachEnabled && presentationState.coachUsageDirty {
+                Button("Retry Save") {
+                    presentationState.retrySave()
+                    saveNotice = presentationState.saveNotice
+                }
+            }
             Button("OK", role: .cancel) { saveNotice = nil }
         } message: { Text(saveNotice ?? "") }
+    }
+
+    private var trackerAvailability: PlayedTrackerAvailability {
+        PlayedTrackerAvailability(enabled: coachEnabled, active: scenePhase == .active,
+            paused: isLivePaused || trackerPresentation != nil, confirming: isCancelGameConfirmationPresented,
+            flying: liveFlight != nil, southTask: southPlayTask != nil, collecting: liveCollecting,
+            visibleMatchesAuthority: gameState == presentationState.gameState,
+            playing: gameState.phase == .trickPlay, southTurn: gameState.currentTrickTurnSeat == .south,
+            pendingTrick: gameState.trickPlayState?.pendingCompletedTrick != nil)
+    }
+
+    @MainActor
+    private func openPlayedTracker() {
+        guard trackerAvailability.canOpen,
+              let plays = gameState.trickPlayState?.playedCards,
+              let snapshot = PlayedTrackerSnapshot(handID: presentationState.currentHandCoach.handID, publicPlays: plays),
+              let token = presentationState.reserveTrackerPresentation(handID: snapshot.handID, enabled: coachEnabled) else { return }
+        // Recheck, filter and reserve without suspension; never read a post-pause snapshot.
+        trackerPresentation = PlayedTrackerPresentation(id: token, snapshot: snapshot)
+        isLivePaused = true
+        suspendLivePlay()
+    }
+
+    @MainActor
+    private func commitPlayedTracker(_ presentation: PlayedTrackerPresentation) {
+        guard scenePhase == .active, coachEnabled, trackerPresentation?.id == presentation.id,
+              presentation.snapshot.handID == presentationState.currentHandCoach.handID else {
+            closePlayedTracker(resuming: scenePhase == .active)
+            return
+        }
+        presentationState.commitTrackerPresentation(token: presentation.id, handID: presentation.snapshot.handID, enabled: coachEnabled)
+        if let notice = presentationState.saveNotice { saveNotice = notice }
+    }
+
+    private func closePlayedTracker() { closePlayedTracker(resuming: true) }
+    private func closePlayedTracker(resuming: Bool) {
+        guard let presentation = trackerPresentation else { return }
+        presentationState.cancelTrackerPresentation(presentation.id)
+        trackerPresentation = nil
+        isLivePaused = false
+        trackerFocusRevision += 1
+        if resuming { resumeLivePlay() }
     }
 
     private var reduceLiveMotion: Bool {
