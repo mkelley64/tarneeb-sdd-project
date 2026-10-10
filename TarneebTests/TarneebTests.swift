@@ -993,7 +993,10 @@ final class TarneebTests: XCTestCase {
     }
 
     func testUnitTestTargetRunsWithApplicationHost() {
-        XCTAssertEqual(Bundle.main.bundleIdentifier, "com.mkelley.Tarneeb")
+        let executable = Bundle.main.object(forInfoDictionaryKey: "CFBundleExecutable") as? String
+        XCTAssertTrue(["Tarneeb", "Tarneeb Royale"].contains(executable ?? ""))
+        XCTAssertEqual(Bundle.main.bundleIdentifier,
+            executable == "Tarneeb Royale" ? "com.kelley.tarneeb" : "com.mkelley.Tarneeb")
     }
 
     func testDesignTokenSourceCoversRequiredMVP007TokenKeys() {
@@ -5604,5 +5607,73 @@ extension TarneebTests {
         second.enablePersistence(store)
         XCTAssertEqual(second.currentHandCoach.handID, identity)
         XCTAssertEqual(second.gameState, legacy.game)
+    }
+}
+
+private struct DistributionCoachDefenseBidder: BidRecommending {
+    func recommendation(for context: BidRecommendationContext) -> BidRecommendation {
+        BidRecommendation(bid: context.seat == .east ? .nine : .pass,
+            preferredTarneebSuit: context.seat == .east ? .spades : nil)
+    }
+}
+
+extension TarneebTests {
+    /// Synthetic Build 3 envelopes for fresh simulator containers; no production fixture hook.
+    func testDistributionCoachLegacySaveFixturesUseLegalGameAndPublicState() throws {
+        #if !DEBUG
+        XCTAssertEqual(Bundle.main.bundleIdentifier, "com.kelley.tarneeb")
+        XCTAssertEqual(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String, "4")
+        #endif
+        func model(defense: Bool = false) -> TarneebPresentationState {
+            TarneebPresentationState(dealService: DealService(shuffler: CardShuffler { $0 }, handLogger: HandLogger { _ in }),
+                dealerSelector: EnvironmentDealerSelector(environment: ["TARNEEB_INITIAL_DEALER": "west"]),
+                biddingService: defense ? BiddingService(bidRecommender: DistributionCoachDefenseBidder()) : BiddingService(bidGenerator: BidGenerator { _ in .pass }))
+        }
+        func auction(_ owner: TarneebPresentationState, bid: BidValue, suit: Suit) {
+            while owner.gameState.biddingStatus == .inProgress {
+                if owner.gameState.currentBiddingSeat == .south { owner.submitSouthBid(bid, selectedTarneebSuit: suit) }
+                else { owner.resolveNextSimulatedBid() }
+            }
+            owner.startTrickPlayIfReady()
+        }
+        func tricks(_ owner: TarneebPresentationState, count: Int) throws {
+            for _ in 0..<count {
+                for _ in 0..<4 {
+                    if owner.gameState.currentTrickTurnSeat == .south {
+                        owner.playSouthCard(try XCTUnwrap(TrickPlayRules.legalCards(for: .south, in: owner.gameState).first))
+                    } else { owner.resolveNextSimulatedTrickPlay() }
+                }
+                owner.clearCompletedTrickIfNeeded()
+            }
+        }
+        func export(_ name: String, _ owner: TarneebPresentationState, publicCount: Int) throws {
+            let original = try owner.snapshot.validated()
+            var object = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(original)) as? [String: Any])
+            object.removeValue(forKey: "currentHandCoach")
+            let data = try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])
+            let legacy = try JSONDecoder().decode(MatchSnapshot.self, from: data).validated()
+            XCTAssertNil(legacy.currentHandCoach)
+            XCTAssertEqual(legacy.game, original.game); XCTAssertEqual(legacy.score, original.score)
+            XCTAssertEqual(legacy.game.trickPlayState?.playedCards.count, publicCount)
+            let attachment = XCTAttachment(data: data, uniformTypeIdentifier: "public.json")
+            attachment.name = "Build3-legacy-\(name).json"; attachment.lifetime = .keepAlways; add(attachment)
+        }
+        let zero = model(); zero.deal(); auction(zero, bid: .seven, suit: .spades)
+        XCTAssertEqual(zero.gameState.currentTrickTurnSeat, .south); try export("zero", zero, publicCount: 0)
+        let six = model(); six.deal(); auction(six, bid: .seven, suit: .spades); try tricks(six, count: 6)
+        XCTAssertEqual(six.gameState.currentTrickTurnSeat, .south); try export("six", six, publicCount: 24)
+        let current = model(defense: true); current.deal(); auction(current, bid: .pass, suit: .spades)
+        for _ in 0..<3 { current.resolveNextSimulatedTrickPlay() }
+        XCTAssertEqual(current.gameState.currentTrickTurnSeat, .south)
+        XCTAssertEqual(current.gameState.trickPlayState?.currentTrick.count, 3); try export("current", current, publicCount: 3)
+        for (name, losing, defense, score) in [("made", false, false, GameScore(northSouth: 16, eastWest: 0)),
+            ("missed", true, false, GameScore(northSouth: -7, eastWest: 16)),
+            ("defense", false, true, GameScore(northSouth: 16, eastWest: -9))] {
+            let owner = model(defense: defense); owner.deal()
+            auction(owner, bid: defense ? .pass : .seven, suit: losing ? .clubs : .spades)
+            try tricks(owner, count: 13); XCTAssertEqual(owner.gameScore, score)
+            owner.startNextRound(); auction(owner, bid: .thirteen, suit: .spades)
+            XCTAssertEqual(owner.gameState.currentTrickTurnSeat, .south); try export(name, owner, publicCount: 0)
+        }
     }
 }
