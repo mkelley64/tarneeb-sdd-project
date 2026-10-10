@@ -431,6 +431,34 @@ final class TarneebRoundResultUITests: XCTestCase {
         XCTAssertEqual(app.otherElements["tarneeb-opening-deck"].value as? String, "52 cards")
     }
 
+    func testKabootBilingualCopyRenderingAndAccessibility() {
+        for reducedMotion in [false, true] {
+            for (fixture, expected, ns, ew) in [
+                ("round-made", "كبوت — You + Partner swept all 13 tricks!", 16, 0),
+                ("round-missed", "كبوت — Opponents swept all 13 tricks!", -7, 16),
+                ("round-defense", "كبوت — You + Partner swept all 13 tricks!", 16, -9)
+            ] {
+                let app = launch(fixture, reducedMotion: reducedMotion)
+                let text = app.staticTexts["tarneeb-result-earned"]
+                XCTAssertTrue(text.waitForExistence(timeout: 5))
+                XCTAssertEqual(text.label, expected)
+                XCTAssertFalse(text.label.contains("\u{2066}"))
+                XCTAssertFalse(text.label.contains("\u{2069}"))
+                XCTAssertTrue(app.frame.contains(text.frame))
+                XCTAssertGreaterThan(text.frame.width, 0)
+                XCTAssertTrue(app.staticTexts["North South score \(ns)"].exists)
+                XCTAssertTrue(app.staticTexts["East West score \(ew)"].exists)
+                XCTAssertTrue(app.buttons["tarneeb-next-hand"].isHittable)
+                let shot = XCTAttachment(screenshot: app.screenshot())
+                shot.name = "Kaboot \(Int(app.frame.width))pt \(fixture) RM\(reducedMotion)"
+                shot.lifetime = .keepAlways; add(shot)
+                let semantics = XCTAttachment(string: "label=\(text.label); frame=\(text.frame)\n" + app.debugDescription)
+                semantics.name = "Kaboot accessibility \(fixture) RM\(reducedMotion)"
+                semantics.lifetime = .keepAlways; add(semantics)
+                app.terminate()
+            }
+        }
+    }
     func testSuccessfulDefenseShowsRealOpponentPenaltyAndKaboot() {
         let app = launch("round-defense")
         XCTAssertEqual(app.staticTexts["tarneeb-result-title"].label, "You held the line.")
@@ -441,7 +469,7 @@ final class TarneebRoundResultUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["East-West round change -9"].exists)
         XCTAssertTrue(app.staticTexts["East-West took 0 of 13 tricks"].exists)
         XCTAssertTrue(app.staticTexts["You + Partner took 13 defending tricks."].exists)
-        XCTAssertTrue(app.staticTexts["Kaboot · 13 defending tricks · +16 points"].exists)
+        XCTAssertTrue(app.staticTexts["كبوت — You + Partner swept all 13 tricks!"].exists)
         let shot = XCTAttachment(screenshot: app.screenshot()); shot.name = "Successful defense — actual engine"; shot.lifetime = .keepAlways; add(shot)
         app.buttons["tarneeb-next-hand"].tap()
         XCTAssertTrue(app.otherElements["tarneeb-opening-table"].waitForExistence(timeout: 5))

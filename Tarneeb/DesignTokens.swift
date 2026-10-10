@@ -91,14 +91,26 @@ struct RoomOutcomePresentation {
         let tricks = presentation.result.declaringTeam == .teamA ? presentation.result.declaringTricks : presentation.result.defendingTricks
         let special: String
         switch presentation.result.outcome {
-        case .declaringKaboot: special = presentation.result.declaringTeam == .teamA ? "Kaboot · " : "Opponents’ Kaboot · "
-        case .defendingKaboot: special = presentation.result.defendingTeam == .teamA ? "Kaboot · " : "Opponents’ Kaboot · "
+        case .declaringKaboot: return kabootMessage(for: presentation.result.declaringTeam)
+        case .defendingKaboot: return kabootMessage(for: presentation.result.defendingTeam)
         case .bidThirteenMade: special = "Bid 13 made · "
         case .bidThirteenFailed: special = "Bid 13 missed · "
         default: special = ""
         }
         return "\(special)\(tricks) \(isDefense ? "defending " : "")tricks · \(delta > 0 ? "+" : "")\(delta) points"
     }
+    private func kabootMessage(for team: Team) -> String {
+        team == .teamA ? "كبوت — You + Partner swept all 13 tricks!" : "كبوت — Opponents swept all 13 tricks!"
+    }
+    // Isolate only this mixed-direction sentence. Keep the accessibility label
+    // free of formatting controls so its words and punctuation remain semantic.
+    var earnedDisplayText: String {
+        switch presentation.result.outcome {
+        case .declaringKaboot, .defendingKaboot: return "\u{2066}\(earned)\u{2069}"
+        default: return earned
+        }
+    }
+
 }
 
 enum RoomOutcomeTiming {

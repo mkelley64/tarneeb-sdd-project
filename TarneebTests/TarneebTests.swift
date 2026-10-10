@@ -5027,9 +5027,48 @@ final class TarneebRoomOutcomeTests: XCTestCase {
                     XCTAssertEqual(room.isDefense, team == .teamB && tricks < bid)
                     XCTAssertEqual(room.kicker, tricks >= bid ? "CONTRACT MADE" : team == .teamB ? "CONTRACT DEFEATED" : "CONTRACT MISSED")
                     XCTAssertTrue(room.detail.contains("\(team == .teamB && tricks < bid ? 13 - tricks : tricks)"))
-                    XCTAssertTrue(room.earned.contains("\(result.scoreDelta(for: .teamA)) points"))
+                    if result.outcome != .declaringKaboot && result.outcome != .defendingKaboot {
+                        XCTAssertTrue(room.earned.contains("\(result.scoreDelta(for: .teamA)) points"))
+                    }
                     XCTAssertEqual(room.title, team == .teamB && tricks < bid ? "You held the line." : team == .teamA && tricks >= bid ? "You brought it home." : tricks >= bid ? "They made the contract." : "The contract slipped away.")
                 }
+            }
+        }
+    }
+    func testKabootCopyNamesActualSweepingTeamAndPreservesSpecialScoring() throws {
+        let service = TarneebScoringService()
+        for declaringTeam in [Team.teamA, .teamB] {
+            for (bid, declaringTricks, expectedOutcome, declaringDelta, defendingDelta) in [
+                (8, 13, RoundScoringOutcome.declaringKaboot, 16, 0),
+                (8, 0, .defendingKaboot, -8, 16),
+                (13, 0, .defendingKaboot, -16, 16)
+            ] {
+                let result = try XCTUnwrap(service.scoreRound(declaringTeam: declaringTeam, bid: bid, declaringTricks: declaringTricks))
+                XCTAssertEqual(result.outcome, expectedOutcome)
+                XCTAssertEqual(result.declaringScoreDelta, declaringDelta)
+                XCTAssertEqual(result.defendingScoreDelta, defendingDelta)
+                let sweepingTeam = declaringTricks == 13 ? declaringTeam : declaringTeam.opponent
+                let expected = sweepingTeam == .teamA ? "كبوت — You + Partner swept all 13 tricks!" : "كبوت — Opponents swept all 13 tricks!"
+                let room = RoomOutcomePresentation(presentation: .init(result: result, score: .init()))
+                XCTAssertEqual(room.earned, expected)
+                XCTAssertEqual(room.earnedDisplayText, "\u{2066}\(expected)\u{2069}")
+            }
+        }
+    }
+    func testBidThirteenCopyRetainsPrecedenceAndScoringForEitherTeam() throws {
+        for team in [Team.teamA, .teamB] {
+            for (tricks, outcome, declaringDelta, defendingDelta, prefix) in [
+                (13, RoundScoringOutcome.bidThirteenMade, 26, 0, "Bid 13 made · "),
+                (11, .bidThirteenFailed, -16, 4, "Bid 13 missed · ")
+            ] {
+                let result = try XCTUnwrap(TarneebScoringService().scoreRound(declaringTeam: team, bid: 13, declaringTricks: tricks))
+                XCTAssertEqual(result.outcome, outcome)
+                XCTAssertEqual(result.declaringScoreDelta, declaringDelta)
+                XCTAssertEqual(result.defendingScoreDelta, defendingDelta)
+                let room = RoomOutcomePresentation(presentation: .init(result: result, score: .init()))
+                XCTAssertTrue(room.earned.hasPrefix(prefix))
+                XCTAssertTrue(room.earned.contains("\(result.scoreDelta(for: .teamA)) points"))
+                XCTAssertEqual(room.earnedDisplayText, room.earned)
             }
         }
     }

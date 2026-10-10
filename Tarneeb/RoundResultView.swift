@@ -37,7 +37,9 @@ struct RoundResultView: View {
                         .opacity(factsVisible ? 1 : 0)
                     scoreTable
                         .opacity(scoreVisible ? 1 : 0)
-                    Text(outcome.earned).font(.system(size: 12)).foregroundStyle(RoomColor.muted)
+                    Text(outcome.earnedDisplayText).font(.system(size: 12)).foregroundStyle(RoomColor.muted)
+                        .accessibilityLabel(outcome.earned)
+                        .accessibilityIdentifier("tarneeb-result-earned")
                         .opacity(scoreVisible ? 1 : 0)
                 } else {
                     victoryHero(compact: compact)
@@ -229,8 +231,9 @@ struct RoundResultView: View {
             kicker("ROUND \(roundNumber) · \(outcome.kicker)")
             Text("\(presentation.result.declaringTeam.displayLabel) bid").font(.system(size: 10)).foregroundStyle(RoomColor.muted)
             bidLabel
-            Text("\(presentation.result.declaringTricks) of 13 taken · \(outcome.earned)").font(.system(size: 11)).foregroundStyle(RoomColor.muted)
+            Text("\(presentation.result.declaringTricks) of 13 taken · \(outcome.earnedDisplayText)").font(.system(size: 11)).foregroundStyle(RoomColor.muted)
                 .multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
+                .accessibilityLabel("\(presentation.result.declaringTricks) of 13 taken · \(outcome.earned)")
             ForEach([Team.teamA, .teamB], id: \.self) { team in
                 Text("\(team == .teamA ? "You + Partner" : "East + West"): \(outcome.equation(for: team))")
                     .font(.system(size: 11)).foregroundStyle(RoomColor.muted)
